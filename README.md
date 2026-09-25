@@ -34,9 +34,11 @@ all here, open for anyone to read.
 **What to do** (once, the first time):
 
 1. Open the DMG and drag **Helix** into the **Applications** folder.
-2. Open Helix. macOS says it can't check it: click **Done** (not *Move to Trash*).
-3. Open **System Settings › Privacy & Security**, scroll down to the message about Helix, and
-   click **Open Anyway**. Confirm with your password or Touch ID.
+2. Open Helix. macOS says *“Helix.app” Not Opened*: click **Done** (not *Move to Trash*).
+3. Open **System Settings › Privacy & Security** and scroll down to **Security**. Next to
+   *“Helix.app” was blocked to protect your Mac*, click **Open Anyway**, then confirm with
+   Touch ID or your password.
+4. macOS asks one last time, *Open “Helix.app”?*: click **Open Anyway**.
 
 From then on, Helix opens normally. When a new version is out, Helix tells you (Helix › Check
 for Updates…): download it, replace the old one, and do these steps once more.
