@@ -40,6 +40,11 @@ all here, open for anyone to read.
    Touch ID or your password.
 4. macOS asks one last time, *Open “Helix.app”?*: click **Open Anyway**.
 
+The wording can differ slightly between macOS versions. Want to double-check the download?
+Drop the DMG on [VirusTotal](https://www.virustotal.com), which scans it with dozens of
+antivirus engines, or compare its SHA-256 with the one shown next to it on the Releases page
+(`shasum -a 256 Helix_*.dmg` in Terminal).
+
 From then on, Helix opens normally. When a new version is out, Helix tells you (Helix › Check
 for Updates…): download it, replace the old one, and do these steps once more.
 
