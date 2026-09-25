@@ -104,9 +104,12 @@ Xcode Command Line Tools (`xcode-select --install`).
 ```bash
 npm ci            # install
 npm run dev       # run Helix with live reload
-npm test          # check every analysis and graph against R
+npm test          # check every analysis and graph against their reference results
 npm run build     # build the two DMGs
 ```
+
+Building the two DMGs needs both Mac targets for Rust, once:
+`rustup target add aarch64-apple-darwin x86_64-apple-darwin`.
 
 ## License
 
