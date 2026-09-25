@@ -1,0 +1,55 @@
+# Builds Helix for a release: pushing a version tag (v1.1.0) runs the checks, then
+# builds the two DMGs (Apple Silicon, Intel) on GitHub's Macs and attaches them to a
+# draft release of that tag. Publishing the draft is what "Check for Updates" sees.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  check:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+
+  build:
+    needs: check
+    runs-on: macos-latest
+    permissions:
+      contents: write # to create the release and upload the DMGs
+    strategy:
+      matrix:
+        target: [aarch64-apple-darwin, x86_64-apple-darwin]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - run: npm ci
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: Helix ${{ github.ref_name }}
+          releaseDraft: true
+          tauriScript: npx tauri
+          args: --target ${{ matrix.target }}
+          releaseBody: |
+            Download the DMG for your Mac: **aarch64** for Apple Silicon (M1 and later), **x64** for Intel.
+
+            Helix isn't signed by Apple yet, so macOS blocks it the first time. Open the DMG, drag Helix
+            to Applications, open it once, then go to **System Settings › Privacy & Security** and click
+            **Open Anyway**. [Why, step by step](https://github.com/mickaphd/Helix#first-launch-why-macos-asks-and-what-to-do)

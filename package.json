@@ -1,0 +1,40 @@
+{
+  "name": "helix",
+  "version": "1.0.0",
+  "description": "Scientific data analysis, simplified — an open-source alternative to GraphPad Prism.",
+  "private": true,
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build --target aarch64-apple-darwin && tauri build --target x86_64-apple-darwin",
+    "install-app": "tauri build --bundles app && rm -rf /Applications/Helix.app && ditto src-tauri/target/release/bundle/macos/Helix.app /Applications/Helix.app",
+    "web": "vite",
+    "check": "tsc --noEmit",
+    "sample": "node --import tsx tests/sample-project.ts",
+    "test": "node --import tsx tests/checks.ts && node --import tsx tests/reference.ts"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/plugin-dialog": "^2.7.3",
+    "lucide-react": "^0.542.0",
+    "plotly.js-dist-min": "^3.7.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "webr": "^0.5.4"
+  },
+  "devDependencies": {
+    "@rolldown/plugin-babel": "^0.2.1",
+    "@tailwindcss/vite": "^4.2.2",
+    "@tauri-apps/cli": "^2.11.5",
+    "@types/node": "^24.13.6",
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^6.0.1",
+    "babel-plugin-react-compiler": "^1.0.0",
+    "tailwindcss": "^4.2.2",
+    "tsx": "^4.23.15",
+    "typescript": "^5.5.3",
+    "vite": "^8.0.2"
+  }
+}

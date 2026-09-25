@@ -1,0 +1,107 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── Design tokens ───────────────────────────────────────────────────── */
+
+:root {
+  --fg: #000;
+  --bg: rgb(255 255 255 / 0.85); /* over the window's native vibrancy */
+  --surface: #fcfcfc; /* dialogs, menus */
+  --accent: #0a84ff;
+  --blue: #138af2;
+  --green: #248a3d;
+  --red: #d70015;
+  --excluded: #0d74ce; /* excluded cells */
+  --desk: rgb(0 0 0 / 0.05); /* around a graph's sheet */
+  --sheet-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.12), 0 2px 6px rgb(0 0 0 / 0.06), 0 12px 32px rgb(0 0 0 / 0.08);
+}
+
+.dark {
+  --fg: #fff;
+  --bg: rgb(0 0 0 / 0.4);
+  --surface: #2a2a2c;
+  --green: #30d158;
+  --red: #ff6961;
+  --excluded: #70b8ff;
+  --desk: rgb(0 0 0 / 0.3);
+  --sheet-shadow: 0 0 0 0.5px rgb(255 255 255 / 0.12), 0 4px 18px rgb(0 0 0 / 0.5);
+  color-scheme: dark;
+}
+
+@theme {
+  --font-sans: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+
+  --color-primary: var(--fg);
+  --color-secondary: rgb(from var(--fg) r g b / 0.6);
+  --color-separator: rgb(from var(--fg) r g b / 0.1);
+  --color-control: rgb(from var(--fg) r g b / 0.06);
+  --color-surface: var(--surface);
+  --color-accent: var(--accent);
+  --color-support-blue: var(--blue);
+  --color-support-green: var(--green);
+  --color-support-red: var(--red);
+  --color-excluded: var(--excluded);
+  --color-desk: var(--desk);
+  --shadow-sheet: var(--sheet-shadow);
+
+  --text-small: 11px;
+  --text-small--line-height: 14px;
+  --text-small-strong: 11px;
+  --text-small-strong--line-height: 14px;
+  --text-small-strong--font-weight: 500;
+  --text-regular: 13px;
+  --text-regular--line-height: 18px;
+  --text-strong: 13px;
+  --text-strong--line-height: 18px;
+  --text-strong--font-weight: 500;
+  --text-large-strong: 16px;
+  --text-large-strong--line-height: 22px;
+  --text-large-strong--font-weight: 500;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-size: var(--text-regular);
+    line-height: 18px;
+    overflow: hidden;
+    -webkit-user-select: none; /* WebKit still needs the prefix */
+    user-select: none;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  input,
+  textarea {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  dialog::backdrop {
+    background: rgb(0 0 0 / 0.2);
+  }
+}
+
+/* ── Graphs (Plotly) ─────────────────────────────────────────────────
+ * Graphs are static (Prism-style): no zoom or pan, so no drag cursors. */
+.js-plotly-plot .drag {
+  cursor: default !important;
+}
+
+/* A transparent graph's sheet: the usual gray and white checks. */
+.checkerboard {
+  background: repeating-conic-gradient(#e6e6e6 0 25%, #fff 0 50%) 0 0 / 16px 16px;
+}
+
