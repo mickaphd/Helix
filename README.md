@@ -18,35 +18,11 @@ Get the latest version from the [Releases page](https://github.com/mickaphd/Heli
 - `Helix_…_aarch64.dmg` for Macs with Apple Silicon (M1 and later)
 - `Helix_…_x64.dmg` for Macs with an Intel processor
 
-Requires macOS 13 (Ventura) or later.
+Requires macOS 13 (Ventura) or later. Open the DMG and drag **Helix** into the
+**Applications** folder. Helix is signed and notarized by Apple, so it opens like any other app.
 
-> [!IMPORTANT]
-> **Helix isn't signed by Apple yet**, so macOS blocks it the first time you open it. Nothing is wrong:
-> it only takes one click in System Settings, [explained just below](#first-launch-why-macos-asks-and-what-to-do).
-
-### First launch: why macOS asks, and what to do
-
-**Why.** Apple charges developers $99 a year to sign their apps. Helix is free and made by
-one person, so it isn't signed yet. macOS therefore can't check who made it and blocks it the
-first time, as it does for any unsigned app. That's not a sign of a problem: Helix's code is
-all here, open for anyone to read.
-
-**What to do** (once, the first time):
-
-1. Open the DMG and drag **Helix** into the **Applications** folder.
-2. Open Helix. macOS says *“Helix.app” Not Opened*: click **Done** (not *Move to Trash*).
-3. Open **System Settings › Privacy & Security** and scroll down to **Security**. Next to
-   *“Helix.app” was blocked to protect your Mac*, click **Open Anyway**, then confirm with
-   Touch ID or your password.
-4. macOS asks one last time, *Open “Helix.app”?*: click **Open Anyway**.
-
-The wording can differ slightly between macOS versions. Want to double-check the download?
-Drop the DMG on [VirusTotal](https://www.virustotal.com), which scans it with dozens of
-antivirus engines, or compare its SHA-256 with the one shown next to it on the Releases page
-(`shasum -a 256 Helix_*.dmg` in Terminal).
-
-From then on, Helix opens normally. When a new version is out, Helix tells you (Helix › Check
-for Updates…): download it, replace the old one, and do these steps once more.
+When a new version is out, Helix tells you (Helix › Check for Updates…): download it and
+replace the old one.
 
 ## What Helix does
 

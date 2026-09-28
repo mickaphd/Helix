@@ -1,6 +1,6 @@
 {
   "name": "helix",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Scientific data analysis, simplified — an open-source alternative to GraphPad Prism.",
   "private": true,
   "license": "GPL-3.0-or-later",
