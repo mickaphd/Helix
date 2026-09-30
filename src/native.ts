@@ -1,14 +1,13 @@
-// The only module that talks to the native shell (Tauri): dialogs, files,
-// window state, and files opened from Finder. Everything else in the app is
-// plain web code.
+// The only module that talks to the native shell (Tauri): dialogs, files, the
+// project windows and what they open, and the R engine. Everything else in the
+// app is plain web code.
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { getVersion } from "@tauri-apps/api/app";
-import { resolveResource } from "@tauri-apps/api/path";
-import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { Menu, type MenuOptions } from "@tauri-apps/api/menu";
-import { message, open, save } from "@tauri-apps/plugin-dialog";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { getVersion, setTheme as setAppTheme } from "@tauri-apps/api/app";
+import { Menu, Submenu, type MenuOptions } from "@tauri-apps/api/menu";
+import { message, save } from "@tauri-apps/plugin-dialog";
+import type { RVector } from "./stats/webr";
 
 /** False when the UI runs in a plain browser (`npm run web`, for development). */
 export const isNative = "__TAURI_INTERNALS__" in window;
@@ -55,11 +54,6 @@ export async function askToDownload(version: string): Promise<boolean> {
 /** This app's version ("1.0.0"), from its bundle. */
 export const appVersion = () => getVersion();
 
-export async function pickFileToOpen(name: string, ext: string): Promise<string | null> {
-  const path = await open({ title: "Open", filters: [{ name, extensions: [ext] }] });
-  return typeof path === "string" ? path : null;
-}
-
 /** `defaultPath` may be a bare file name; the panel then picks the folder. */
 export async function pickSavePath(title: string, defaultPath: string, name: string, ext: string) {
   return save({ title, defaultPath, filters: [{ name, extensions: [ext] }] });
@@ -75,12 +69,36 @@ export function writeFile(path: string, data: string | Uint8Array) {
   return invoke("write_file", bytes, { headers: { path: encodeURIComponent(path) } });
 }
 
+// ── R engine ───────────────────────────────────────────────────────────
+// One R for the whole app, in the hidden "engine" window. The native shell
+// passes each request there and its answer back (see main.rs, `REngine`).
+
+/** From a project window: runs R code in the engine. */
+export function evalR(code: string): Promise<RVector> {
+  return invoke<RVector>("eval_r", { code }).catch((err: unknown) => {
+    throw new Error(String(err));
+  });
+}
+
+/** In the engine window: answers every request with `evaluate`. */
+export async function serveR(evaluate: (code: string) => Promise<RVector>) {
+  await getCurrentWebviewWindow().listen<[number, string]>("r-eval", ({ payload: [id, code] }) =>
+    evaluate(code).then(
+      (values) => invoke("r_result", { id, values }),
+      (err: unknown) => invoke("r_result", { id, error: err instanceof Error ? err.message : String(err) }),
+    ),
+  );
+  await invoke("r_ready");
+}
+
 // ── Window ─────────────────────────────────────────────────────────────
 
-export function setDocument(title: string, edited: boolean) {
+/** The window's title, and what the shell needs to know of its project: its file,
+ *  its unsaved changes (the dot in the close button), and whether it is blank. */
+export function setDocument(title: string, path: string | null, edited: boolean, blank: boolean) {
   if (!isNative) return;
   win().setTitle(title);
-  invoke("set_edited", { edited });
+  invoke("set_document", { path, edited, blank });
 }
 
 /** Recent projects (newest first), also listed by macOS in the Dock icon's menu. */
@@ -88,22 +106,20 @@ export function setRecentDocuments(paths: string[]) {
   if (isNative) invoke("set_recent_documents", { paths });
 }
 
-/** Run `canClose` whenever the window is about to close (red button, ⌘W, ⌘Q). */
+/** Run `canClose` whenever the window is about to close (red button, ⌘W, ⌘Q). A window
+ *  that stays open while Helix quits stops the quitting. */
 export function onCloseRequested(canClose: () => Promise<boolean>) {
   if (!isNative) return () => {};
   const off = win().onCloseRequested(async (event) => {
-    if (!(await canClose())) event.preventDefault();
+    if (await canClose()) return;
+    event.preventDefault();
+    void invoke("cancel_quit");
   });
   return () => void off.then((f) => f());
 }
 
-export const closeWindow = () => win().close();
-
 /** Helix's website, GitHub page or releases, in the default browser. */
 export const openLink = (link: "website" | "github" | "releases") => void invoke("open_link", { link });
-
-/** The sample project that comes inside the app (samples/ in the source). */
-export const readSample = () => resolveResource("Helix Sample.hlx").then(readText);
 
 /** Calls `handler` now and whenever the window enters or leaves full screen. */
 export function onFullscreenChange(handler: (fullscreen: boolean) => void) {
@@ -114,31 +130,93 @@ export function onFullscreenChange(handler: (fullscreen: boolean) => void) {
   return () => void off.then((f) => f());
 }
 
-/** Files opened from Finder (double-click, Open With, Dock drop) or dropped on the window.
- *  `launchedAlone` runs when Helix was launched without a file to open. */
-export function onOpenFiles(handler: (paths: string[]) => void, launchedAlone: () => void) {
+/** Calls `handler` now and whenever the window comes to the front or goes behind another. */
+export function onFocusChange(handler: (focused: boolean) => void) {
   if (!isNative) return () => {};
-  const take = () => invoke<string[]>("take_opened_files").then((paths) => paths.length && handler(paths));
-  // Files that launched the app arrived before we were listening.
-  void invoke<string[]>("take_opened_files").then((paths) => (paths.length ? handler(paths) : launchedAlone()));
-  const offs = [
-    listen("opened-files", take),
-    getCurrentWebview().onDragDropEvent(({ payload }) => {
-      if (payload.type === "drop") handler(payload.paths);
-    }),
-  ];
-  return () => offs.forEach((off) => off.then((f) => f()));
+  void win().isFocused().then(handler);
+  const off = win().onFocusChanged(({ payload }) => handler(payload));
+  return () => void off.then((f) => f());
+}
+
+// ── Projects ───────────────────────────────────────────────────────────
+// Each project has its own window. The shell knows which window holds which
+// file, so it decides where a project opens (see main.rs, `Projects`).
+
+/** A project file for a window to open; `untitled`: as a new document, like the sample. */
+export type Opening = { path: string; untitled: boolean };
+
+/** Opens projects: in their window if they're open, in this one if it's blank, else in new
+ *  ones. Rejects with the path of a file that is gone, and opens nothing. */
+export const openProjects = (paths: string[]) => invoke("open_projects", { paths });
+
+/** The sample project, which ships inside the app, as a new document. */
+export const openSample = () => invoke("open_sample");
+
+/** A new window with a new project. */
+export const newProject = () => invoke("new_project");
+
+/** File ▸ Open…: the Open panel, then the chosen project opens as `openProjects` decides. */
+export const chooseProject = () => invoke("choose_project");
+
+/** In the engine window: calls `handler` when the last project window has closed. */
+export function onNoWindows(handler: () => void) {
+  if (!isNative) return () => {};
+  const off = getCurrentWebviewWindow().listen("no-windows", handler);
+  return () => void off.then((f) => f());
+}
+
+/** Calls `handler` with what this window should open: once its page is ready, and
+ *  whenever the shell gives it more (⌘O, Open Recent, the Finder, the Dock). */
+export function onOpening(handler: (opening: Opening) => void) {
+  if (!isNative) return () => {};
+  const take = () => invoke<Opening | null>("take_opening").then((opening) => opening && handler(opening));
+  // Listening first: an opening given while this window takes the first is not lost.
+  const off = getCurrentWebviewWindow().listen("opening", take);
+  void off.then(take);
+  return () => void off.then((f) => f());
+}
+
+/** Calls `handler` with the files dropped on the window. */
+export function onDrop(handler: (paths: string[]) => void) {
+  if (!isNative) return () => {};
+  const off = getCurrentWebviewWindow().onDragDropEvent(({ payload }) => {
+    if (payload.type === "drop") handler(payload.paths);
+  });
+  return () => void off.then((f) => f());
 }
 
 export type MenuItems = NonNullable<MenuOptions["items"]>;
 
-/** Shows a native context menu at the pointer. */
-export function popupMenu(items: MenuItems) {
-  if (isNative) void Menu.new({ items }).then((menu) => menu.popup());
+// Menus made here live in the shell until closed, even once replaced: each one is
+// closed when it's done with, or they would pile up until Helix quits.
+let menuBar: (Menu | Submenu)[] = [];
+
+/** Installs the app's menu bar: `menus`, then Window and Help, which macOS fills with
+ *  the open windows and its menu search. */
+export async function installMenuBar(menus: MenuItems, windowItems: MenuItems, helpItems: MenuItems) {
+  if (!isNative) return;
+  const windows = await Submenu.new({ text: "Window", items: windowItems });
+  const help = await Submenu.new({ text: "Help", items: helpItems });
+  const menu = await Menu.new({ items: [...menus, windows, help] });
+  await menu.setAsAppMenu();
+  await windows.setAsWindowsMenuForNSApp();
+  await help.setAsHelpMenuForNSApp();
+  const replaced = menuBar;
+  menuBar = [menu, windows, help];
+  for (const old of replaced) void old.close();
+}
+
+/** Shows a native context menu at the pointer (the call returns once it has closed). */
+export async function popupMenu(items: MenuItems) {
+  if (!isNative) return;
+  const menu = await Menu.new({ items });
+  await menu.popup();
+  await menu.close();
 }
 
 export type Theme = "system" | "light" | "dark";
 
+/** The appearance of every window. */
 export function setTheme(theme: Theme) {
-  if (isNative) win().setTheme(theme === "system" ? null : theme);
+  if (isNative) void setAppTheme(theme === "system" ? null : theme);
 }

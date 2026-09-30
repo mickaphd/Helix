@@ -10,6 +10,7 @@ import type { Column } from "../../lib/dataset";
 import type { GraphFigure } from ".";
 import { pStars, pText } from "../../lib/format";
 import { INK, mean, sd, median } from "./plot-helpers";
+import { pairKey } from "../../lib/columns";
 
 /** One pairwise comparison offered to the graph, keyed stably for persistence. */
 export interface SigComparison {
@@ -18,11 +19,6 @@ export interface SigComparison {
   group2: string;
   p: number | null;
 }
-
-/** NUL-joined key — safe against column names containing arrow/pipe characters. */
-export const pairKey = (a: string, b: string) => `${a}\u0000${b}`;
-/** The two column names of a `pairKey`. */
-export const pairOf = (key: string) => key.split("\u0000") as [string, string];
 
 /** Pull the drawable pairwise comparisons out of an analysis outcome. Post-hoc
  *  tests (ANOVA/Kruskal-Wallis) expose a `comparisons` table directly; a plain

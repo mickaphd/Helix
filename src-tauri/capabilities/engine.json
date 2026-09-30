@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "engine",
+  "description": "The hidden window running R, which also sets the menu bar while no project window is open.",
+  "windows": ["engine"],
+  "permissions": ["core:default"]
+}

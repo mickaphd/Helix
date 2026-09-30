@@ -15,6 +15,7 @@ license; the full texts come with each package's source.
 | [Tauri](https://tauri.app) (with its dialog and window-state plugins) | 2.11 | MIT or Apache-2.0 | The native macOS app around the interface |
 | [objc2](https://github.com/madsmtm/objc2) | 0.6.4 | MIT | Talking to macOS from the native side |
 | [percent-encoding](https://github.com/servo/rust-url) | 2.3.2 | MIT or Apache-2.0 | Passing file paths to the native side |
+| [serde](https://serde.rs) | 1.0.229 | MIT or Apache-2.0 | Passing data between the windows and the native side |
 | [Lucide](https://lucide.dev) | 0.542.0 | ISC | Icons |
 | [Tailwind CSS](https://tailwindcss.com) | 4.2.4 | MIT | Styles (compiled into the app's stylesheet) |
 

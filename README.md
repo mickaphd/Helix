@@ -18,7 +18,7 @@ Get the latest version from the [Releases page](https://github.com/mickaphd/Heli
 - `Helix_…_aarch64.dmg` for Macs with Apple Silicon (M1 and later)
 - `Helix_…_x64.dmg` for Macs with an Intel processor
 
-Requires macOS 13 (Ventura) or later. Open the DMG and drag **Helix** into the
+Requires macOS 14 (Sonoma) or later. Open the DMG and drag **Helix** into the
 **Applications** folder. Helix is signed and notarized by Apple, so it opens like any other app.
 
 When a new version is out, Helix tells you (Helix › Check for Updates…): download it and
@@ -63,6 +63,7 @@ for you. Every result comes from R.
 ### Projects
 
 - A native Mac app: real menus and shortcuts, light and dark mode, resizable sidebar and inspector
+- Several projects at once, each in its own window; the ones still open when you quit come back at the next launch
 - Open projects: a Helix file (`.hlx`) is plain JSON, described in [FILE-FORMAT.md](FILE-FORMAT.md),
   so your data are never locked in
 

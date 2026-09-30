@@ -411,9 +411,11 @@ export function Grid({ data, type, update, configure }: GridProps) {
     const onUp = () => {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
   };
 
   const lastRow = nRows - 1;
@@ -442,7 +444,7 @@ export function Grid({ data, type, update, configure }: GridProps) {
       setSel({ anchor, focus });
       g = toRange({ anchor, focus });
     }
-    popupMenu(gridMenu({ data, type, zone, range: g, update, rename: startRename, configure }));
+    void popupMenu(gridMenu({ data, type, zone, range: g, update, rename: startRename, configure }));
   };
 
   /** Drag a header's right edge to resize its column; double-click it to fit the content. */
@@ -462,11 +464,13 @@ export function Grid({ data, type, update, configure }: GridProps) {
           const onUp = () => {
             window.removeEventListener("pointermove", onMove);
             window.removeEventListener("pointerup", onUp);
+            window.removeEventListener("pointercancel", onUp);
             setResizing(null);
             if (width !== startW) update(setColumnWidth(data, c, width), "Column Width");
           };
           window.addEventListener("pointermove", onMove);
           window.addEventListener("pointerup", onUp);
+          window.addEventListener("pointercancel", onUp);
         }}
         onDoubleClick={(e) => {
           e.stopPropagation();

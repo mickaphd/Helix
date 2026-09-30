@@ -1,5 +1,5 @@
-// Keys that tie cells, series and points of a table together. Reading the data
-// itself is lib/dataset.ts.
+// Keys that tie cells, series, points and compared pairs of a table together.
+// Reading the data itself is lib/dataset.ts.
 import type { PaletteColor, TableData } from "../store/types";
 
 /** Key of an excluded cell: full-grid coords (col 0 = row titles, never excluded). */
@@ -42,3 +42,9 @@ export function withSeriesColor(data: TableData, key: string, token: PaletteColo
   }
   return { ...data, seriesColors, pointColors: Object.keys(pointColors).length ? pointColors : undefined };
 }
+
+/** Key of a compared pair of columns (a graph's significance brackets). NUL-joined, so
+ *  any column name is safe in it. */
+export const pairKey = (a: string, b: string) => `${a}\u0000${b}`;
+/** The two column names of a `pairKey`. */
+export const pairOf = (key: string) => key.split("\u0000") as [string, string];

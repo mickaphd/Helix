@@ -4,7 +4,7 @@
 // its analyses and graphs follow, so they keep working on the same data.
 import type { AnalysisParams } from "../stats/types";
 import type { GraphOptions, ProjectNode } from "./types";
-import { pairKey, pairOf } from "../views/graphs/significance-overlay";
+import { pairKey, pairOf } from "../lib/columns";
 
 // The params and options holding names (a name, or a list of names).
 const PARAM_NAMES = ["y", "dependent", "predictors", "datasets"] as const;

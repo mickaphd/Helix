@@ -214,7 +214,7 @@ export function ProjectSidebar() {
   };
 
   const tableMenu = (table: ProjectNode) =>
-    popupMenu([
+    void popupMenu([
       { text: "New Analysis", action: () => openAnalysisPicker(table.id) },
       { text: "New Graph", action: () => openGraphPicker(table.id) },
       { item: "Separator" },
@@ -223,7 +223,7 @@ export function ProjectSidebar() {
     ]);
 
   const childMenu = (child: ProjectNode) =>
-    popupMenu([
+    void popupMenu([
       { text: "Rename", action: () => setRenaming(child) },
       { text: `Delete ${child.type === "analysis" ? "Analysis" : "Graph"}…`, action: () => removeWithConfirm(child, removeNode) },
     ]);

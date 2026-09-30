@@ -75,8 +75,7 @@ type Action =
       activeNodeId: string | null;
       filePath: string | null;
     }
-  | { type: "markSaved"; filePath: string; savedRevision: number }
-  | { type: "newProject" };
+  | { type: "markSaved"; filePath: string; savedRevision: number };
 
 function nextName(prefix: string, taken: string[]): string {
   const used = new Set<number>();
@@ -262,12 +261,10 @@ function applyAction(state: ProjectState, action: Action): ProjectState {
         filePath: action.filePath,
         isDirty: state.revision !== action.savedRevision,
       };
-    case "newProject":
-      return makeInitialState();
   }
 }
 
-// The changes Undo can take back. With undo, redo, load and a new project, they bump
+// The changes Undo can take back. With undo, redo and load, they bump
 // `revision`; a no-op (the same state back, e.g. a reorder that moved nothing) does not.
 const UNDOABLE = new Set<Action["type"]>([
   "create",
@@ -278,7 +275,7 @@ const UNDOABLE = new Set<Action["type"]>([
   "reorderRoot",
   "reorderChildren",
 ]);
-const MUTATING = new Set<Action["type"]>([...UNDOABLE, "undo", "redo", "load", "newProject"]);
+const MUTATING = new Set<Action["type"]>([...UNDOABLE, "undo", "redo", "load"]);
 
 /** What a change is called in the Edit menu ("Undo Rename"). */
 function changeName(action: Action): string {
@@ -364,8 +361,6 @@ interface ProjectContextValue {
     filePath: string | null;
   }) => void;
   markProjectSaved: (filePath: string, savedRevision: number) => void;
-  /** Discard the current project and start a fresh one (default "Table 1"). */
-  newProject: () => void;
 }
 
 const ProjectContext = React.createContext<ProjectContextValue | null>(null);
@@ -484,7 +479,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       loadProject: (payload) => dispatch({ type: "load", ...payload }),
       markProjectSaved: (filePath, savedRevision) =>
         dispatch({ type: "markSaved", filePath, savedRevision }),
-      newProject: () => dispatch({ type: "newProject" }),
     };
   }, [state]);
 

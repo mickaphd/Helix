@@ -2,27 +2,20 @@ import * as React from "react";
 import { useProjectStore, type ProjectNode } from "./use-project-store";
 import { parseProjectFile, serializeProjectFile, PROJECT_FILE_EXTENSION } from "../lib/project-file";
 import * as native from "../native";
+import { loadRecents, MAX_RECENTS, saveRecents } from "./recents";
+import { openProjectsOrSay } from "../menus";
+import { fileTitle } from "../lib/paths";
 
-const RECENTS_KEY = "helix.recent";
-// The project open when Helix last closed, reopened at the next launch.
-const LAST_KEY = "helix.lastProject";
-const MAX_RECENTS = 10;
+const UNTITLED = "Untitled";
 
-const baseName = (path: string) => path.slice(path.lastIndexOf("/") + 1).replace(/\.[^.]+$/, "");
-
-function loadRecents(): string[] {
-  try {
-    return JSON.parse(localStorage.getItem(RECENTS_KEY) ?? "[]");
-  } catch {
-    return [];
-  }
-}
+const isProjectFile = (path: string) => path.toLowerCase().endsWith(`.${PROJECT_FILE_EXTENSION}`);
 
 /**
- * The project's document lifecycle: New / Open / Save / Save As, Open Recent, the last
- * project reopened at launch, files opened from Finder or dropped on the window, the
- * unsaved-changes dot and title on the native window, and the Save / Don't Save /
- * Cancel prompt whenever unsaved work is about to be discarded (new, open, close, quit).
+ * The window's project, from opening to saving: what the shell gives it to open (a
+ * file, the sample, a project still open when Helix last quit), files dropped on it,
+ * Save / Save As, Open Recent, the title and unsaved-changes dot of the window, and the
+ * Save / Don't Save / Cancel prompt when it closes. Each project has its own window:
+ * the shell decides where a project opens (native.openProjects).
  */
 export function useDocument() {
   const store = useProjectStore();
@@ -32,26 +25,30 @@ export function useDocument() {
   });
   const [recents, setRecents] = React.useState(loadRecents);
   // The window's title while the project isn't saved anywhere.
-  const [untitled, setUntitled] = React.useState("Untitled");
-  const [lastProject] = React.useState(() => localStorage.getItem(LAST_KEY));
-  React.useEffect(() => {
-    if (store.filePath) localStorage.setItem(LAST_KEY, store.filePath);
-    else localStorage.removeItem(LAST_KEY);
-  }, [store.filePath]);
-
+  const [untitled, setUntitled] = React.useState(UNTITLED);
+  // Other windows change the list too: this one reads it again when it comes to the front.
+  React.useEffect(
+    () =>
+      native.onFocusChange((focused) => {
+        if (!focused) return;
+        const stored = loadRecents();
+        setRecents((list) => (stored.join("\n") === list.join("\n") ? list : stored));
+      }),
+    [],
+  );
   const addRecent = (path: string) =>
     setRecents((list) => [path, ...list.filter((p) => p !== path)].slice(0, MAX_RECENTS));
   const clearRecents = () => setRecents([]);
+  const forgetRecent = (path: string) => setRecents((list) => list.filter((p) => p !== path));
 
-  // Kept for the next launch, and handed to macOS for the Dock icon's menu.
-  React.useEffect(() => {
-    localStorage.setItem(RECENTS_KEY, JSON.stringify(recents));
-    native.setRecentDocuments(recents);
-  }, [recents]);
+  React.useEffect(() => saveRecents(recents), [recents]);
 
-  React.useEffect(() => {
-    native.setDocument(store.filePath ? baseName(store.filePath) : untitled, store.isDirty);
-  }, [store.filePath, store.isDirty, untitled]);
+  const { filePath, isDirty } = store;
+  const title = filePath ? fileTitle(filePath) : untitled;
+  const blank = !filePath && !isDirty && untitled === UNTITLED;
+  // Told again when an opening fails, so the shell doesn't keep the file it expected here.
+  const report = () => native.setDocument(title, filePath, isDirty, blank);
+  React.useEffect(() => report(), [title, filePath, isDirty, blank]);
 
   const save = async (saveAs = false): Promise<boolean> => {
     const { filePath } = latest.current;
@@ -75,41 +72,38 @@ export function useDocument() {
       addRecent(target);
       return true;
     } catch (err) {
-      await native.alert("Couldn't Save Project", `“${baseName(target)}” couldn't be saved there (${err}). Try Save As… another folder.`, "error");
+      await native.alert("Couldn't Save Project", `“${fileTitle(target)}” couldn't be saved there (${err}). Try Save As… another folder.`, "error");
       return false;
     }
   };
 
-  /** True when it's fine to discard the current project (saved, or the user said so). */
+  /** True when it's fine to discard the project (saved, or the user said so). */
   const confirmDiscard = async (): Promise<boolean> => {
     if (!latest.current.isDirty) return true;
     const answer = await native.askToSave();
     return answer === "save" ? save() : answer === "discard";
   };
 
-  /** `quiet`: at launch, a last project that's gone is simply not reopened. */
-  const load = async (path: string, quiet = false) => {
+  /** Opens a project file in this window; `untitled`, as a new document named after it. */
+  const load = async (path: string, untitled: boolean) => {
     let text: string;
     try {
       text = await native.readText(path);
     } catch {
-      if (quiet) return;
+      report();
       // Gone since it was opened last: it leaves Open Recent too.
       setRecents((list) => list.filter((p) => p !== path));
-      return native.alert("Couldn't Open Project", `“${baseName(path)}” couldn't be found. It may have been moved or deleted.`, "error");
+      return native.alert("Couldn't Open Project", `“${fileTitle(path)}” couldn't be found. It may have been moved or deleted.`, "error");
     }
-    if (await show(text, path)) addRecent(path);
-  };
-
-  /** Puts a project's text on screen; `path` null opens it untitled. False if unreadable. */
-  const show = async (text: string, path: string | null): Promise<boolean> => {
     try {
       const parsed = parseProjectFile(JSON.parse(text));
       if ("error" in parsed) {
-        await native.alert("Couldn't Open Project", parsed.error, "error");
-        return false;
+        report();
+        return native.alert("Couldn't Open Project", parsed.error, "error");
       }
-      latest.current.loadProject({ ...parsed.project, filePath: path });
+      latest.current.loadProject({ ...parsed.project, filePath: untitled ? null : path });
+      if (untitled) setUntitled(fileTitle(path));
+      else addRecent(path);
       // The project is loaded; still tell the user what in it couldn't be read as is.
       const { issues } = parsed;
       if (issues.length > 0) {
@@ -117,55 +111,32 @@ export function useDocument() {
         if (issues.length > 12) shown.push(`…and ${issues.length - 12} more.`);
         await native.alert(`Opened with ${issues.length} issue${issues.length === 1 ? "" : "s"}`, shown.join("\n"));
       }
-      return true;
     } catch {
+      report();
       await native.alert("Couldn't Open Project", "This file is damaged or isn't a valid Helix project.", "error");
-      return false;
     }
   };
 
-  /** The sample project, opened as a new document: saving asks where, so the one inside
-   *  the app never changes. */
-  const openSample = async () => {
-    if (!(await confirmDiscard())) return;
-    if (await show(await native.readSample(), null)) setUntitled("Helix Sample");
-  };
-
-  const openPath = async (path: string) => {
-    if (!path.toLowerCase().endsWith(`.${PROJECT_FILE_EXTENSION}`)) {
-      return native.alert("Can't Open File", "Helix can only open .hlx project files.");
-    }
-    if (await confirmDiscard()) await load(path);
-  };
-
-  const open = async () => {
-    if (!(await confirmDiscard())) return;
-    const path = await native.pickFileToOpen("Helix Project", PROJECT_FILE_EXTENSION);
-    if (path) await load(path);
-  };
-
-  const newProject = async () => {
-    if (!(await confirmDiscard())) return;
-    latest.current.newProject();
-    setUntitled("Untitled");
+  const openPaths = (paths: string[]) => {
+    const projects = paths.filter(isProjectFile);
+    if (projects.length < paths.length) void native.alert("Can't Open File", "Helix can only open .hlx project files.");
+    if (projects.length) openProjectsOrSay(projects);
   };
 
   // Subscribed once; the handlers reach the current versions through this ref.
-  const handlers = React.useRef({ confirmDiscard, openPath, load });
+  const handlers = React.useRef({ confirmDiscard, load, openPaths });
   React.useEffect(() => {
-    handlers.current = { confirmDiscard, openPath, load };
+    handlers.current = { confirmDiscard, load, openPaths };
   });
   React.useEffect(() => native.onCloseRequested(() => handlers.current.confirmDiscard()), []);
+  React.useEffect(() => native.onDrop((paths) => handlers.current.openPaths(paths)), []);
   React.useEffect(
     () =>
-      native.onOpenFiles(
-        (paths) => handlers.current.openPath(paths[0]),
-        () => lastProject && void handlers.current.load(lastProject, true),
-      ),
+      native.onOpening(({ path, untitled }) => void handlers.current.load(path, untitled)),
     [],
   );
 
-  return { newProject, open, openPath, openSample, save, recents, clearRecents };
+  return { save, recents, forgetRecent, clearRecents };
 }
 
 export type DocumentActions = ReturnType<typeof useDocument>;

@@ -1,6 +1,6 @@
 [package]
 name = "helix"
-version = "1.0.1"
+version = "1.0.2"
 license = "GPL-3.0-or-later"
 edition = "2021"
 
@@ -12,6 +12,7 @@ tauri = { version = "2", features = ["macos-private-api"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-window-state = "2"
 percent-encoding = "2"
+serde = { version = "1", features = ["derive"] }
 objc2 = "0.6"
 
 [profile.release]

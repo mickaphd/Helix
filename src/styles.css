@@ -11,7 +11,6 @@
   --accent: #0a84ff;
   --blue: #138af2;
   --green: #248a3d;
-  --red: #d70015;
   --excluded: #0d74ce; /* excluded cells */
   --desk: rgb(0 0 0 / 0.05); /* around a graph's sheet */
   --sheet-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.12), 0 2px 6px rgb(0 0 0 / 0.06), 0 12px 32px rgb(0 0 0 / 0.08);
@@ -22,7 +21,6 @@
   --bg: rgb(0 0 0 / 0.4);
   --surface: #2a2a2c;
   --green: #30d158;
-  --red: #ff6961;
   --excluded: #70b8ff;
   --desk: rgb(0 0 0 / 0.3);
   --sheet-shadow: 0 0 0 0.5px rgb(255 255 255 / 0.12), 0 4px 18px rgb(0 0 0 / 0.5);
@@ -40,7 +38,6 @@
   --color-accent: var(--accent);
   --color-support-blue: var(--blue);
   --color-support-green: var(--green);
-  --color-support-red: var(--red);
   --color-excluded: var(--excluded);
   --color-desk: var(--desk);
   --shadow-sheet: var(--sheet-shadow);

@@ -35,5 +35,10 @@ export default defineConfig({
   clearScreen: false,
   // The native side is rebuilt by Tauri; its build output must not reload the page.
   server: { port: 1420, strictPort: true, watch: { ignored: ["**/src-tauri/**"] } },
-  build: { target: "safari16", chunkSizeWarningLimit: 5000 },
+  build: {
+    target: "safari16",
+    chunkSizeWarningLimit: 5000,
+    // The app's pages: project windows, and the hidden window running R (engine.ts).
+    rolldownOptions: { input: ["index.html", "engine.html"] },
+  },
 });

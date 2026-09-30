@@ -7,7 +7,7 @@ import { parseProjectFile, serializeProjectFile, type ProjectFilePayload } from 
 import { DEFAULT_GRAPH_OPTIONS, type ProjectNode, type TableData } from "../src/store/types";
 import { freshColumnNames, newGroupedTable, regroupTable, renameGroup, writeBlock } from "../src/views/tables/table-data";
 import { renameReferences } from "../src/store/references";
-import { pairKey } from "../src/views/graphs/significance-overlay";
+import { pairKey } from "../src/lib/columns";
 import { runAnalysis } from "../src/stats";
 import { makeInitialState, reducer } from "../src/store/use-project-store";
 import { isNewer } from "../src/lib/version";
