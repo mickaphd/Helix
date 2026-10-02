@@ -8,8 +8,7 @@
   --fg: #000;
   --bg: rgb(255 255 255 / 0.85); /* over the window's native vibrancy */
   --surface: #fcfcfc; /* dialogs, menus */
-  --accent: #0a84ff;
-  --blue: #138af2;
+  --accent: #0a84ff; /* until macOS's own accent color is read (main.tsx) */
   --green: #248a3d;
   --excluded: #0d74ce; /* excluded cells */
   --desk: rgb(0 0 0 / 0.05); /* around a graph's sheet */
@@ -36,7 +35,6 @@
   --color-control: rgb(from var(--fg) r g b / 0.06);
   --color-surface: var(--surface);
   --color-accent: var(--accent);
-  --color-support-blue: var(--blue);
   --color-support-green: var(--green);
   --color-excluded: var(--excluded);
   --color-desk: var(--desk);

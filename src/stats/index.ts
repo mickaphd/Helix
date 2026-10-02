@@ -45,7 +45,7 @@ type Runner = (
   titles: (string | null)[],
 ) => Promise<AnalysisOutcome>;
 
-export interface Analysis {
+interface Analysis {
   label: string;
   /** The exact test these params run ("Welch's t test"), to name a new analysis. */
   name?: (params: AnalysisParams | undefined) => string;
@@ -114,7 +114,7 @@ export const ANALYSES: Record<AnalysisType, Analysis> = {
 const results = new WeakMap<TableData, Map<string, Promise<AnalysisOutcome>>>();
 
 export function runAnalysis(testType: AnalysisType, data: TableData, params?: AnalysisParams): Promise<AnalysisOutcome> {
-  const analysis = ANALYSES[testType];
+  const analysis = Object.hasOwn(ANALYSES, testType) ? ANALYSES[testType] : undefined;
   if (!analysis) return Promise.resolve({ error: `Unknown analysis type: ${String(testType)}` });
   const byTest = results.get(data) ?? new Map<string, Promise<AnalysisOutcome>>();
   results.set(data, byTest);

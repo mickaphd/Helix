@@ -8,6 +8,7 @@ import { xyScatter } from "./xy-scatter";
 export const doseResponse: GraphModule = {
   label: "Dose response curve",
   family: "xy",
-  build: (columns, options, seriesColors, pointColors) =>
-    xyScatter.build(columns, { ...options, xyStyle: "points" }, seriesColors, pointColors),
+  points: () => true,
+  build: (columns, options, paint) =>
+    xyScatter.build(columns, { ...options, xyStyle: "points" }, paint),
 };

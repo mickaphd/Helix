@@ -5,10 +5,10 @@
 //   round-trip needed, unlike e.g. the dose-response sigmoidal fit).
 // - "counts": cells are the number of survivors remaining in that group at that
 //   time; plotted directly as percent-of-initial, no event/censor concept.
-import type { GraphOptions, PaletteColor } from "../../store/types";
+import type { GraphOptions } from "../../store/types";
 import type { GraphModule, GraphFigure } from ".";
 import { pairUp, type Column } from "../../lib/dataset";
-import { seriesColor, xyLayout } from "./plot-helpers";
+import { xyLayout, type Paint } from "./plot-helpers";
 
 interface KaplanMeier {
   t: number[]; // step vertices (t[0] = 0, s[0] = 1)
@@ -46,6 +46,12 @@ function kaplanMeier(times: number[], codes: number[]): KaplanMeier {
     }
     atRisk -= events + censored;
   }
+  // The curve runs on to the last subject followed, as Prism draws it.
+  const last = times[order.at(-1)!];
+  if (last > t.at(-1)!) {
+    t.push(last);
+    s.push(survival);
+  }
   return { t, s, censorT, censorS };
 }
 
@@ -56,10 +62,9 @@ function survivorCountsStep(x: number[], counts: number[]): { t: number[]; s: nu
   return { t: order.map((i) => x[i]), s: order.map((i) => (counts[i] / initial) * 100) };
 }
 
-function build(columns: Column[], options: GraphOptions, seriesColors?: Record<string, PaletteColor>): GraphFigure {
+function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFigure {
   const [xCol, ...ySeries] = columns;
-  const layout = xyLayout(options, xCol?.name ?? "Time", ySeries.length, { zeroBase: true });
-  if (!options.yLabel) (layout.yaxis as Record<string, unknown>).title = { text: "Percent survival" };
+  const layout = xyLayout(options, xCol?.name ?? "Time", ySeries.length, { zeroBase: true, yName: "Percent survival" });
   if (!xCol || ySeries.length === 0) return { data: [], layout };
 
   const byCodes = options.survivalMode !== "counts";
@@ -68,14 +73,14 @@ function build(columns: Column[], options: GraphOptions, seriesColors?: Record<s
     const { t, s, censorT, censorS } = byCodes
       ? kaplanMeier(x, values)
       : { ...survivorCountsStep(x, values), censorT: [], censorS: [] };
-    const color = seriesColor(seriesColors, y.name, i);
+    const color = paint.color(y.name, i);
     const step = {
       type: "scatter",
       mode: "lines",
       name: y.name,
       x: t,
       y: byCodes ? s.map((v) => v * 100) : s,
-      line: { color, width: 2, shape: "hv" },
+      line: { ...paint.line(y.name, i), shape: "hv" },
       hoverinfo: "x+y",
     };
     if (!byCodes || !options.survivalShowCensors || censorT.length === 0) return [step];
@@ -97,4 +102,4 @@ function build(columns: Column[], options: GraphOptions, seriesColors?: Record<s
   return { data, layout };
 }
 
-export const survival: GraphModule = { label: "Survival curve", family: "xy", build };
+export const survival: GraphModule = { label: "Survival curve", family: "xy", lines: () => true, build };

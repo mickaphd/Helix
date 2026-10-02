@@ -1501,7 +1501,7 @@
     "robustMean": 10.66814242
    }
   ],
-  "notes": "Flagged as outliers (FDR-adjusted P < Q): Control row 8 (value 30, adj. P = 0.0000). Use \"Exclude from analysis\" (⌘E) on those cells to remove them from other tests/graphs. Method: each column fit independently to a robust mean (Huber M-estimator, scale from the median absolute deviation), residuals tested via a two-tailed t distribution and FDR-corrected (Benjamini-Hochberg) within that column. This mirrors the published Motulsky & Brown (2006) ROUT algorithm's logic, not GraphPad's certified implementation."
+  "notes": "Flagged as outliers (FDR-adjusted P < Q): Control row 8 (value 30, adj. P = 0.0000). Use Exclude from Analysis (⌘E) on those cells to remove them from other tests/graphs. Method: each column fit independently to a robust mean (Huber M-estimator, scale from the median absolute deviation), residuals tested via a two-tailed t distribution and FDR-corrected (Benjamini-Hochberg) within that column. This mirrors the published Motulsky & Brown (2006) ROUT algorithm's logic, not GraphPad's certified implementation."
  },
  "outliers column {\"q\":5}": {
   "testType": "outliers",
@@ -1592,7 +1592,7 @@
     "robustMean": 10.66814242
    }
   ],
-  "notes": "Flagged as outliers (FDR-adjusted P < Q): Control row 8 (value 30, adj. P = 0.0000). Use \"Exclude from analysis\" (⌘E) on those cells to remove them from other tests/graphs. Method: each column fit independently to a robust mean (Huber M-estimator, scale from the median absolute deviation), residuals tested via a two-tailed t distribution and FDR-corrected (Benjamini-Hochberg) within that column. This mirrors the published Motulsky & Brown (2006) ROUT algorithm's logic, not GraphPad's certified implementation."
+  "notes": "Flagged as outliers (FDR-adjusted P < Q): Control row 8 (value 30, adj. P = 0.0000). Use Exclude from Analysis (⌘E) on those cells to remove them from other tests/graphs. Method: each column fit independently to a robust mean (Huber M-estimator, scale from the median absolute deviation), residuals tested via a two-tailed t distribution and FDR-corrected (Benjamini-Hochberg) within that column. This mirrors the published Motulsky & Brown (2006) ROUT algorithm's logic, not GraphPad's certified implementation."
  },
  "correlation xy {\"method\":\"pearson\",\"mode\":\"x-vs-every-y\"}": {
   "testType": "correlation",
@@ -4128,8 +4128,8 @@
      14.3375
     ],
     "line": {
-     "color": "#8195FC",
-     "width": 2
+     "color": "#000000",
+     "width": 1.5
     },
     "hoverinfo": "skip"
    },
@@ -4150,7 +4150,7 @@
      "array": [
       2.25292964
      ],
-     "color": "#8195FC",
+     "color": "#000000",
      "thickness": 1.5,
      "width": 6
     },
@@ -4179,30 +4179,68 @@
      11.8,
      30
     ],
+    "customdata": [
+     "Control#0",
+     "Control#1",
+     "Control#2",
+     "Control#3",
+     "Control#4",
+     "Control#5",
+     "Control#6",
+     "Control#7"
+    ],
     "marker": {
      "color": [
-      "rgba(129,149,252,0.5)",
-      "rgba(74,222,128,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)"
+      "rgba(0,0,0,1)",
+      "rgba(74,222,128,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)"
      ],
-     "size": 7,
+     "size": [
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7
+     ],
+     "symbol": [
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle"
+     ],
      "line": {
       "color": [
-       "#8195FC",
-       "#4ade80",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC"
+       "#000000",
+       "#4ADE80",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000"
       ],
-      "width": 1.5
+      "width": [
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5
+      ]
      }
     },
     "hoverinfo": "y"
@@ -4219,8 +4257,8 @@
      14.84285714
     ],
     "line": {
-     "color": "#f87171",
-     "width": 2
+     "color": "#D55E00",
+     "width": 1.5
     },
     "hoverinfo": "skip"
    },
@@ -4241,7 +4279,7 @@
      "array": [
       0.3191186843
      ],
-     "color": "#f87171",
+     "color": "#D55E00",
      "thickness": 1.5,
      "width": 6
     },
@@ -4268,28 +4306,62 @@
      15.5,
      14.1
     ],
+    "customdata": [
+     "Low#0",
+     "Low#1",
+     "Low#2",
+     "Low#3",
+     "Low#4",
+     "Low#6",
+     "Low#7"
+    ],
     "marker": {
      "color": [
-      "rgba(248,113,113,0.5)",
-      "rgba(248,113,113,0.5)",
-      "rgba(248,113,113,0.5)",
-      "rgba(248,113,113,0.5)",
-      "rgba(248,113,113,0.5)",
-      "rgba(248,113,113,0.5)",
-      "rgba(248,113,113,0.5)"
+      "rgba(213,94,0,1)",
+      "rgba(213,94,0,1)",
+      "rgba(213,94,0,1)",
+      "rgba(213,94,0,1)",
+      "rgba(213,94,0,1)",
+      "rgba(213,94,0,1)",
+      "rgba(213,94,0,1)"
      ],
-     "size": 7,
+     "size": [
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7
+     ],
+     "symbol": [
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle"
+     ],
      "line": {
       "color": [
-       "#f87171",
-       "#f87171",
-       "#f87171",
-       "#f87171",
-       "#f87171",
-       "#f87171",
-       "#f87171"
+       "#D55E00",
+       "#D55E00",
+       "#D55E00",
+       "#D55E00",
+       "#D55E00",
+       "#D55E00",
+       "#D55E00"
       ],
-      "width": 1.5
+      "width": [
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5
+      ]
      }
     },
     "hoverinfo": "y"
@@ -4306,8 +4378,8 @@
      19.61666667
     ],
     "line": {
-     "color": "#4ade80",
-     "width": 2
+     "color": "#56B4E9",
+     "width": 1.5
     },
     "hoverinfo": "skip"
    },
@@ -4328,7 +4400,7 @@
      "array": [
       0.4422794491
      ],
-     "color": "#4ade80",
+     "color": "#56B4E9",
      "thickness": 1.5,
      "width": 6
     },
@@ -4353,26 +4425,56 @@
      20.1,
      19.4
     ],
+    "customdata": [
+     "High#0",
+     "High#1",
+     "High#3",
+     "High#4",
+     "High#5",
+     "High#7"
+    ],
     "marker": {
      "color": [
-      "rgba(74,222,128,0.5)",
-      "rgba(74,222,128,0.5)",
-      "rgba(74,222,128,0.5)",
-      "rgba(74,222,128,0.5)",
-      "rgba(74,222,128,0.5)",
-      "rgba(74,222,128,0.5)"
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)"
      ],
-     "size": 7,
+     "size": [
+      7,
+      7,
+      7,
+      7,
+      7,
+      7
+     ],
+     "symbol": [
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle"
+     ],
      "line": {
       "color": [
-       "#4ade80",
-       "#4ade80",
-       "#4ade80",
-       "#4ade80",
-       "#4ade80",
-       "#4ade80"
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9"
       ],
-      "width": 1.5
+      "width": [
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5
+      ]
      }
     },
     "hoverinfo": "y"
@@ -4389,8 +4491,8 @@
      10.625
     ],
     "line": {
-     "color": "#a78bfa",
-     "width": 2
+     "color": "#009E73",
+     "width": 1.5
     },
     "hoverinfo": "skip"
    },
@@ -4411,7 +4513,7 @@
      "array": [
       0.625
      ],
-     "color": "#a78bfa",
+     "color": "#009E73",
      "thickness": 1.5,
      "width": 6
     },
@@ -4432,22 +4534,44 @@
      10.5,
      12
     ],
+    "customdata": [
+     "Sparse#0",
+     "Sparse#2",
+     "Sparse#4",
+     "Sparse#6"
+    ],
     "marker": {
      "color": [
-      "rgba(167,139,250,0.5)",
-      "rgba(167,139,250,0.5)",
-      "rgba(167,139,250,0.5)",
-      "rgba(167,139,250,0.5)"
+      "rgba(0,158,115,1)",
+      "rgba(0,158,115,1)",
+      "rgba(0,158,115,1)",
+      "rgba(0,158,115,1)"
      ],
-     "size": 7,
+     "size": [
+      7,
+      7,
+      7,
+      7
+     ],
+     "symbol": [
+      "circle",
+      "circle",
+      "circle",
+      "circle"
+     ],
      "line": {
       "color": [
-       "#a78bfa",
-       "#a78bfa",
-       "#a78bfa",
-       "#a78bfa"
+       "#009E73",
+       "#009E73",
+       "#009E73",
+       "#009E73"
       ],
-      "width": 1.5
+      "width": [
+       1.5,
+       1.5,
+       1.5,
+       1.5
+      ]
      }
     },
     "hoverinfo": "y"
@@ -4536,43 +4660,106 @@
      11.8,
      30
     ],
-    "fillcolor": "rgba(129,149,252,0.5)",
+    "fillcolor": "rgba(0,0,0,0.5)",
     "line": {
-     "color": "#8195FC"
-    },
-    "marker": {
-     "color": [
-      "rgba(129,149,252,0.5)",
-      "rgba(74,222,128,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)"
-     ],
-     "size": 5,
-     "line": {
-      "color": [
-       "#8195FC",
-       "#4ade80",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC"
-      ],
-      "width": 1.5
-     }
+     "color": "#000000",
+     "width": 2
     },
     "hoverinfo": "y",
-    "points": "all",
-    "jitter": 0.3,
+    "points": false,
     "meanline": {
      "visible": true
     },
     "spanmode": "hard"
+   },
+   {
+    "type": "scatter",
+    "mode": "markers",
+    "x": [
+     -0.15,
+     0.01380743995,
+     0.02799995608,
+     -0.04091441126,
+     0.1498232792,
+     0.001373562585,
+     0.1464216859,
+     0.1029407315
+    ],
+    "y": [
+     12.1,
+     11.4,
+     13.2,
+     12.8,
+     10.9,
+     12.5,
+     11.8,
+     30
+    ],
+    "customdata": [
+     "Control#0",
+     "Control#1",
+     "Control#2",
+     "Control#3",
+     "Control#4",
+     "Control#5",
+     "Control#6",
+     "Control#7"
+    ],
+    "marker": {
+     "color": [
+      "rgba(0,0,0,1)",
+      "rgba(74,222,128,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)"
+     ],
+     "size": [
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5
+     ],
+     "symbol": [
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle"
+     ],
+     "line": {
+      "color": [
+       "#000000",
+       "#4ADE80",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000"
+      ],
+      "width": [
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5
+      ]
+     }
+    },
+    "hoverinfo": "y"
    },
    {
     "type": "violin",
@@ -4594,41 +4781,98 @@
      15.5,
      14.1
     ],
-    "fillcolor": "rgba(248,113,113,0.5)",
+    "fillcolor": "rgba(213,94,0,0.5)",
     "line": {
-     "color": "#f87171"
-    },
-    "marker": {
-     "color": [
-      "rgba(248,113,113,0.5)",
-      "rgba(248,113,113,0.5)",
-      "rgba(248,113,113,0.5)",
-      "rgba(248,113,113,0.5)",
-      "rgba(248,113,113,0.5)",
-      "rgba(248,113,113,0.5)",
-      "rgba(248,113,113,0.5)"
-     ],
-     "size": 5,
-     "line": {
-      "color": [
-       "#f87171",
-       "#f87171",
-       "#f87171",
-       "#f87171",
-       "#f87171",
-       "#f87171",
-       "#f87171"
-      ],
-      "width": 1.5
-     }
+     "color": "#D55E00",
+     "width": 2
     },
     "hoverinfo": "y",
-    "points": "all",
-    "jitter": 0.3,
+    "points": false,
     "meanline": {
      "visible": true
     },
     "spanmode": "hard"
+   },
+   {
+    "type": "scatter",
+    "mode": "markers",
+    "x": [
+     1.093486502,
+     0.9798737367,
+     0.8786179925,
+     1.121022026,
+     0.9820790767,
+     1.018914707,
+     0.9752238308
+    ],
+    "y": [
+     14.3,
+     15.1,
+     13.8,
+     16.2,
+     14.9,
+     15.5,
+     14.1
+    ],
+    "customdata": [
+     "Low#0",
+     "Low#1",
+     "Low#2",
+     "Low#3",
+     "Low#4",
+     "Low#6",
+     "Low#7"
+    ],
+    "marker": {
+     "color": [
+      "rgba(213,94,0,1)",
+      "rgba(213,94,0,1)",
+      "rgba(213,94,0,1)",
+      "rgba(213,94,0,1)",
+      "rgba(213,94,0,1)",
+      "rgba(213,94,0,1)",
+      "rgba(213,94,0,1)"
+     ],
+     "size": [
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5
+     ],
+     "symbol": [
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle"
+     ],
+     "line": {
+      "color": [
+       "#D55E00",
+       "#D55E00",
+       "#D55E00",
+       "#D55E00",
+       "#D55E00",
+       "#D55E00",
+       "#D55E00"
+      ],
+      "width": [
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5
+      ]
+     }
+    },
+    "hoverinfo": "y"
    },
    {
     "type": "violin",
@@ -4648,39 +4892,90 @@
      20.1,
      19.4
     ],
-    "fillcolor": "rgba(74,222,128,0.5)",
+    "fillcolor": "rgba(86,180,233,0.5)",
     "line": {
-     "color": "#4ade80"
-    },
-    "marker": {
-     "color": [
-      "rgba(74,222,128,0.5)",
-      "rgba(74,222,128,0.5)",
-      "rgba(74,222,128,0.5)",
-      "rgba(74,222,128,0.5)",
-      "rgba(74,222,128,0.5)",
-      "rgba(74,222,128,0.5)"
-     ],
-     "size": 5,
-     "line": {
-      "color": [
-       "#4ade80",
-       "#4ade80",
-       "#4ade80",
-       "#4ade80",
-       "#4ade80",
-       "#4ade80"
-      ],
-      "width": 1.5
-     }
+     "color": "#56B4E9",
+     "width": 2
     },
     "hoverinfo": "y",
-    "points": "all",
-    "jitter": 0.3,
+    "points": false,
     "meanline": {
      "visible": true
     },
     "spanmode": "hard"
+   },
+   {
+    "type": "scatter",
+    "mode": "markers",
+    "x": [
+     1.906138962,
+     2.011124294,
+     2.116305962,
+     1.887409469,
+     1.967682957,
+     2.092247229
+    ],
+    "y": [
+     18.2,
+     19.9,
+     21.3,
+     18.8,
+     20.1,
+     19.4
+    ],
+    "customdata": [
+     "High#0",
+     "High#1",
+     "High#3",
+     "High#4",
+     "High#5",
+     "High#7"
+    ],
+    "marker": {
+     "color": [
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)"
+     ],
+     "size": [
+      5,
+      5,
+      5,
+      5,
+      5,
+      5
+     ],
+     "symbol": [
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle"
+     ],
+     "line": {
+      "color": [
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9"
+      ],
+      "width": [
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5
+      ]
+     }
+    },
+    "hoverinfo": "y"
    },
    {
     "type": "violin",
@@ -4696,35 +4991,74 @@
      10.5,
      12
     ],
-    "fillcolor": "rgba(167,139,250,0.5)",
+    "fillcolor": "rgba(0,158,115,0.5)",
     "line": {
-     "color": "#a78bfa"
-    },
-    "marker": {
-     "color": [
-      "rgba(167,139,250,0.5)",
-      "rgba(167,139,250,0.5)",
-      "rgba(167,139,250,0.5)",
-      "rgba(167,139,250,0.5)"
-     ],
-     "size": 5,
-     "line": {
-      "color": [
-       "#a78bfa",
-       "#a78bfa",
-       "#a78bfa",
-       "#a78bfa"
-      ],
-      "width": 1.5
-     }
+     "color": "#009E73",
+     "width": 2
     },
     "hoverinfo": "y",
-    "points": "all",
-    "jitter": 0.3,
+    "points": false,
     "meanline": {
      "visible": true
     },
     "spanmode": "hard"
+   },
+   {
+    "type": "scatter",
+    "mode": "markers",
+    "x": [
+     2.957206409,
+     3.139659101,
+     2.928110003,
+     2.935384062
+    ],
+    "y": [
+     9,
+     11,
+     10.5,
+     12
+    ],
+    "customdata": [
+     "Sparse#0",
+     "Sparse#2",
+     "Sparse#4",
+     "Sparse#6"
+    ],
+    "marker": {
+     "color": [
+      "rgba(0,158,115,1)",
+      "rgba(0,158,115,1)",
+      "rgba(0,158,115,1)",
+      "rgba(0,158,115,1)"
+     ],
+     "size": [
+      5,
+      5,
+      5,
+      5
+     ],
+     "symbol": [
+      "circle",
+      "circle",
+      "circle",
+      "circle"
+     ],
+     "line": {
+      "color": [
+       "#009E73",
+       "#009E73",
+       "#009E73",
+       "#009E73"
+      ],
+      "width": [
+       1.5,
+       1.5,
+       1.5,
+       1.5
+      ]
+     }
+    },
+    "hoverinfo": "y"
    }
   ],
   "layout": {
@@ -4798,9 +5132,9 @@
     ],
     "width": 0.6,
     "marker": {
-     "color": "rgba(129,149,252,0.5)",
+     "color": "rgba(0,0,0,1)",
      "line": {
-      "color": "#8195FC",
+      "color": "#000000",
       "width": 1.5
      }
     },
@@ -4809,7 +5143,7 @@
      "array": [
       6.372247305
      ],
-     "color": "#8195FC",
+     "color": "#000000",
      "thickness": 1.5,
      "width": 6
     },
@@ -4825,9 +5159,9 @@
     ],
     "width": 0.6,
     "marker": {
-     "color": "rgba(248,113,113,0.5)",
+     "color": "rgba(213,94,0,1)",
      "line": {
-      "color": "#f87171",
+      "color": "#D55E00",
       "width": 1.5
      }
     },
@@ -4836,7 +5170,7 @@
      "array": [
       0.8443086775
      ],
-     "color": "#f87171",
+     "color": "#D55E00",
      "thickness": 1.5,
      "width": 6
     },
@@ -4852,9 +5186,9 @@
     ],
     "width": 0.6,
     "marker": {
-     "color": "rgba(74,222,128,0.5)",
+     "color": "rgba(86,180,233,1)",
      "line": {
-      "color": "#4ade80",
+      "color": "#56B4E9",
       "width": 1.5
      }
     },
@@ -4863,7 +5197,7 @@
      "array": [
       1.083358974
      ],
-     "color": "#4ade80",
+     "color": "#56B4E9",
      "thickness": 1.5,
      "width": 6
     },
@@ -4879,9 +5213,9 @@
     ],
     "width": 0.6,
     "marker": {
-     "color": "rgba(167,139,250,0.5)",
+     "color": "rgba(0,158,115,1)",
      "line": {
-      "color": "#a78bfa",
+      "color": "#009E73",
       "width": 1.5
      }
     },
@@ -4890,7 +5224,7 @@
      "array": [
       1.25
      ],
-     "color": "#a78bfa",
+     "color": "#009E73",
      "thickness": 1.5,
      "width": 6
     },
@@ -4976,13 +5310,18 @@
     ],
     "marker": {
      "colors": [
-      "#8195FC",
-      "#f87171",
-      "#4ade80",
-      "#a78bfa"
+      "rgba(0,0,0,1)",
+      "rgba(213,94,0,1)",
+      "rgba(86,180,233,1)",
+      "rgba(0,158,115,1)"
      ],
      "line": {
-      "color": "#ffffff",
+      "color": [
+       "#FFFFFF",
+       "#FFFFFF",
+       "#FFFFFF",
+       "#FFFFFF"
+      ],
       "width": 1.5
      }
     },
@@ -5030,13 +5369,18 @@
     ],
     "marker": {
      "colors": [
-      "#8195FC",
-      "#f87171",
-      "#4ade80",
-      "#a78bfa"
+      "rgba(0,0,0,1)",
+      "rgba(213,94,0,1)",
+      "rgba(86,180,233,1)",
+      "rgba(0,158,115,1)"
      ],
      "line": {
-      "color": "#ffffff",
+      "color": [
+       "#FFFFFF",
+       "#FFFFFF",
+       "#FFFFFF",
+       "#FFFFFF"
+      ],
       "width": 1.5
      }
     },
@@ -5091,35 +5435,74 @@
      12.7,
      17.3
     ],
+    "customdata": [
+     "Y1#0",
+     "Y1#1",
+     "Y1#2",
+     "Y1#3",
+     "Y1#4",
+     "Y1#5",
+     "Y1#6",
+     "Y1#8"
+    ],
     "marker": {
      "color": [
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)"
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)"
      ],
-     "size": 7,
+     "size": [
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7
+     ],
+     "symbol": [
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle"
+     ],
      "line": {
       "color": [
-       "#8195FC",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC"
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000"
       ],
-      "width": 1.5
+      "width": [
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5
+      ]
      }
     },
     "line": {
-     "color": "#8195FC",
-     "width": 2
+     "color": "#000000",
+     "width": 2,
+     "dash": "solid"
     },
     "hoverinfo": "x+y"
    },
@@ -5143,31 +5526,62 @@
      12.4,
      18.1
     ],
+    "customdata": [
+     "Y2#0",
+     "Y2#2",
+     "Y2#3",
+     "Y2#4",
+     "Y2#5",
+     "Y2#8"
+    ],
     "marker": {
      "color": [
-      "rgba(248,113,113,0.5)",
-      "rgba(248,113,113,0.5)",
-      "rgba(248,113,113,0.5)",
-      "rgba(248,113,113,0.5)",
-      "rgba(248,113,113,0.5)",
-      "rgba(248,113,113,0.5)"
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)"
      ],
-     "size": 7,
+     "size": [
+      7,
+      7,
+      7,
+      7,
+      7,
+      7
+     ],
+     "symbol": [
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle"
+     ],
      "line": {
       "color": [
-       "#f87171",
-       "#f87171",
-       "#f87171",
-       "#f87171",
-       "#f87171",
-       "#f87171"
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00"
       ],
-      "width": 1.5
+      "width": [
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5
+      ]
      }
     },
     "line": {
-     "color": "#f87171",
-     "width": 2
+     "color": "#E69F00",
+     "width": 2,
+     "dash": "solid"
     },
     "hoverinfo": "x+y"
    },
@@ -5193,33 +5607,68 @@
      0.4,
      -0.8
     ],
+    "customdata": [
+     "Y3#0",
+     "Y3#1",
+     "Y3#2",
+     "Y3#4",
+     "Y3#5",
+     "Y3#6",
+     "Y3#8"
+    ],
     "marker": {
      "color": [
-      "rgba(74,222,128,0.5)",
-      "rgba(74,222,128,0.5)",
-      "rgba(74,222,128,0.5)",
-      "rgba(74,222,128,0.5)",
-      "rgba(74,222,128,0.5)",
-      "rgba(74,222,128,0.5)",
-      "rgba(74,222,128,0.5)"
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)"
      ],
-     "size": 7,
+     "size": [
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7
+     ],
+     "symbol": [
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle"
+     ],
      "line": {
       "color": [
-       "#4ade80",
-       "#4ade80",
-       "#4ade80",
-       "#4ade80",
-       "#4ade80",
-       "#4ade80",
-       "#4ade80"
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9"
       ],
-      "width": 1.5
+      "width": [
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5
+      ]
      }
     },
     "line": {
-     "color": "#4ade80",
-     "width": 2
+     "color": "#56B4E9",
+     "width": 2,
+     "dash": "solid"
     },
     "hoverinfo": "x+y"
    }
@@ -5298,9 +5747,9 @@
      17.3
     ],
     "marker": {
-     "color": "rgba(129,149,252,0.5)",
+     "color": "rgba(0,0,0,1)",
      "line": {
-      "color": "#8195FC",
+      "color": "#000000",
       "width": 1.5
      }
     },
@@ -5326,9 +5775,9 @@
      18.1
     ],
     "marker": {
-     "color": "rgba(248,113,113,0.5)",
+     "color": "rgba(230,159,0,1)",
      "line": {
-      "color": "#f87171",
+      "color": "#E69F00",
       "width": 1.5
      }
     },
@@ -5356,9 +5805,9 @@
      -0.8
     ],
     "marker": {
-     "color": "rgba(74,222,128,0.5)",
+     "color": "rgba(86,180,233,1)",
      "line": {
-      "color": "#4ade80",
+      "color": "#56B4E9",
       "width": 1.5
      }
     },
@@ -5412,7 +5861,8 @@
     "automargin": true,
     "rangemode": "tozero"
    },
-   "barmode": "group"
+   "barmode": "group",
+   "bargroupgap": 0.1
   }
  },
  "graph xy-area xy": {
@@ -5442,11 +5892,11 @@
      17.3
     ],
     "line": {
-     "color": "#8195FC",
+     "color": "#000000",
      "width": 2
     },
     "fill": "tozeroy",
-    "fillcolor": "rgba(129,149,252,0.5)",
+    "fillcolor": "rgba(0,0,0,0.5)",
     "hoverinfo": "x+y"
    },
    {
@@ -5470,11 +5920,11 @@
      18.1
     ],
     "line": {
-     "color": "#f87171",
+     "color": "#E69F00",
      "width": 2
     },
     "fill": "tozeroy",
-    "fillcolor": "rgba(248,113,113,0.5)",
+    "fillcolor": "rgba(230,159,0,0.5)",
     "hoverinfo": "x+y"
    },
    {
@@ -5500,11 +5950,11 @@
      -0.8
     ],
     "line": {
-     "color": "#4ade80",
+     "color": "#56B4E9",
      "width": 2
     },
     "fill": "tozeroy",
-    "fillcolor": "rgba(74,222,128,0.5)",
+    "fillcolor": "rgba(86,180,233,0.5)",
     "hoverinfo": "x+y"
    }
   ],
@@ -5587,34 +6037,80 @@
      97.8,
      99.1
     ],
+    "customdata": [
+     "Response#0",
+     "Response#1",
+     "Response#2",
+     "Response#3",
+     "Response#4",
+     "Response#5",
+     "Response#6",
+     "Response#7",
+     "Response#8",
+     "Response#9"
+    ],
     "marker": {
      "color": [
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)"
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)"
      ],
-     "size": 7,
+     "size": [
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7
+     ],
+     "symbol": [
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle"
+     ],
      "line": {
       "color": [
-       "#8195FC",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC"
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000"
       ],
-      "width": 1.5
+      "width": [
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5
+      ]
      }
     },
     "hoverinfo": "x+y"
@@ -5678,17 +6174,20 @@
      0,
      3,
      10,
-     15
+     15,
+     20
     ],
     "y": [
      100,
      80,
      53.33333333,
+     26.66666667,
      26.66666667
     ],
     "line": {
-     "color": "#8195FC",
+     "color": "#000000",
      "width": 2,
+     "dash": "solid",
      "shape": "hv"
     },
     "hoverinfo": "x+y"
@@ -5706,7 +6205,7 @@
      26.66666667
     ],
     "marker": {
-     "color": "#8195FC",
+     "color": "#000000",
      "size": 9,
      "symbol": "line-ns-open",
      "line": {
@@ -5735,8 +6234,9 @@
      0
     ],
     "line": {
-     "color": "#f87171",
+     "color": "#E69F00",
      "width": 2,
+     "dash": "solid",
      "shape": "hv"
     },
     "hoverinfo": "x+y"
@@ -5752,7 +6252,7 @@
      40
     ],
     "marker": {
-     "color": "#f87171",
+     "color": "#E69F00",
      "size": 9,
      "symbol": "line-ns-open",
      "line": {
@@ -5810,7 +6310,8 @@
     "automargin": true,
     "rangemode": "tozero",
     "title": {
-     "text": "Percent survival"
+     "text": "Percent survival",
+     "standoff": 2
     }
    }
   }
@@ -5855,44 +6356,110 @@
      21,
      22
     ],
+    "customdata": [
+     "A:Y1#0",
+     "A:Y2#0",
+     "A:Y3#0",
+     "A:Y1#1",
+     "A:Y2#1",
+     "A:Y3#1",
+     "A:Y1#2",
+     "A:Y2#2",
+     "A:Y3#2",
+     "A:Y1#3",
+     "A:Y2#3",
+     "A:Y3#3",
+     "A:Y1#4",
+     "A:Y2#4",
+     "A:Y3#4"
+    ],
     "marker": {
      "color": [
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)",
-      "rgba(129,149,252,0.5)"
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)"
      ],
-     "size": 7,
+     "size": [
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7
+     ],
+     "symbol": [
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle"
+     ],
      "line": {
       "color": [
-       "#8195FC",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC",
-       "#8195FC"
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000"
       ],
-      "width": 1.5
+      "width": [
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5
+      ]
      }
     },
     "hoverinfo": "y"
@@ -5935,8 +6502,8 @@
      null
     ],
     "line": {
-     "color": "#8195FC",
-     "width": 2
+     "color": "#000000",
+     "width": 1.5
     },
     "hoverinfo": "skip",
     "showlegend": false
@@ -5970,7 +6537,7 @@
       0.5773502692,
       0.5773502692
      ],
-     "color": "#8195FC",
+     "color": "#000000",
      "thickness": 1.5,
      "width": 6
     },
@@ -6015,44 +6582,110 @@
      30,
      33
     ],
+    "customdata": [
+     "B:Y1#0",
+     "B:Y2#0",
+     "B:Y3#0",
+     "B:Y1#1",
+     "B:Y2#1",
+     "B:Y3#1",
+     "B:Y1#2",
+     "B:Y2#2",
+     "B:Y3#2",
+     "B:Y1#3",
+     "B:Y2#3",
+     "B:Y3#3",
+     "B:Y1#4",
+     "B:Y2#4",
+     "B:Y3#4"
+    ],
     "marker": {
      "color": [
-      "rgba(248,113,113,0.5)",
-      "rgba(248,113,113,0.5)",
-      "rgba(248,113,113,0.5)",
-      "rgba(248,113,113,0.5)",
-      "rgba(248,113,113,0.5)",
-      "rgba(248,113,113,0.5)",
-      "rgba(248,113,113,0.5)",
-      "rgba(248,113,113,0.5)",
-      "rgba(248,113,113,0.5)",
-      "rgba(248,113,113,0.5)",
-      "rgba(248,113,113,0.5)",
-      "rgba(248,113,113,0.5)",
-      "rgba(248,113,113,0.5)",
-      "rgba(248,113,113,0.5)",
-      "rgba(248,113,113,0.5)"
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)"
      ],
-     "size": 7,
+     "size": [
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7
+     ],
+     "symbol": [
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle"
+     ],
      "line": {
       "color": [
-       "#f87171",
-       "#f87171",
-       "#f87171",
-       "#f87171",
-       "#f87171",
-       "#f87171",
-       "#f87171",
-       "#f87171",
-       "#f87171",
-       "#f87171",
-       "#f87171",
-       "#f87171",
-       "#f87171",
-       "#f87171",
-       "#f87171"
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00"
       ],
-      "width": 1.5
+      "width": [
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5
+      ]
      }
     },
     "hoverinfo": "y"
@@ -6095,8 +6728,8 @@
      null
     ],
     "line": {
-     "color": "#f87171",
-     "width": 2
+     "color": "#E69F00",
+     "width": 1.5
     },
     "hoverinfo": "skip",
     "showlegend": false
@@ -6130,7 +6763,7 @@
       0.5773502692,
       0.8819171037
      ],
-     "color": "#f87171",
+     "color": "#E69F00",
      "thickness": 1.5,
      "width": 6
     },
@@ -6173,42 +6806,104 @@
      13,
      15
     ],
+    "customdata": [
+     "C:Y1#0",
+     "C:Y2#0",
+     "C:Y3#0",
+     "C:Y1#1",
+     "C:Y3#1",
+     "C:Y1#2",
+     "C:Y2#2",
+     "C:Y3#2",
+     "C:Y1#3",
+     "C:Y2#3",
+     "C:Y3#3",
+     "C:Y1#4",
+     "C:Y2#4",
+     "C:Y3#4"
+    ],
     "marker": {
      "color": [
-      "rgba(74,222,128,0.5)",
-      "rgba(74,222,128,0.5)",
-      "rgba(74,222,128,0.5)",
-      "rgba(74,222,128,0.5)",
-      "rgba(74,222,128,0.5)",
-      "rgba(74,222,128,0.5)",
-      "rgba(74,222,128,0.5)",
-      "rgba(74,222,128,0.5)",
-      "rgba(74,222,128,0.5)",
-      "rgba(74,222,128,0.5)",
-      "rgba(74,222,128,0.5)",
-      "rgba(74,222,128,0.5)",
-      "rgba(74,222,128,0.5)",
-      "rgba(74,222,128,0.5)"
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)"
      ],
-     "size": 7,
+     "size": [
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7
+     ],
+     "symbol": [
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle"
+     ],
      "line": {
       "color": [
-       "#4ade80",
-       "#4ade80",
-       "#4ade80",
-       "#4ade80",
-       "#4ade80",
-       "#4ade80",
-       "#4ade80",
-       "#4ade80",
-       "#4ade80",
-       "#4ade80",
-       "#4ade80",
-       "#4ade80",
-       "#4ade80",
-       "#4ade80"
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9"
       ],
-      "width": 1.5
+      "width": [
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5
+      ]
      }
     },
     "hoverinfo": "y"
@@ -6251,8 +6946,8 @@
      null
     ],
     "line": {
-     "color": "#4ade80",
-     "width": 2
+     "color": "#56B4E9",
+     "width": 1.5
     },
     "hoverinfo": "skip",
     "showlegend": false
@@ -6286,7 +6981,7 @@
       0.5773502692,
       0.6666666667
      ],
-     "color": "#4ade80",
+     "color": "#56B4E9",
      "thickness": 1.5,
      "width": 6
     },
@@ -6377,9 +7072,9 @@
      21
     ],
     "marker": {
-     "color": "rgba(129,149,252,0.5)",
+     "color": "rgba(0,0,0,1)",
      "line": {
-      "color": "#8195FC",
+      "color": "#000000",
       "width": 1.5
      }
     },
@@ -6392,7 +7087,7 @@
       0.5773502692,
       0.5773502692
      ],
-     "color": "#8195FC",
+     "color": "#000000",
      "thickness": 1.5,
      "width": 6
     },
@@ -6417,9 +7112,9 @@
      31.33333333
     ],
     "marker": {
-     "color": "rgba(248,113,113,0.5)",
+     "color": "rgba(230,159,0,1)",
      "line": {
-      "color": "#f87171",
+      "color": "#E69F00",
       "width": 1.5
      }
     },
@@ -6432,7 +7127,7 @@
       0.5773502692,
       0.8819171037
      ],
-     "color": "#f87171",
+     "color": "#E69F00",
      "thickness": 1.5,
      "width": 6
     },
@@ -6457,9 +7152,9 @@
      13.66666667
     ],
     "marker": {
-     "color": "rgba(74,222,128,0.5)",
+     "color": "rgba(86,180,233,1)",
      "line": {
-      "color": "#4ade80",
+      "color": "#56B4E9",
       "width": 1.5
      }
     },
@@ -6472,7 +7167,7 @@
       0.5773502692,
       0.6666666667
      ],
-     "color": "#4ade80",
+     "color": "#56B4E9",
      "thickness": 1.5,
      "width": 6
     },
@@ -6585,14 +7280,16 @@
     ],
     "connectgaps": false,
     "line": {
-     "color": "#8195FC",
-     "width": 2
+     "color": "#000000",
+     "width": 2,
+     "dash": "solid"
     },
     "marker": {
-     "color": "rgba(129,149,252,0.5)",
+     "color": "rgba(0,0,0,1)",
      "size": 7,
+     "symbol": "circle",
      "line": {
-      "color": "#8195FC",
+      "color": "#000000",
       "width": 1.5
      }
     },
@@ -6605,7 +7302,7 @@
       0.5773502692,
       0.5773502692
      ],
-     "color": "#8195FC",
+     "color": "#000000",
      "thickness": 1.5,
      "width": 6
     },
@@ -6631,14 +7328,16 @@
     ],
     "connectgaps": false,
     "line": {
-     "color": "#f87171",
-     "width": 2
+     "color": "#E69F00",
+     "width": 2,
+     "dash": "solid"
     },
     "marker": {
-     "color": "rgba(248,113,113,0.5)",
+     "color": "rgba(230,159,0,1)",
      "size": 7,
+     "symbol": "circle",
      "line": {
-      "color": "#f87171",
+      "color": "#E69F00",
       "width": 1.5
      }
     },
@@ -6651,7 +7350,7 @@
       0.5773502692,
       0.8819171037
      ],
-     "color": "#f87171",
+     "color": "#E69F00",
      "thickness": 1.5,
      "width": 6
     },
@@ -6677,14 +7376,16 @@
     ],
     "connectgaps": false,
     "line": {
-     "color": "#4ade80",
-     "width": 2
+     "color": "#56B4E9",
+     "width": 2,
+     "dash": "solid"
     },
     "marker": {
-     "color": "rgba(74,222,128,0.5)",
+     "color": "rgba(86,180,233,1)",
      "size": 7,
+     "symbol": "circle",
      "line": {
-      "color": "#4ade80",
+      "color": "#56B4E9",
       "width": 1.5
      }
     },
@@ -6697,7 +7398,7 @@
       0.5773502692,
       0.6666666667
      ],
-     "color": "#4ade80",
+     "color": "#56B4E9",
      "thickness": 1.5,
      "width": 6
     },
@@ -6787,9 +7488,9 @@
      21
     ],
     "marker": {
-     "color": "rgba(129,149,252,0.5)",
+     "color": "rgba(0,0,0,1)",
      "line": {
-      "color": "#8195FC",
+      "color": "#000000",
       "width": 1.5
      }
     },
@@ -6814,9 +7515,9 @@
      31.33333333
     ],
     "marker": {
-     "color": "rgba(248,113,113,0.5)",
+     "color": "rgba(230,159,0,1)",
      "line": {
-      "color": "#f87171",
+      "color": "#E69F00",
       "width": 1.5
      }
     },
@@ -6841,9 +7542,9 @@
      13.66666667
     ],
     "marker": {
-     "color": "rgba(74,222,128,0.5)",
+     "color": "rgba(86,180,233,1)",
      "line": {
-      "color": "#4ade80",
+      "color": "#56B4E9",
       "width": 1.5
      }
     },
@@ -6917,9 +7618,9 @@
      21
     ],
     "marker": {
-     "color": "rgba(129,149,252,0.5)",
+     "color": "rgba(0,0,0,1)",
      "line": {
-      "color": "#8195FC",
+      "color": "#000000",
       "width": 1.5
      }
     },
@@ -6932,7 +7633,7 @@
       0.5773502692,
       0.5773502692
      ],
-     "color": "#8195FC",
+     "color": "#000000",
      "thickness": 1.5,
      "width": 6
     },
@@ -6957,9 +7658,9 @@
      31
     ],
     "marker": {
-     "color": "rgba(248,113,113,0.5)",
+     "color": "rgba(230,159,0,1)",
      "line": {
-      "color": "#f87171",
+      "color": "#E69F00",
       "width": 1.5
      }
     },
@@ -6972,7 +7673,7 @@
       0.5773502692,
       0.8819171037
      ],
-     "color": "#f87171",
+     "color": "#E69F00",
      "thickness": 1.5,
      "width": 6
     },
@@ -6997,9 +7698,9 @@
      13
     ],
     "marker": {
-     "color": "rgba(74,222,128,0.5)",
+     "color": "rgba(86,180,233,1)",
      "line": {
-      "color": "#4ade80",
+      "color": "#56B4E9",
       "width": 1.5
      }
     },
@@ -7012,7 +7713,7 @@
       0.5773502692,
       0.6666666667
      ],
-     "color": "#4ade80",
+     "color": "#56B4E9",
      "thickness": 1.5,
      "width": 6
     },
@@ -7062,7 +7763,8 @@
     "fixedrange": true,
     "automargin": true
    },
-   "barmode": "group"
+   "barmode": "group",
+   "bargroupgap": 0.1
   }
  },
  "graph heatmap multiple": {
@@ -7149,7 +7851,1032 @@
       1
      ]
     ],
-    "colorscale": "Viridis",
+    "colorscale": [
+     [
+      0,
+      "#440154"
+     ],
+     [
+      0.003921568627,
+      "#440256"
+     ],
+     [
+      0.007843137255,
+      "#450457"
+     ],
+     [
+      0.01176470588,
+      "#450559"
+     ],
+     [
+      0.01568627451,
+      "#46075A"
+     ],
+     [
+      0.01960784314,
+      "#46085C"
+     ],
+     [
+      0.02352941176,
+      "#460A5D"
+     ],
+     [
+      0.02745098039,
+      "#460B5E"
+     ],
+     [
+      0.03137254902,
+      "#470D60"
+     ],
+     [
+      0.03529411765,
+      "#470E61"
+     ],
+     [
+      0.03921568627,
+      "#471063"
+     ],
+     [
+      0.0431372549,
+      "#471164"
+     ],
+     [
+      0.04705882353,
+      "#471365"
+     ],
+     [
+      0.05098039216,
+      "#481467"
+     ],
+     [
+      0.05490196078,
+      "#481668"
+     ],
+     [
+      0.05882352941,
+      "#481769"
+     ],
+     [
+      0.06274509804,
+      "#48186A"
+     ],
+     [
+      0.06666666667,
+      "#481A6C"
+     ],
+     [
+      0.07058823529,
+      "#481B6D"
+     ],
+     [
+      0.07450980392,
+      "#481C6E"
+     ],
+     [
+      0.07843137255,
+      "#481D6F"
+     ],
+     [
+      0.08235294118,
+      "#481F70"
+     ],
+     [
+      0.0862745098,
+      "#482071"
+     ],
+     [
+      0.09019607843,
+      "#482173"
+     ],
+     [
+      0.09411764706,
+      "#482374"
+     ],
+     [
+      0.09803921569,
+      "#482475"
+     ],
+     [
+      0.1019607843,
+      "#482576"
+     ],
+     [
+      0.1058823529,
+      "#482677"
+     ],
+     [
+      0.1098039216,
+      "#482878"
+     ],
+     [
+      0.1137254902,
+      "#482979"
+     ],
+     [
+      0.1176470588,
+      "#472A7A"
+     ],
+     [
+      0.1215686275,
+      "#472C7A"
+     ],
+     [
+      0.1254901961,
+      "#472D7B"
+     ],
+     [
+      0.1294117647,
+      "#472E7C"
+     ],
+     [
+      0.1333333333,
+      "#472F7D"
+     ],
+     [
+      0.137254902,
+      "#46307E"
+     ],
+     [
+      0.1411764706,
+      "#46327E"
+     ],
+     [
+      0.1450980392,
+      "#46337F"
+     ],
+     [
+      0.1490196078,
+      "#463480"
+     ],
+     [
+      0.1529411765,
+      "#453581"
+     ],
+     [
+      0.1568627451,
+      "#453781"
+     ],
+     [
+      0.1607843137,
+      "#453882"
+     ],
+     [
+      0.1647058824,
+      "#443983"
+     ],
+     [
+      0.168627451,
+      "#443A83"
+     ],
+     [
+      0.1725490196,
+      "#443B84"
+     ],
+     [
+      0.1764705882,
+      "#433D84"
+     ],
+     [
+      0.1803921569,
+      "#433E85"
+     ],
+     [
+      0.1843137255,
+      "#423F85"
+     ],
+     [
+      0.1882352941,
+      "#424086"
+     ],
+     [
+      0.1921568627,
+      "#424186"
+     ],
+     [
+      0.1960784314,
+      "#414287"
+     ],
+     [
+      0.2,
+      "#414487"
+     ],
+     [
+      0.2039215686,
+      "#404588"
+     ],
+     [
+      0.2078431373,
+      "#404688"
+     ],
+     [
+      0.2117647059,
+      "#3F4788"
+     ],
+     [
+      0.2156862745,
+      "#3F4889"
+     ],
+     [
+      0.2196078431,
+      "#3E4989"
+     ],
+     [
+      0.2235294118,
+      "#3E4A89"
+     ],
+     [
+      0.2274509804,
+      "#3E4C8A"
+     ],
+     [
+      0.231372549,
+      "#3D4D8A"
+     ],
+     [
+      0.2352941176,
+      "#3D4E8A"
+     ],
+     [
+      0.2392156863,
+      "#3C4F8A"
+     ],
+     [
+      0.2431372549,
+      "#3C508B"
+     ],
+     [
+      0.2470588235,
+      "#3B518B"
+     ],
+     [
+      0.2509803922,
+      "#3B528B"
+     ],
+     [
+      0.2549019608,
+      "#3A538B"
+     ],
+     [
+      0.2588235294,
+      "#3A548C"
+     ],
+     [
+      0.262745098,
+      "#39558C"
+     ],
+     [
+      0.2666666667,
+      "#39568C"
+     ],
+     [
+      0.2705882353,
+      "#38588C"
+     ],
+     [
+      0.2745098039,
+      "#38598C"
+     ],
+     [
+      0.2784313725,
+      "#375A8C"
+     ],
+     [
+      0.2823529412,
+      "#375B8D"
+     ],
+     [
+      0.2862745098,
+      "#365C8D"
+     ],
+     [
+      0.2901960784,
+      "#365D8D"
+     ],
+     [
+      0.2941176471,
+      "#355E8D"
+     ],
+     [
+      0.2980392157,
+      "#355F8D"
+     ],
+     [
+      0.3019607843,
+      "#34608D"
+     ],
+     [
+      0.3058823529,
+      "#34618D"
+     ],
+     [
+      0.3098039216,
+      "#33628D"
+     ],
+     [
+      0.3137254902,
+      "#33638D"
+     ],
+     [
+      0.3176470588,
+      "#32648E"
+     ],
+     [
+      0.3215686275,
+      "#32658E"
+     ],
+     [
+      0.3254901961,
+      "#31668E"
+     ],
+     [
+      0.3294117647,
+      "#31678E"
+     ],
+     [
+      0.3333333333,
+      "#31688E"
+     ],
+     [
+      0.337254902,
+      "#30698E"
+     ],
+     [
+      0.3411764706,
+      "#306A8E"
+     ],
+     [
+      0.3450980392,
+      "#2F6B8E"
+     ],
+     [
+      0.3490196078,
+      "#2F6C8E"
+     ],
+     [
+      0.3529411765,
+      "#2E6D8E"
+     ],
+     [
+      0.3568627451,
+      "#2E6E8E"
+     ],
+     [
+      0.3607843137,
+      "#2E6F8E"
+     ],
+     [
+      0.3647058824,
+      "#2D708E"
+     ],
+     [
+      0.368627451,
+      "#2D718E"
+     ],
+     [
+      0.3725490196,
+      "#2C718E"
+     ],
+     [
+      0.3764705882,
+      "#2C728E"
+     ],
+     [
+      0.3803921569,
+      "#2C738E"
+     ],
+     [
+      0.3843137255,
+      "#2B748E"
+     ],
+     [
+      0.3882352941,
+      "#2B758E"
+     ],
+     [
+      0.3921568627,
+      "#2A768E"
+     ],
+     [
+      0.3960784314,
+      "#2A778E"
+     ],
+     [
+      0.4,
+      "#2A788E"
+     ],
+     [
+      0.4039215686,
+      "#29798E"
+     ],
+     [
+      0.4078431373,
+      "#297A8E"
+     ],
+     [
+      0.4117647059,
+      "#297B8E"
+     ],
+     [
+      0.4156862745,
+      "#287C8E"
+     ],
+     [
+      0.4196078431,
+      "#287D8E"
+     ],
+     [
+      0.4235294118,
+      "#277E8E"
+     ],
+     [
+      0.4274509804,
+      "#277F8E"
+     ],
+     [
+      0.431372549,
+      "#27808E"
+     ],
+     [
+      0.4352941176,
+      "#26818E"
+     ],
+     [
+      0.4392156863,
+      "#26828E"
+     ],
+     [
+      0.4431372549,
+      "#26828E"
+     ],
+     [
+      0.4470588235,
+      "#25838E"
+     ],
+     [
+      0.4509803922,
+      "#25848E"
+     ],
+     [
+      0.4549019608,
+      "#25858E"
+     ],
+     [
+      0.4588235294,
+      "#24868E"
+     ],
+     [
+      0.462745098,
+      "#24878E"
+     ],
+     [
+      0.4666666667,
+      "#23888E"
+     ],
+     [
+      0.4705882353,
+      "#23898E"
+     ],
+     [
+      0.4745098039,
+      "#238A8D"
+     ],
+     [
+      0.4784313725,
+      "#228B8D"
+     ],
+     [
+      0.4823529412,
+      "#228C8D"
+     ],
+     [
+      0.4862745098,
+      "#228D8D"
+     ],
+     [
+      0.4901960784,
+      "#218E8D"
+     ],
+     [
+      0.4941176471,
+      "#218F8D"
+     ],
+     [
+      0.4980392157,
+      "#21908D"
+     ],
+     [
+      0.5019607843,
+      "#21918C"
+     ],
+     [
+      0.5058823529,
+      "#20928C"
+     ],
+     [
+      0.5098039216,
+      "#20928C"
+     ],
+     [
+      0.5137254902,
+      "#20938C"
+     ],
+     [
+      0.5176470588,
+      "#1F948C"
+     ],
+     [
+      0.5215686275,
+      "#1F958B"
+     ],
+     [
+      0.5254901961,
+      "#1F968B"
+     ],
+     [
+      0.5294117647,
+      "#1F978B"
+     ],
+     [
+      0.5333333333,
+      "#1F988B"
+     ],
+     [
+      0.537254902,
+      "#1F998A"
+     ],
+     [
+      0.5411764706,
+      "#1F9A8A"
+     ],
+     [
+      0.5450980392,
+      "#1E9B8A"
+     ],
+     [
+      0.5490196078,
+      "#1E9C89"
+     ],
+     [
+      0.5529411765,
+      "#1E9D89"
+     ],
+     [
+      0.5568627451,
+      "#1F9E89"
+     ],
+     [
+      0.5607843137,
+      "#1F9F88"
+     ],
+     [
+      0.5647058824,
+      "#1FA088"
+     ],
+     [
+      0.568627451,
+      "#1FA188"
+     ],
+     [
+      0.5725490196,
+      "#1FA187"
+     ],
+     [
+      0.5764705882,
+      "#1FA287"
+     ],
+     [
+      0.5803921569,
+      "#20A386"
+     ],
+     [
+      0.5843137255,
+      "#20A486"
+     ],
+     [
+      0.5882352941,
+      "#21A585"
+     ],
+     [
+      0.5921568627,
+      "#21A685"
+     ],
+     [
+      0.5960784314,
+      "#22A785"
+     ],
+     [
+      0.6,
+      "#22A884"
+     ],
+     [
+      0.6039215686,
+      "#23A983"
+     ],
+     [
+      0.6078431373,
+      "#24AA83"
+     ],
+     [
+      0.6117647059,
+      "#25AB82"
+     ],
+     [
+      0.6156862745,
+      "#25AC82"
+     ],
+     [
+      0.6196078431,
+      "#26AD81"
+     ],
+     [
+      0.6235294118,
+      "#27AD81"
+     ],
+     [
+      0.6274509804,
+      "#28AE80"
+     ],
+     [
+      0.631372549,
+      "#29AF7F"
+     ],
+     [
+      0.6352941176,
+      "#2AB07F"
+     ],
+     [
+      0.6392156863,
+      "#2CB17E"
+     ],
+     [
+      0.6431372549,
+      "#2DB27D"
+     ],
+     [
+      0.6470588235,
+      "#2EB37C"
+     ],
+     [
+      0.6509803922,
+      "#2FB47C"
+     ],
+     [
+      0.6549019608,
+      "#31B57B"
+     ],
+     [
+      0.6588235294,
+      "#32B67A"
+     ],
+     [
+      0.662745098,
+      "#34B679"
+     ],
+     [
+      0.6666666667,
+      "#35B779"
+     ],
+     [
+      0.6705882353,
+      "#37B878"
+     ],
+     [
+      0.6745098039,
+      "#38B977"
+     ],
+     [
+      0.6784313725,
+      "#3ABA76"
+     ],
+     [
+      0.6823529412,
+      "#3BBB75"
+     ],
+     [
+      0.6862745098,
+      "#3DBC74"
+     ],
+     [
+      0.6901960784,
+      "#3FBC73"
+     ],
+     [
+      0.6941176471,
+      "#40BD72"
+     ],
+     [
+      0.6980392157,
+      "#42BE71"
+     ],
+     [
+      0.7019607843,
+      "#44BF70"
+     ],
+     [
+      0.7058823529,
+      "#46C06F"
+     ],
+     [
+      0.7098039216,
+      "#48C16E"
+     ],
+     [
+      0.7137254902,
+      "#4AC16D"
+     ],
+     [
+      0.7176470588,
+      "#4CC26C"
+     ],
+     [
+      0.7215686275,
+      "#4EC36B"
+     ],
+     [
+      0.7254901961,
+      "#50C46A"
+     ],
+     [
+      0.7294117647,
+      "#52C569"
+     ],
+     [
+      0.7333333333,
+      "#54C568"
+     ],
+     [
+      0.737254902,
+      "#56C667"
+     ],
+     [
+      0.7411764706,
+      "#58C765"
+     ],
+     [
+      0.7450980392,
+      "#5AC864"
+     ],
+     [
+      0.7490196078,
+      "#5CC863"
+     ],
+     [
+      0.7529411765,
+      "#5EC962"
+     ],
+     [
+      0.7568627451,
+      "#60CA60"
+     ],
+     [
+      0.7607843137,
+      "#63CB5F"
+     ],
+     [
+      0.7647058824,
+      "#65CB5E"
+     ],
+     [
+      0.768627451,
+      "#67CC5C"
+     ],
+     [
+      0.7725490196,
+      "#69CD5B"
+     ],
+     [
+      0.7764705882,
+      "#6CCD5A"
+     ],
+     [
+      0.7803921569,
+      "#6ECE58"
+     ],
+     [
+      0.7843137255,
+      "#70CF57"
+     ],
+     [
+      0.7882352941,
+      "#73D056"
+     ],
+     [
+      0.7921568627,
+      "#75D054"
+     ],
+     [
+      0.7960784314,
+      "#77D153"
+     ],
+     [
+      0.8,
+      "#7AD151"
+     ],
+     [
+      0.8039215686,
+      "#7CD250"
+     ],
+     [
+      0.8078431373,
+      "#7FD34E"
+     ],
+     [
+      0.8117647059,
+      "#81D34D"
+     ],
+     [
+      0.8156862745,
+      "#84D44B"
+     ],
+     [
+      0.8196078431,
+      "#86D549"
+     ],
+     [
+      0.8235294118,
+      "#89D548"
+     ],
+     [
+      0.8274509804,
+      "#8BD646"
+     ],
+     [
+      0.831372549,
+      "#8ED645"
+     ],
+     [
+      0.8352941176,
+      "#90D743"
+     ],
+     [
+      0.8392156863,
+      "#93D741"
+     ],
+     [
+      0.8431372549,
+      "#95D840"
+     ],
+     [
+      0.8470588235,
+      "#98D83E"
+     ],
+     [
+      0.8509803922,
+      "#9BD93C"
+     ],
+     [
+      0.8549019608,
+      "#9DD93B"
+     ],
+     [
+      0.8588235294,
+      "#A0DA39"
+     ],
+     [
+      0.862745098,
+      "#A2DA37"
+     ],
+     [
+      0.8666666667,
+      "#A5DB36"
+     ],
+     [
+      0.8705882353,
+      "#A8DB34"
+     ],
+     [
+      0.8745098039,
+      "#AADC32"
+     ],
+     [
+      0.8784313725,
+      "#ADDC30"
+     ],
+     [
+      0.8823529412,
+      "#B0DD2F"
+     ],
+     [
+      0.8862745098,
+      "#B2DD2D"
+     ],
+     [
+      0.8901960784,
+      "#B5DE2B"
+     ],
+     [
+      0.8941176471,
+      "#B8DE29"
+     ],
+     [
+      0.8980392157,
+      "#BADE28"
+     ],
+     [
+      0.9019607843,
+      "#BDDF26"
+     ],
+     [
+      0.9058823529,
+      "#C0DF25"
+     ],
+     [
+      0.9098039216,
+      "#C2DF23"
+     ],
+     [
+      0.9137254902,
+      "#C5E021"
+     ],
+     [
+      0.9176470588,
+      "#C8E020"
+     ],
+     [
+      0.9215686275,
+      "#CAE11F"
+     ],
+     [
+      0.9254901961,
+      "#CDE11D"
+     ],
+     [
+      0.9294117647,
+      "#D0E11C"
+     ],
+     [
+      0.9333333333,
+      "#D2E21B"
+     ],
+     [
+      0.937254902,
+      "#D5E21A"
+     ],
+     [
+      0.9411764706,
+      "#D8E219"
+     ],
+     [
+      0.9450980392,
+      "#DAE319"
+     ],
+     [
+      0.9490196078,
+      "#DDE318"
+     ],
+     [
+      0.9529411765,
+      "#DFE318"
+     ],
+     [
+      0.9568627451,
+      "#E2E418"
+     ],
+     [
+      0.9607843137,
+      "#E5E419"
+     ],
+     [
+      0.9647058824,
+      "#E7E419"
+     ],
+     [
+      0.968627451,
+      "#EAE51A"
+     ],
+     [
+      0.9725490196,
+      "#ECE51B"
+     ],
+     [
+      0.9764705882,
+      "#EFE51C"
+     ],
+     [
+      0.9803921569,
+      "#F1E51D"
+     ],
+     [
+      0.9843137255,
+      "#F4E61E"
+     ],
+     [
+      0.9882352941,
+      "#F6E620"
+     ],
+     [
+      0.9921568627,
+      "#F8E621"
+     ],
+     [
+      0.9960784314,
+      "#FBE723"
+     ],
+     [
+      1,
+      "#FDE725"
+     ]
+    ],
     "showscale": true,
     "hoverongaps": false
    }
@@ -7240,18 +8967,50 @@
     ],
     "marker": {
      "color": [
-      "#f87171",
-      "#8195FC",
-      "#B8BEC9",
-      "#f87171",
-      "#B8BEC9"
+      "rgba(180,4,38,0.75)",
+      "rgba(59,76,192,0.75)",
+      "rgba(184,190,201,0.75)",
+      "rgba(180,4,38,0.75)",
+      "rgba(184,190,201,0.75)"
      ],
-     "size": 5,
-     "opacity": 0.75,
+     "size": [
+      5,
+      5,
+      5,
+      5,
+      5
+     ],
+     "symbol": [
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle"
+     ],
      "line": {
-      "width": 0
+      "color": [
+       "#B40426",
+       "#3B4CC0",
+       "#B8BEC9",
+       "#B40426",
+       "#B8BEC9"
+      ],
+      "width": [
+       0,
+       0,
+       0,
+       0,
+       0
+      ]
      }
     },
+    "customdata": [
+     "#0",
+     "#1",
+     "#2",
+     "#3",
+     "#4"
+    ],
     "text": [
      "TP53<br>Log2 FC: 2.5<br>-log10(P): 4.00",
      "MYC<br>Log2 FC: -1.8<br>-log10(P): 2.70",
@@ -7309,7 +9068,8 @@
     "fixedrange": true,
     "automargin": true,
     "title": {
-     "text": "-log10(P)"
+     "text": "-log10(P)",
+     "standoff": 2
     }
    },
    "shapes": [
@@ -7358,16 +9118,17 @@
    ],
    "annotations": [
     {
+     "name": "#0",
      "x": 2.5,
      "y": 4,
-     "text": "TP53",
      "xref": "x",
      "yref": "y",
+     "text": "TP53",
      "showarrow": true,
      "arrowhead": 0,
      "arrowwidth": 0.5,
      "arrowcolor": "#9CA3AF",
-     "standoff": 2,
+     "standoff": 2.5,
      "ax": -22,
      "ay": 0,
      "font": {
@@ -7376,16 +9137,17 @@
      }
     },
     {
+     "name": "#1",
      "x": -1.8,
      "y": 2.698970004,
-     "text": "MYC",
      "xref": "x",
      "yref": "y",
+     "text": "MYC",
      "showarrow": true,
      "arrowhead": 0,
      "arrowwidth": 0.5,
      "arrowcolor": "#9CA3AF",
-     "standoff": 2,
+     "standoff": 2.5,
      "ax": 19,
      "ay": -15,
      "font": {
@@ -7394,16 +9156,17 @@
      }
     },
     {
+     "name": "#3",
      "x": 1.2,
      "y": 1.522878745,
-     "text": "EGFR",
      "xref": "x",
      "yref": "y",
+     "text": "EGFR",
      "showarrow": true,
      "arrowhead": 0,
      "arrowwidth": 0.5,
      "arrowcolor": "#9CA3AF",
-     "standoff": 2,
+     "standoff": 2.5,
      "ax": 0,
      "ay": -15,
      "font": {
@@ -7429,9 +9192,9 @@
      6
     ],
     "marker": {
-     "color": "rgba(129,149,252,0.5)",
+     "color": "rgba(0,0,0,1)",
      "line": {
-      "color": "#8195FC",
+      "color": "#000000",
       "width": 1.5
      }
     },
@@ -7450,9 +9213,9 @@
      14
     ],
     "marker": {
-     "color": "rgba(248,113,113,0.5)",
+     "color": "rgba(230,159,0,1)",
      "line": {
-      "color": "#f87171",
+      "color": "#E69F00",
       "width": 1.5
      }
     },

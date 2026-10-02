@@ -2,9 +2,11 @@
 // and one in GRAPH_OPTIONS_BY_TABLE for the tables that offer it. Each module turns
 // the table's columns (lib/dataset.ts) and options into a Plotly figure.
 
-import type { GraphType, GraphOptions, TableType, PaletteColor } from "../../store/types";
+import { DEFAULT_GRAPH_OPTIONS, type GraphType, type GraphOptions, type TableData, type TableType } from "../../store/types";
 import type { SelectorOption } from "../../components/common/universal-modal";
-import { splitXY, type Column, type Dataset } from "../../lib/dataset";
+import { seriesOf, splitXY, type Column, type Dataset } from "../../lib/dataset";
+import { paletteNamed, savedPalette } from "../../lib/palettes";
+import type { Paint } from "./plot-helpers";
 import { individual } from "./individual";
 import { boxViolin } from "./box-violin";
 import { meanError } from "./mean-error";
@@ -20,7 +22,7 @@ import { pie, donut } from "./pie";
 import { doseResponse } from "./dose-response";
 import { heatmap } from "./heatmap";
 import { survival } from "./survival";
-import { volcano } from "./volcano";
+import { volcano, VOLCANO_SERIES } from "./volcano";
 
 /** A Plotly figure (untyped traces/layout — built as plain objects per module). */
 export interface GraphFigure {
@@ -34,11 +36,21 @@ type GraphFamily = "column" | "xy" | "grouped" | "pie" | "heatmap" | "volcano";
 export interface GraphModule {
   label: string;
   family: GraphFamily;
+  /** The palette a new graph of this type takes (Okabe-Ito when unset). */
+  palette?: string;
+  /** What a new graph of this type starts with, over the defaults: a half-opaque
+   *  `fill` where points usually sit on its shapes or they overlap, its points' size… */
+  defaults?: Partial<GraphOptions>;
+  /** Whether it draws points with these options (their style is then offered). */
+  points?: (options: GraphOptions) => boolean;
+  /** Whether it draws series lines with these options (their thickness is then offered). */
+  lines?: (options: GraphOptions) => boolean;
+  /** Whether it fills bars, areas or slices a series' pattern can cover. */
+  patterns?: (options: GraphOptions) => boolean;
   build: (
     columns: Column[],
     options: GraphOptions,
-    seriesColors?: Record<string, PaletteColor>,
-    pointColors?: Record<string, PaletteColor>,
+    paint: Paint,
     /** Row titles, which label the rows on a grouped graph or a heatmap. */
     titles?: (string | null)[],
   ) => GraphFigure;
@@ -73,6 +85,19 @@ export function plotColumns({ columns, numeric }: Dataset, type: GraphType): Col
   if (family !== "xy") return numeric;
   const { x, ys } = splitXY(columns);
   return x ? [x, ...ys] : [];
+}
+
+/** The series a graph colors, in order: a volcano's "down" and "up", none for a
+ *  heatmap (its cells follow the palette), else the table's series. */
+export function graphSeries(type: GraphType, data: TableData, tableType: TableType): string[] {
+  const { family } = GRAPHS[type];
+  return family === "volcano" ? Object.keys(VOLCANO_SERIES) : family === "heatmap" ? [] : seriesOf(data, tableType);
+}
+
+/** A new graph's options: the defaults, with its type's palette and own defaults. */
+export function newGraphOptions(type: GraphType): GraphOptions {
+  const { palette, defaults } = GRAPHS[type];
+  return { ...DEFAULT_GRAPH_OPTIONS, palette: savedPalette(paletteNamed(palette ?? "okabe-ito")!), ...defaults };
 }
 
 const optionsFor = (types: GraphType[]): SelectorOption<GraphType>[] =>

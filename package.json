@@ -1,6 +1,6 @@
 {
   "name": "helix",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Scientific data analysis, simplified — an open-source alternative to GraphPad Prism.",
   "private": true,
   "license": "GPL-3.0-or-later",
@@ -15,10 +15,10 @@
     "test": "node --import tsx tests/checks.ts && node --import tsx tests/reference.ts"
   },
   "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-dialog": "^2.7.3",
-    "lucide-react": "^0.542.0",
-    "plotly.js-dist-min": "^3.7.0",
+    "plotly.js-dist-min": "^4.1.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "webr": "^0.5.4"

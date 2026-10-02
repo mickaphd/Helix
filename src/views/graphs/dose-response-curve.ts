@@ -7,7 +7,7 @@ import type { AnalysisResult, RegressionCoefficient, StatRow } from "../../stats
 import { pairUp, type Column } from "../../lib/dataset";
 import type { GraphFigure } from ".";
 import { num } from "../../lib/format";
-import { addNote, extent, seriesColor, type SeriesColors } from "./plot-helpers";
+import { addNote, extent, type Paint } from "./plot-helpers";
 
 type DoseModel = GraphOptions["doseModel"];
 
@@ -42,7 +42,6 @@ function doseResponseCurve(
   return { x, y };
 }
 
-
 /** "EC50 = 12.3<br>Hill slope = 1.05<br>R²=0.9821" annotation text (Plotly-ready). */
 function doseResponseLabel(model: DoseModel, coefficients: RegressionCoefficient[], stats: StatRow[]): string {
   const ec50 = model === "sigmoidal-4pl-logx" ? 10 ** coef(coefficients, "LogEC50") : coef(coefficients, "EC50");
@@ -60,7 +59,7 @@ export function addDoseCurve(
   columns: Column[],
   options: GraphOptions,
   fit: AnalysisResult,
-  seriesColors: SeriesColors,
+  paint: Paint,
 ) {
   const [x, ...ys] = columns;
   const y = ys.find((c) => c.name === options.doseY) ?? ys[0];
@@ -75,11 +74,11 @@ export function addDoseCurve(
       mode: "lines",
       x: curve.x,
       y: curve.y,
-      line: { color: seriesColor(seriesColors, y.name, ys.indexOf(y)), width: 1.5 },
+      line: { color: paint.color(y.name, ys.indexOf(y)), width: 1.5 },
       hoverinfo: "skip",
       showlegend: false,
     },
     ...fig.data,
   ];
-  if (options.doseShowEquation) addNote(fig, doseResponseLabel(options.doseModel, coefficients, fit.stats), options.fontSize);
+  if (options.doseShowEquation) addNote(fig, doseResponseLabel(options.doseModel, coefficients, fit.stats), options);
 }

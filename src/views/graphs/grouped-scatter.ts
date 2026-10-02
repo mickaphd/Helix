@@ -6,5 +6,6 @@ import { buildGroupedScatter } from "./grouped-common";
 export const groupedScatter: GraphModule = {
   label: "Interleaved scatter",
   family: "grouped",
+  points: () => true,
   build: buildGroupedScatter,
 };

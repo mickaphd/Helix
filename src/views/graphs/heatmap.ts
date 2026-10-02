@@ -1,18 +1,13 @@
 // "Heatmap" (Multiple Variables table only): each column is a variable, each row
 // a subject — the classic use for that table type. Cell color encodes magnitude
-// via a Plotly colorscale; row order matches the table (Y axis reversed).
+// along the graph's palette; row order matches the table (Y axis reversed).
 import type { GraphOptions } from "../../store/types";
 import type { GraphModule, GraphFigure } from ".";
 import type { Column } from "../../lib/dataset";
-import { heatmapLayout, rowCountOf, rowLabels } from "./plot-helpers";
+import { colorscaleOf, paletteOf } from "../../lib/palettes";
+import { heatmapLayout, rowCountOf, rowLabels, type Paint } from "./plot-helpers";
 
-const COLOR_SCALES: Record<GraphOptions["heatmapColorScale"], string> = {
-  viridis: "Viridis",
-  "red-blue": "RdBu",
-  "yellow-red": "YlOrRd",
-};
-
-function build(columns: Column[], options: GraphOptions, _s?: unknown, _p?: unknown, titles?: (string | null)[]): GraphFigure {
+function build(columns: Column[], options: GraphOptions, _paint: Paint, titles?: (string | null)[]): GraphFigure {
   const rows = rowCountOf(columns);
   const y = rowLabels(rows, titles);
   const z: (number | null)[][] = [];
@@ -26,8 +21,10 @@ function build(columns: Column[], options: GraphOptions, _s?: unknown, _p?: unkn
         x: columns.map((c) => c.name),
         y,
         z,
-        colorscale: COLOR_SCALES[options.heatmapColorScale],
+        colorscale: colorscaleOf(paletteOf(options)),
         showscale: options.heatmapShowScale,
+        // Its color legend: right of the cells, or where it was moved.
+        ...(options.legend && { colorbar: options.legend }),
         hoverongaps: false,
         ...(options.heatmapShowValues
           ? { texttemplate: "%{z}", textfont: { size: Math.max(options.fontSize - 3, 8) } }
@@ -42,4 +39,4 @@ function build(columns: Column[], options: GraphOptions, _s?: unknown, _p?: unkn
   };
 }
 
-export const heatmap: GraphModule = { label: "Heatmap", family: "heatmap", build };
+export const heatmap: GraphModule = { label: "Heatmap", family: "heatmap", palette: "viridis", build };

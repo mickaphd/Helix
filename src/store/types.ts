@@ -89,8 +89,7 @@ export interface GraphOptions {
   doseShowCurve: boolean;
   doseShowEquation: boolean;
   // Heatmap (Multiple Variables only): each column is a variable, each row a
-  // subject; cell color encodes magnitude via a Plotly colorscale.
-  heatmapColorScale: "viridis" | "red-blue" | "yellow-red";
+  // subject; cell color encodes magnitude along the graph's gradient palette.
   heatmapShowValues: boolean;
   heatmapShowScale: boolean;
   // Survival curve (XY family only) — see survival.ts. Two data entry modes:
@@ -125,11 +124,44 @@ export interface GraphOptions {
   volcanoGroupB?: string;
   volcanoEffect: "log2ratio" | "difference";
   volcanoSignificance: "pvalue" | "fdr";
-  // Volcano appearance: up/down point colors (NS points stay a fixed muted grey)
-  // and marker size.
-  volcanoColorUp: PaletteColor;
-  volcanoColorDown: PaletteColor;
-  volcanoPointSize: number;
+  // Colors. `palette`: its name and colors, saved with the graph so a figure keeps
+  // them whatever becomes of Helix's catalog (lib/palettes.ts). `series`: the series
+  // colored by hand, by name (a column, a group, a volcano's "up" and "down"); the
+  // others take the palette's color for their place.
+  palette?: GraphPalette;
+  series?: Record<string, SeriesStyle>;
+  // Points styled one by one, by `"<column>#<row>"` (see `pointKeyOf`): over their series'.
+  points?: Record<string, PointStyle>;
+  // How opaque fills are (0–1): `fill` of bars, boxes, violins and areas, `pointFill` of points.
+  fill: number;
+  pointFill: number;
+  // Every point's size (px), shape and outline thickness (px); a series' shape wins.
+  pointSize: number;
+  pointShape: PointShape;
+  pointOutline: number;
+  // Outlines: of bars, boxes, violins, areas and slices, their thickness (px) and color;
+  // the points' color. No color: the color of what they outline.
+  outline: number;
+  outlineColor?: string;
+  pointOutlineColor?: string;
+  // The gap between the bars of a row on interleaved grouped bars, as a fraction of the row.
+  barGap: number;
+  // Every series line's thickness (px) and dashes; a series' dashes win.
+  lineWidth: number;
+  lineDash: LineDash;
+  // Texts moved by hand: the legend (or a heatmap's color legend), as a fraction of
+  // the plot area; the note (a fit's equation), in px from its corner. None: in place.
+  legend?: Place;
+  note?: Place;
+  // The space (px) between each axis title and its tick labels.
+  xTitleGap: number;
+  yTitleGap: number;
+  // Error bars, and the mean or median line drawn with them: thickness and cap width (px),
+  // color (none: the series'), and whether they go both ways or only above (right).
+  errorWidth: number;
+  errorCaps: number;
+  errorColor?: string;
+  errorDirection: "both" | "above";
   // Appearance: thickness of every axis spine + its tick marks (px), and the base
   // font size (px) for tick labels, axis titles, and the chart title.
   axisWidth: number;
@@ -160,7 +192,6 @@ export const DEFAULT_GRAPH_OPTIONS: GraphOptions = {
   doseModel: "sigmoidal-4pl-x",
   doseShowCurve: true,
   doseShowEquation: true,
-  heatmapColorScale: "viridis",
   heatmapShowValues: false,
   heatmapShowScale: true,
   survivalMode: "codes",
@@ -172,20 +203,85 @@ export const DEFAULT_GRAPH_OPTIONS: GraphOptions = {
   volcanoLabelCount: 10,
   volcanoEffect: "log2ratio",
   volcanoSignificance: "pvalue",
-  volcanoColorUp: "red",
-  volcanoColorDown: "blue",
-  volcanoPointSize: 5,
   title: "",
   xLabel: "",
   yLabel: "",
   axisWidth: 1,
   fontSize: 13,
+  fill: 1,
+  pointFill: 1,
+  pointSize: 7,
+  pointShape: "circle",
+  pointOutline: 1.5,
+  outline: 1.5,
+  barGap: 0.1,
+  lineWidth: 2,
+  lineDash: "solid",
+  xTitleGap: 12,
+  yTitleGap: 2,
+  errorWidth: 1.5,
+  errorCaps: 6,
+  errorDirection: "both",
   background: "white",
   width: 640,
   height: 460,
 };
 
-/** The fixed 6-swatch series palette (graphs + table column/group styling). */
+export type PaletteKind = "categorical" | "sequential" | "diverging";
+
+/** A graph's palette as saved: which one, and its colors. */
+export interface GraphPalette {
+  name: string;
+  kind: PaletteKind;
+  colors: string[];
+  /** Its colors taken from the last. */
+  reversed?: boolean;
+}
+
+/** A point's shape (Plotly's symbol of the same name). */
+export type PointShape = "circle" | "square" | "diamond" | "triangle-up" | "triangle-down";
+
+/** A line's dashes (Plotly's dash of the same name). */
+export type LineDash = "solid" | "dash" | "dot" | "dashdot";
+
+/** What covers a fill: lines one way or the other, both, horizontal, vertical, a grid, dots. */
+export type FillPattern = "diagonal" | "back-diagonal" | "crosshatch" | "horizontal" | "vertical" | "grid" | "dots";
+
+/** How one series is drawn: its color (#RRGGBB), its points' shape, its line's dashes,
+ *  and the pattern over its bars, areas or slices. */
+export interface SeriesStyle {
+  color?: string;
+  shape?: PointShape;
+  dash?: LineDash;
+  pattern?: FillPattern;
+}
+
+/** How one point is drawn, over its series' and the graph's style; `label`: it shows
+ *  its name (its row's title) beside it. */
+export interface PointStyle {
+  color?: string;
+  size?: number;
+  shape?: PointShape;
+  /** How opaque its fill is (0–1). */
+  fill?: number;
+  outline?: number;
+  /** "#RRGGBB", or `SAME_AS_FILL` (whatever the graph's points take). */
+  outlineColor?: string;
+  label?: boolean;
+  /** Where its name was moved, in px from the point. */
+  labelOffset?: Place;
+}
+
+/** A position: of a text on the graph, or of a name from its point. */
+export interface Place {
+  x: number;
+  y: number;
+}
+
+/** An outline color that is the color of what it outlines. */
+export const SAME_AS_FILL = "fill";
+
+/** Helix 1.0's named colors (see `NAMED_COLORS`), as its files may hold them. */
 export type PaletteColor = "blue" | "red" | "green" | "purple" | "orange" | "black";
 
 export interface TableData {
@@ -202,23 +298,6 @@ export interface TableData {
    * every analysis and graph via `readTable()`. Omitted when nothing is excluded.
    */
   excluded?: string[];
-  /**
-   * User-chosen series colors, keyed by column name (Column/XY family) or group
-   * prefix (Grouped family, e.g. "A"). Unset keys fall back to palette-by-position
-   * (see `resolveColor` in `lib/palette.ts`). Shared by every graph drawn from
-   * this table and by the table's own column/group right-click menu.
-   */
-  seriesColors?: Record<string, PaletteColor>;
-  /**
-   * User-chosen colors for individual data points (one specific cell), keyed by
-   * `"<column>#<row>"` (see `pointKeyOf` in `lib/columns.ts`) — set from the table's
-   * right-click menu on a cell/selection, distinct from `seriesColors` which colors
-   * a whole column/group. Overrides the series color for that one point on every
-   * graph that plots individual points (Individual values, Box & violin points,
-   * XY scatter markers, Grouped scatter). Setting a series color clears any point
-   * overrides within it, so a whole-series recolor always wins.
-   */
-  pointColors?: Record<string, PaletteColor>;
   /** Column widths (px) the user set, keyed by column name; others fit their content. */
   widths?: Record<string, number>;
   /** Keep column 0 (the row titles) visible while scrolling right. */

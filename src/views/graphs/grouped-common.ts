@@ -3,7 +3,7 @@
 // the X categories, so every grouped graph plots one series per group across the
 // row categories. The bar variants (interleaved / stacked / horizontal) share one
 // builder; individual values get their own interleaved-scatter builder.
-import type { GraphOptions, PaletteColor } from "../../store/types";
+import type { GraphOptions } from "../../store/types";
 import type { GraphFigure } from ".";
 import { groupsOf, type Column } from "../../lib/dataset";
 import {
@@ -14,11 +14,10 @@ import {
   groupedBarLayout,
   groupedScatterLayout,
   separatedPositions,
-  seriesColor,
-  seriesFill,
   seriesMarker,
-  seriesPointMarker,
+  seriesPoints,
   jitter,
+  type Paint,
 } from "./plot-helpers";
 import { pointKeyOf } from "../../lib/columns";
 
@@ -32,8 +31,8 @@ export function buildGroupedBars(
   columns: Column[],
   options: GraphOptions,
   mode: "group" | "stack",
-  horizontal = false,
-  seriesColors?: Record<string, PaletteColor>,
+  horizontal: boolean,
+  paint: Paint,
   titles?: (string | null)[],
 ): GraphFigure {
   const groups = groupsOf(columns);
@@ -52,23 +51,19 @@ export function buildGroupedBars(
       orientation: horizontal ? "h" : "v",
       [horizontal ? "y" : "x"]: x,
       [horizontal ? "x" : "y"]: center,
-      marker: { color: seriesFill(seriesColors, g.name, i), line: { color: seriesColor(seriesColors, g.name, i), width: 1.5 } },
+      marker: paint.bars(g.name, i),
       ...(errArr
         ? {
-            [horizontal ? "error_x" : "error_y"]: {
-              type: "data",
-              array: errArr,
-              color: seriesColor(seriesColors, g.name, i),
-              thickness: 1.5,
-              width: 6,
-            },
+            [horizontal ? "error_x" : "error_y"]: paint.errorBars(g.name, i, errArr),
           }
         : {}),
       hoverinfo: horizontal ? "y+x" : "x+y",
     };
   });
 
-  return { data, layout: { ...groupedBarLayout(options, groups.length, { horizontal, separated }), barmode: mode } };
+  // A row's bars apart by `barGap`, so their outlines never overlap.
+  const gap = mode === "group" && !separated ? { bargroupgap: options.barGap } : {};
+  return { data, layout: { ...groupedBarLayout(options, groups.length, { horizontal, separated }), barmode: mode, ...gap } };
 }
 
 /** Connected/interaction lines: one line per group through its per-row centers
@@ -78,7 +73,7 @@ export function buildGroupedBars(
 export function buildGroupedLines(
   columns: Column[],
   options: GraphOptions,
-  seriesColors?: Record<string, PaletteColor>,
+  paint: Paint,
   titles?: (string | null)[],
 ): GraphFigure {
   const groups = groupsOf(columns);
@@ -96,19 +91,9 @@ export function buildGroupedLines(
       y: center,
       // Break the line at rows where this group has no data instead of interpolating across.
       connectgaps: false,
-      line: { color: seriesColor(seriesColors, g.name, i), width: 2 },
-      marker: seriesMarker(7, seriesColors, g.name, i),
-      ...(error
-        ? {
-            error_y: {
-              type: "data",
-              array: error.map((e) => e ?? NaN),
-              color: seriesColor(seriesColors, g.name, i),
-              thickness: 1.5,
-              width: 6,
-            },
-          }
-        : {}),
+      line: paint.line(g.name, i),
+      marker: seriesMarker(paint, g.name, i),
+      ...(error ? { error_y: paint.errorBars(g.name, i, error.map((e) => e ?? NaN)) } : {}),
       hoverinfo: "x+y",
     };
   });
@@ -123,8 +108,7 @@ export function buildGroupedLines(
 export function buildGroupedScatter(
   columns: Column[],
   options: GraphOptions,
-  seriesColors?: Record<string, PaletteColor>,
-  pointColors?: Record<string, PaletteColor>,
+  paint: Paint,
   titles?: (string | null)[],
 ): GraphFigure {
   const groups = groupsOf(columns);
@@ -157,7 +141,7 @@ export function buildGroupedScatter(
       name: g.name,
       x: px,
       y: py,
-      marker: seriesPointMarker(7, seriesColors, pointColors, g.name, gi, pointKeys),
+      ...seriesPoints(paint, g.name, gi, pointKeys),
       hoverinfo: "y",
     });
 
@@ -177,7 +161,7 @@ export function buildGroupedScatter(
       mode: "lines",
       x: lineX,
       y: lineY,
-      line: { color: seriesColor(seriesColors, g.name, gi), width: 2 },
+      line: paint.centerLine(g.name, gi),
       hoverinfo: "skip",
       showlegend: false,
     });
@@ -199,7 +183,7 @@ export function buildGroupedScatter(
         x: ex,
         y: ey,
         marker: { opacity: 0 },
-        error_y: { type: "data", array: ea, color: seriesColor(seriesColors, g.name, gi), thickness: 1.5, width: 6 },
+        error_y: paint.errorBars(g.name, gi, ea),
         hoverinfo: "skip",
         showlegend: false,
       });

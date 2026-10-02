@@ -117,7 +117,7 @@ export async function runRout(columns: Column[], params?: OutliersParams): Promi
     (flagged.length
       ? `Flagged as outliers (FDR-adjusted P < Q): ${flagged
           .map((f) => `${f.group} row ${f.row + 1} (value ${f.value}, adj. P = ${f.p.toFixed(4)})`)
-          .join("; ")}. Use "Exclude from analysis" (⌘E) on those cells to remove them from other tests/graphs.`
+          .join("; ")}. Use Exclude from Analysis (⌘E) on those cells to remove them from other tests/graphs.`
       : `No outliers detected at Q = ${qPercent}%.`) +
     ` Method: each column fit independently to a robust mean (Huber M-estimator, scale from the median absolute ` +
     `deviation), residuals tested via a two-tailed t distribution and FDR-corrected (Benjamini-Hochberg) within ` +

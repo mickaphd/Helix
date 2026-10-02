@@ -1,15 +1,31 @@
 // What the Statistics, Data and Style sections of the Format panel hold for each
 // graph (the other sections are the same for every graph, see format-panel.tsx).
 // Each returns null when it has nothing for this graph, and the section is left out.
-import type * as React from "react";
-import { Button, Checkbox, Select, cn } from "../../ui/controls";
+import * as React from "react";
+import { Button, Checkbox, Input, Select, cn } from "../../ui/controls";
 import { Row } from "../../components/common/inspector";
 import type { AnalysisType } from "../../stats/types";
-import type { GraphOptions, GraphType, ProjectNode, TableType } from "../../store/types";
+import { SAME_AS_FILL, type GraphOptions, type GraphType, type ProjectNode, type TableType } from "../../store/types";
 import { isSignificant, pStars } from "../../lib/format";
 import { GRAPHS } from ".";
 import type { SigComparison } from "./significance-overlay";
-import { Choice, ColumnSelectRow, NumRow, Stepper, Toggle, type SetOptions } from "./panel-controls";
+import { POINT_SIZE } from "./plot-helpers";
+import { paletteOf } from "../../lib/palettes";
+import {
+  Choice,
+  ColorRow,
+  ColumnSelectRow,
+  DashRow,
+  Group,
+  NumRow,
+  OutlineRows,
+  PercentRow,
+  ShapeRow,
+  Stepper,
+  ThicknessRow,
+  Toggle,
+  type SetOptions,
+} from "./panel-controls";
 
 export interface SectionContext {
   graphType: GraphType;
@@ -26,6 +42,8 @@ export interface SectionContext {
   allNames: string[];
   doseError: string | null;
   onNewAnalysis: () => void;
+  /** Volcano: selects the genes named (comma-separated); returns the names no gene has. */
+  onFindGenes: (query: string) => string[];
 }
 
 // The analyses whose results name pairs of columns with a P value.
@@ -41,6 +59,11 @@ const CENTER_ITEMS = [
   { value: "mean" as const, label: "Mean" },
   { value: "median" as const, label: "Median" },
 ];
+// The graphs that draw a center with error bars; Individual values and Interleaved
+// scatter draw it as a short line, styled with them.
+const WITH_ERROR_BARS = new Set<GraphType>(["individual", "mean-error", "grouped-bars", "grouped-hbars", "grouped-scatter", "grouped-lines"]);
+const WITH_CENTER_LINE = new Set<GraphType>(["individual", "grouped-scatter"]);
+
 const ERROR_ITEMS = [
   { value: "none" as const, label: "None" },
   { value: "sd" as const, label: "SD" },
@@ -255,19 +278,15 @@ export function dataControls(c: SectionContext): React.ReactNode {
   const error = (
     <Choice label="Error bars" value={options.error} onChange={(error) => set({ error })} items={ERROR_ITEMS} />
   );
+  if (WITH_ERROR_BARS.has(graphType)) {
+    return (
+      <>
+        {center}
+        {error}
+      </>
+    );
+  }
   switch (graphType) {
-    case "individual":
-    case "mean-error":
-    case "grouped-bars":
-    case "grouped-hbars":
-    case "grouped-scatter":
-    case "grouped-lines":
-      return (
-        <>
-          {center}
-          {error}
-        </>
-      );
     case "grouped-stacked":
       return center; // stacked bars have no error bars
     case "pie":
@@ -316,6 +335,8 @@ export function dataControls(c: SectionContext): React.ReactNode {
             checked={options.volcanoYIsPValue}
             onChange={(volcanoYIsPValue) => set({ volcanoYIsPValue })}
           />
+          {/* Genes are found by name: a grouped table's row titles, else the label column. */}
+          {(c.volcanoGroups || options.volcanoLabel) && <FindGenes find={c.onFindGenes} />}
         </>
       );
     default:
@@ -406,24 +427,180 @@ function GroupedVolcanoData({ groups, options, set }: { groups: string[]; option
   );
 }
 
-// ── Style: how the marks look ───────────────────────────────────────────
+/** Selects the genes typed (names separated by commas, whole and in any case) when
+ *  Return is pressed, and says which names no gene has. */
+function FindGenes({ find }: { find: (query: string) => string[] }) {
+  const [missing, setMissing] = React.useState<string[]>([]);
+  return (
+    <>
+      <Row label="Find gene">
+        <Input
+          placeholder="Names, separated by commas"
+          onKeyDown={(e) => e.key === "Enter" && setMissing(find(e.currentTarget.value))}
+          onChange={() => setMissing([])}
+        />
+      </Row>
+      {missing.length > 0 && <p className="text-small text-secondary">No gene named {missing.join(", ")}.</p>}
+    </>
+  );
+}
 
-export function styleControls({ graphType, options, set }: SectionContext): React.ReactNode {
-  switch (graphType) {
-    case "individual":
-      return <Toggle label="Show bars" checked={options.bars} onChange={(bars) => set({ bars })} />;
-    case "mean-error":
-      return (
+// ── Style: how the marks look ───────────────────────────────────────────
+// One group per thing drawn (Bars, Box, Points…, Lines, Error bars), each only while
+// it is drawn, after the choice of how the graph is drawn (Draw as, Groups). Inside a
+// group: whether it is shown, then its size or gap, fill, outline and outline color.
+
+/** How the graph is drawn: what it alone draws, then its lines and error bars. */
+export function styleControls(context: SectionContext): React.ReactNode {
+  const own = ownStyle(context);
+  const lines = linesGroup(context);
+  const errors = errorsGroup(context);
+  return own || lines || errors ? (
+    <>
+      {own}
+      {lines}
+      {errors}
+    </>
+  ) : null;
+}
+
+/** The fill and outline of a graph's shapes: bars, boxes, violins, areas, slices. */
+function shapeRows({ options, set }: SectionContext) {
+  return (
+    <>
+      <PercentRow label="Fill" value={options.fill} onChange={(fill) => set({ fill })} />
+      <OutlineRows
+        palette={paletteOf(options)}
+        width={options.outline}
+        color={options.outlineColor}
+        onWidth={(outline) => set({ outline })}
+        onColor={(color, outline = options.outline) => set({ outlineColor: color === SAME_AS_FILL ? undefined : color, outline })}
+      />
+    </>
+  );
+}
+
+/** The Points group: whether they are shown (`toggle`), then every point's shape,
+ *  size, fill and outline. */
+function pointsGroup({ graphType, options, set }: SectionContext, toggle?: React.ReactNode) {
+  return (
+    <Group title="Points">
+      {toggle}
+      {GRAPHS[graphType].points?.(options) && (
+        <>
+          <ShapeRow value={options.pointShape} onChange={(pointShape) => set({ pointShape })} />
+          <Stepper
+            label="Size"
+            value={options.pointSize}
+            min={POINT_SIZE.min}
+            max={POINT_SIZE.max}
+            step={1}
+            onChange={(pointSize) => set({ pointSize })}
+          />
+          <PercentRow label="Fill" value={options.pointFill} onChange={(pointFill) => set({ pointFill })} />
+          <OutlineRows
+            palette={paletteOf(options)}
+            width={options.pointOutline}
+            color={options.pointOutlineColor}
+            onWidth={(pointOutline) => set({ pointOutline })}
+            onColor={(color, pointOutline = options.pointOutline) =>
+              set({ pointOutlineColor: color === SAME_AS_FILL ? undefined : color, pointOutline })
+            }
+          />
+        </>
+      )}
+    </Group>
+  );
+}
+
+/** Every series line's thickness and dashes (a survival curve's censored subjects with them). */
+function linesGroup({ graphType, options, set }: SectionContext) {
+  if (!GRAPHS[graphType].lines?.(options)) return null;
+  return (
+    <Group title="Lines">
+      <ThicknessRow label="Thickness" value={options.lineWidth} onChange={(lineWidth) => set({ lineWidth })} />
+      <DashRow value={options.lineDash} onChange={(lineDash) => set({ lineDash })} />
+      {graphType === "survival" && options.survivalMode === "codes" && (
+        <Toggle
+          label="Show censored ticks"
+          checked={options.survivalShowCensors}
+          onChange={(survivalShowCensors) => set({ survivalShowCensors })}
+        />
+      )}
+    </Group>
+  );
+}
+
+/** Error bars (and the center line drawn with them): thickness, caps, color, and
+ *  which way they go. */
+function errorsGroup({ graphType, options, set }: SectionContext) {
+  const bars = WITH_ERROR_BARS.has(graphType) && options.error !== "none";
+  const line = WITH_CENTER_LINE.has(graphType);
+  if (!bars && !line) return null;
+  return (
+    <Group title={!bars ? "Center line" : line ? "Center line and error bars" : "Error bars"}>
+      <ThicknessRow label="Thickness" value={options.errorWidth} onChange={(errorWidth) => set({ errorWidth })} />
+      {bars && <Stepper label="Caps" value={options.errorCaps} min={0} max={20} step={1} onChange={(errorCaps) => set({ errorCaps })} />}
+      <ColorRow
+        label="Color"
+        palette={paletteOf(options)}
+        color={options.errorColor}
+        same="Same as Series"
+        onChange={(color) => set({ errorColor: color === SAME_AS_FILL ? undefined : color })}
+      />
+      {bars && (
         <Choice
-          label="Draw as"
-          value={options.shape}
-          onChange={(shape) => set({ shape })}
+          label="Direction"
+          value={options.errorDirection}
+          onChange={(errorDirection) => set({ errorDirection })}
           items={[
-            { value: "bar", label: "Bars" },
-            { value: "point", label: "Points" },
-            { value: "line", label: "Line" },
+            { value: "both", label: "Both" },
+            { value: "above", label: graphType === "grouped-hbars" ? "Right" : "Above" },
           ]}
         />
+      )}
+    </Group>
+  );
+}
+
+/** What this graph alone draws. */
+function ownStyle(context: SectionContext): React.ReactNode {
+  const { graphType, options, set } = context;
+  const shapes = (title: string, first?: React.ReactNode) => (
+    <Group title={title}>
+      {first}
+      {shapeRows(context)}
+    </Group>
+  );
+  // A row's bars apart, while several stand side by side.
+  const gap = <PercentRow label="Gap" value={options.barGap} max={0.5} onChange={(barGap) => set({ barGap })} />;
+  const points = GRAPHS[graphType].points?.(options) && pointsGroup(context);
+  switch (graphType) {
+    case "individual":
+      return (
+        <>
+          <Group title="Bars">
+            <Toggle label="Show bars" checked={options.bars} onChange={(bars) => set({ bars })} />
+            {options.bars && shapeRows(context)}
+          </Group>
+          {points}
+        </>
+      );
+    case "mean-error":
+      return (
+        <>
+          <Choice
+            label="Draw as"
+            value={options.shape}
+            onChange={(shape) => set({ shape })}
+            items={[
+              { value: "bar", label: "Bars" },
+              { value: "point", label: "Points" },
+              { value: "line", label: "Line" },
+            ]}
+          />
+          {options.shape === "bar" ? shapes("Bars") : points}
+        </>
       );
     case "box-violin":
       return (
@@ -437,98 +614,81 @@ export function styleControls({ graphType, options, set }: SectionContext): Reac
               { value: "violin", label: "Violin" },
             ]}
           />
-          <Toggle label="Show points" checked={options.showPoints} onChange={(showPoints) => set({ showPoints })} />
+          {shapes(options.kind === "violin" ? "Violin" : "Box")}
+          {pointsGroup(context, <Toggle label="Show points" checked={options.showPoints} onChange={(showPoints) => set({ showPoints })} />)}
         </>
       );
     case "xy-scatter":
       return (
-        <Choice
-          label="Draw as"
-          value={options.xyStyle}
-          onChange={(xyStyle) => set({ xyStyle })}
-          items={[
-            { value: "points", label: "Points" },
-            { value: "line", label: "Line" },
-            { value: "points+line", label: "Both" },
-          ]}
-        />
+        <>
+          <Choice
+            label="Draw as"
+            value={options.xyStyle}
+            onChange={(xyStyle) => set({ xyStyle })}
+            items={[
+              { value: "points", label: "Points" },
+              { value: "line", label: "Line" },
+              { value: "points+line", label: "Both" },
+            ]}
+          />
+          {points}
+        </>
       );
+    case "xy-bar":
+      return shapes("Bars", context.seriesNames.length > 1 && gap);
+    case "grouped-stacked":
+      return shapes("Bars");
+    case "xy-area":
+      return shapes("Area");
     case "grouped-bars":
     case "grouped-hbars":
     case "grouped-scatter":
       return (
-        <Choice
-          label="Groups"
-          value={options.groupLayout}
-          onChange={(groupLayout) => set({ groupLayout })}
-          items={[
-            { value: "interleaved", label: "Interleaved" },
-            { value: "separated", label: "Separated" },
-          ]}
-        />
-      );
-    case "survival":
-      return options.survivalMode === "codes" ? (
-        <Toggle
-          label="Censored ticks"
-          checked={options.survivalShowCensors}
-          onChange={(survivalShowCensors) => set({ survivalShowCensors })}
-        />
-      ) : null;
-    case "pie":
-    case "donut":
-      return (
-        <Toggle
-          label="Show percentages"
-          checked={options.pieShowPercent}
-          onChange={(pieShowPercent) => set({ pieShowPercent })}
-        />
-      );
-    case "heatmap":
-      return (
         <>
           <Choice
-            label="Color scale"
-            value={options.heatmapColorScale}
-            onChange={(heatmapColorScale) => set({ heatmapColorScale })}
+            label="Groups"
+            value={options.groupLayout}
+            onChange={(groupLayout) => set({ groupLayout })}
             items={[
-              { value: "viridis", label: "Viridis" },
-              { value: "red-blue", label: "Red/Blue" },
-              { value: "yellow-red", label: "Heat" },
+              { value: "interleaved", label: "Interleaved" },
+              { value: "separated", label: "Separated" },
             ]}
           />
-          <Toggle
-            label="Show values"
-            checked={options.heatmapShowValues}
-            onChange={(heatmapShowValues) => set({ heatmapShowValues })}
-          />
-          <Toggle
-            label="Color legend"
-            checked={options.heatmapShowScale}
-            onChange={(heatmapShowScale) => set({ heatmapShowScale })}
-          />
+          {graphType === "grouped-scatter" ? points : shapes("Bars", options.groupLayout === "interleaved" && gap)}
         </>
       );
+    case "dose-response":
+    case "grouped-lines":
     case "volcano":
       return (
         <>
-          <Stepper
-            label="Labelled genes"
-            value={options.volcanoLabelCount}
-            min={0}
-            max={50}
-            step={5}
-            onChange={(volcanoLabelCount) => set({ volcanoLabelCount })}
-          />
-          <Stepper
-            label="Point size"
-            value={options.volcanoPointSize}
-            min={2}
-            max={14}
-            step={1}
-            onChange={(volcanoPointSize) => set({ volcanoPointSize })}
-          />
+          {points}
+          {graphType === "volcano" && (
+            <Group title="Labels">
+              <Stepper
+                label="Labelled genes"
+                value={options.volcanoLabelCount}
+                min={0}
+                max={50}
+                step={5}
+                onChange={(volcanoLabelCount) => set({ volcanoLabelCount })}
+              />
+            </Group>
+          )}
         </>
+      );
+    case "pie":
+    case "donut":
+      return shapes(
+        "Slices",
+        <Toggle label="Show percentages" checked={options.pieShowPercent} onChange={(pieShowPercent) => set({ pieShowPercent })} />,
+      );
+    case "heatmap":
+      return (
+        <Group title="Cells">
+          <Toggle label="Show values" checked={options.heatmapShowValues} onChange={(heatmapShowValues) => set({ heatmapShowValues })} />
+          <Toggle label="Show color legend" checked={options.heatmapShowScale} onChange={(heatmapShowScale) => set({ heatmapShowScale })} />
+        </Group>
       );
     default:
       return null;

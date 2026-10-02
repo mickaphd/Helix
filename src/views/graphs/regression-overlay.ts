@@ -9,7 +9,8 @@ import { pairUp, type Column } from "../../lib/dataset";
 import type { GraphFigure } from ".";
 import { num, pText } from "../../lib/format";
 import { tCrit95, tTwoSidedP } from "../../lib/student-t";
-import { addNote, extent, mean, seriesColor, seriesFill, type SeriesColors } from "./plot-helpers";
+import { withOpacity } from "../../lib/palettes";
+import { addNote, extent, mean, type Paint } from "./plot-helpers";
 
 interface LinearFit {
   slope: number;
@@ -75,7 +76,6 @@ function regressionCurve(
   return { x, yFit, yLo, yHi };
 }
 
-
 /** "Y = 2.927*X − 0.3322<br>R²=0.8734, P=0.0021" annotation text — Plotly-ready
  *  (line break as `<br>`), formatted the same way as the Analysis panel's equation.
  *  Always uses literal "Y"/"X" rather than the actual column names, for simplicity. */
@@ -94,7 +94,7 @@ export function addRegression(
   columns: Column[],
   options: GraphOptions,
   params: LinearRegressionParams | undefined,
-  seriesColors: SeriesColors,
+  paint: Paint,
 ) {
   const [x, ...ys] = columns;
   const y = ys.find((c) => c.name === params?.y) ?? ys[0];
@@ -118,12 +118,12 @@ export function addRegression(
     traces.push(line(curve.yLo, { width: 0 }), {
       ...line(curve.yHi, { width: 0 }),
       fill: "tonexty",
-      fillcolor: seriesFill(seriesColors, y.name, i),
+      fillcolor: withOpacity(paint.color(y.name, i), 0.5), // a band: always see-through
     });
   }
   if (options.regShowLine) {
-    traces.push(line(curve.yFit, { color: seriesColor(seriesColors, y.name, i), width: 1.5, dash: "dash" }));
+    traces.push(line(curve.yFit, { color: paint.color(y.name, i), width: 1.5, dash: "dash" }));
   }
   fig.data = [...traces, ...fig.data];
-  if (options.regShowEquation) addNote(fig, regressionLabel(fit), options.fontSize);
+  if (options.regShowEquation) addNote(fig, regressionLabel(fit), options);
 }

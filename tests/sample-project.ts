@@ -6,7 +6,9 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { serializeProjectFile, type ProjectFilePayload } from "../src/lib/project-file";
-import { DEFAULT_GRAPH_OPTIONS, type GraphOptions, type GraphType, type ProjectNode, type TableData, type TableType } from "../src/store/types";
+import type { GraphOptions, GraphType, ProjectNode, TableData, TableType } from "../src/store/types";
+import { newGraphOptions } from "../src/views/graphs";
+import { paletteNamed, savedPalette, reversedPalette } from "../src/lib/palettes";
 import type { AnalysisParams, AnalysisType } from "../src/stats/types";
 
 // ── Reproducible random data ─────────────────────────────────────────────
@@ -41,9 +43,11 @@ function analysis(table: string, id: string, name: string, analysisType: Analysi
   childOrder[table].push(id);
 }
 function graph(table: string, id: string, name: string, graphType: GraphType, options: Partial<GraphOptions> = {}) {
-  nodes[id] = { id, type: "graph", name, parentId: table, graphType, graphOptions: { ...DEFAULT_GRAPH_OPTIONS, ...options } };
+  nodes[id] = { id, type: "graph", name, parentId: table, graphType, graphOptions: { ...newGraphOptions(graphType), ...options } };
   childOrder[table].push(id);
 }
+/** The options of a graph taking another palette than its type's. */
+const palette = (name: string) => ({ palette: savedPalette(paletteNamed(name)!) });
 /** Rows from columns of values (`null` = empty cell), with optional row titles. */
 function rows(columns: (string | null)[][], titles: (string | null)[] = []): (string | null)[][] {
   const height = Math.max(...columns.map((c) => c.length));
@@ -63,8 +67,6 @@ function rows(columns: (string | null)[][], titles: (string | null)[] = []): (st
     columns: ["Title", ...groups],
     rows: rows(columns),
     excluded: ["11,1"],
-    seriesColors: { "Drug B": "purple" },
-    pointColors: { "Drug A 50 mg#2": "green" },
   });
   analysis("t-tumor", "a-tumor-desc", "Descriptive statistics", "descriptive-statistics");
   analysis("t-tumor", "a-tumor-student", "Unpaired t test", "compare-two-groups", {
@@ -85,14 +87,15 @@ function rows(columns: (string | null)[][], titles: (string | null)[] = []): (st
   graph("t-tumor", "g-tumor-dots", "Scatter dot plot + stars", "individual", {
     center: "mean", error: "sd", sigAnalysisId: "a-tumor-anova",
     sigPairs: ["Control\u0000Drug A 50 mg", "Control\u0000Drug A 10 mg", "Drug A 50 mg\u0000Drug B"],
-    yLabel: "Tumor volume (mm³)", title: "Tumor volume at day 21",
+    yLabel: "Tumor volume (mm³)", title: "Tumor volume at day 21", series: { "Drug B": { color: "#CC79A7" } },
+    points: { "Drug A 50 mg#2": { color: "#D55E00", size: 11, shape: "diamond", label: true, labelOffset: { x: 45, y: -30 } }, "Control#0": { fill: 0.2 } },
   });
   graph("t-tumor", "g-tumor-box", "Box plot + P values", "box-violin", {
     kind: "box", showPoints: true, sigAnalysisId: "a-tumor-kw", sigDisplay: "pvalue",
     sigPairs: ["Control\u0000Drug A 50 mg", "Drug A 10 mg\u0000Drug A 50 mg"], yLabel: "Tumor volume (mm³)",
   });
   graph("t-tumor", "g-tumor-violin", "Violin plot", "box-violin", { kind: "violin", showPoints: true, yLabel: "Tumor volume (mm³)" });
-  graph("t-tumor", "g-tumor-bars", "Mean ± SEM bars", "mean-error", { shape: "bar", error: "sem", yLabel: "mm³" });
+  graph("t-tumor", "g-tumor-bars", "Mean ± SEM bars", "mean-error", { shape: "bar", error: "sem", yLabel: "mm³", ...palette("tol-bright") });
   graph("t-tumor", "g-tumor-pie", "Pie (totals)", "pie");
   graph("t-tumor", "g-tumor-donut", "Donut (means, transparent)", "donut", { pieValue: "mean", background: "transparent" });
 }
@@ -115,7 +118,7 @@ function rows(columns: (string | null)[][], titles: (string | null)[] = []): (st
   analysis("t-bp", "a-bp-rm", "Repeated-measures ANOVA + Tukey", "rm-anova", { posthoc: "tukey" });
   analysis("t-bp", "a-bp-fr", "Friedman + Dunn", "friedman", { posthoc: "dunn" });
   graph("t-bp", "g-bp-line", "Mean ± SD over time", "mean-error", { shape: "line", error: "sd", yLabel: "Systolic BP (mmHg)" });
-  graph("t-bp", "g-bp-dots", "Individual values", "individual", { bars: true, center: "median", error: "none" });
+  graph("t-bp", "g-bp-dots", "Individual values", "individual", { bars: true, center: "median", error: "none", ...palette("helix") });
 }
 
 // ── XY tables ────────────────────────────────────────────────────────────
@@ -220,12 +223,15 @@ function groupedData(groups: string[], titles: string[], values: (string | null)
   analysis("t-cyto", "a-cyto-2wb", "Two-way ANOVA + Bonferroni (rows per group)", "two-way-anova", { design: "ordinary", posthoc: "bonferroni", posthocTarget: "rows" });
   analysis("t-cyto", "a-cyto-rm", "Two-way RM ANOVA", "two-way-anova", { design: "repeated-measures", posthoc: "none", posthocTarget: "groups" });
   analysis("t-cyto", "a-cyto-srh", "Scheirer-Ray-Hare", "two-way-anova", { design: "nonparametric", posthoc: "none", posthocTarget: "groups" });
-  graph("t-cyto", "g-cyto-bars", "Interleaved bars", "grouped-bars", { yLabel: "IL-6 (pg/mL)" });
+  graph("t-cyto", "g-cyto-bars", "Interleaved bars", "grouped-bars", { yLabel: "IL-6 (pg/mL)", ...palette("tableau-10") });
   graph("t-cyto", "g-cyto-sep", "Separated bars", "grouped-bars", { groupLayout: "separated" });
   graph("t-cyto", "g-cyto-dots", "Interleaved scatter", "grouped-scatter");
-  graph("t-cyto", "g-cyto-lines", "Time course", "grouped-lines", { xLabel: "Time", yLabel: "IL-6 (pg/mL)" });
-  graph("t-cyto", "g-cyto-stack", "Stacked bars", "grouped-stacked");
-  graph("t-cyto", "g-cyto-h", "Horizontal bars", "grouped-hbars", { center: "median" });
+  graph("t-cyto", "g-cyto-lines", "Time course", "grouped-lines", {
+    xLabel: "Time", yLabel: "IL-6 (pg/mL)", lineWidth: 3, errorCaps: 10, ...palette("tol-muted"),
+    series: { "LPS + Drug": { dash: "dash" } },
+  });
+  graph("t-cyto", "g-cyto-stack", "Stacked bars", "grouped-stacked", palette("viridis"));
+  graph("t-cyto", "g-cyto-h", "Horizontal bars", "grouped-hbars", { center: "median", ...palette("grayscale") });
 }
 
 {
@@ -238,7 +244,9 @@ function groupedData(groups: string[], titles: string[], values: (string | null)
   analysis("t-qpcr", "a-qpcr-mt", "Multiple t tests (Welch, Holm)", "multiple-t-tests", { paired: false, gaussian: true, pooledSd: false, correction: "holm" });
   analysis("t-qpcr", "a-qpcr-mtp", "Multiple t tests (pooled SD, FDR)", "multiple-t-tests", { paired: false, gaussian: true, pooledSd: true, correction: "fdr" });
   analysis("t-qpcr", "a-qpcr-mw", "Multiple Mann-Whitney", "multiple-t-tests", { paired: false, gaussian: false, pooledSd: false, correction: "none" });
-  graph("t-qpcr", "g-qpcr", "Fold change per gene", "grouped-bars", { yLabel: "Fold change" });
+  graph("t-qpcr", "g-qpcr", "Fold change per gene", "grouped-bars", {
+    yLabel: "Fold change", fill: 0.6, outlineColor: "#000000", errorColor: "#000000", errorDirection: "above",
+  });
 }
 
 {
@@ -257,6 +265,8 @@ function groupedData(groups: string[], titles: string[], values: (string | null)
   graph("t-rnaseq", "g-rnaseq-volcano", "Volcano plot (Helix computes the DEGs)", "volcano", {
     volcanoGroupA: "Control", volcanoGroupB: "Treated", volcanoEffect: "log2ratio", volcanoSignificance: "fdr",
     volcanoPThreshold: 1.3, volcanoLabelCount: 15, title: "Treated vs Control",
+    // Genes styled one by one: MYC stands out, a gene that doesn't change shows its name.
+    points: { "#1": { color: "#000000", size: 9, shape: "diamond" }, "#4999": { color: "#009E73", size: 9, label: true } },
   });
 }
 
@@ -279,7 +289,7 @@ function groupedData(groups: string[], titles: string[], values: (string | null)
   analysis("t-pat", "a-pat-cor", "Correlation matrix (Pearson)", "correlation-matrix", { method: "pearson" });
   analysis("t-pat", "a-pat-sp", "Correlation matrix (Spearman)", "correlation-matrix", { method: "spearman" });
   analysis("t-pat", "a-pat-reg", "Multiple regression (Systolic BP)", "multiple-regression", { dependent: "Systolic BP", predictors: ["Age", "BMI", "Cholesterol"] });
-  graph("t-pat", "g-pat-heat", "Heatmap", "heatmap", { heatmapColorScale: "red-blue" });
+  graph("t-pat", "g-pat-heat", "Heatmap", "heatmap", { palette: reversedPalette(savedPalette(paletteNamed("coolwarm")!)) });
 }
 
 {
@@ -315,7 +325,9 @@ table("t-resp", "Treatment response", "contingency", {
   rows: [["Drug", "34", "16"], ["Placebo", "18", "32"]],
 });
 analysis("t-resp", "a-resp-fisher", "Fisher's exact test", "chi-square");
-graph("t-resp", "g-resp-stack", "Stacked bars", "grouped-stacked", { yLabel: "Patients" });
+graph("t-resp", "g-resp-stack", "Stacked bars", "grouped-stacked", {
+  yLabel: "Patients", ...palette("grayscale"), series: { "Did not respond": { pattern: "diagonal" } },
+});
 graph("t-resp", "g-resp-bars", "Interleaved bars", "grouped-bars");
 
 table("t-blood", "Blood type by region", "contingency", {

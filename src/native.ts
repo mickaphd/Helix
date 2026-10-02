@@ -5,6 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { getVersion, setTheme as setAppTheme } from "@tauri-apps/api/app";
+import { Image } from "@tauri-apps/api/image";
 import { Menu, Submenu, type MenuOptions } from "@tauri-apps/api/menu";
 import { message, save } from "@tauri-apps/plugin-dialog";
 import type { RVector } from "./stats/webr";
@@ -118,6 +119,9 @@ export function onCloseRequested(canClose: () => Promise<boolean>) {
   return () => void off.then((f) => f());
 }
 
+/** The accent color chosen in System Settings ▸ Appearance (#RRGGBB), or null. */
+export const accentColor = () => (isNative ? invoke<string | null>("accent_color") : Promise.resolve(null));
+
 /** Helix's website, GitHub page or releases, in the default browser. */
 export const openLink = (link: "website" | "github" | "releases") => void invoke("open_link", { link });
 
@@ -143,7 +147,7 @@ export function onFocusChange(handler: (focused: boolean) => void) {
 // file, so it decides where a project opens (see main.rs, `Projects`).
 
 /** A project file for a window to open; `untitled`: as a new document, like the sample. */
-export type Opening = { path: string; untitled: boolean };
+type Opening = { path: string; untitled: boolean };
 
 /** Opens projects: in their window if they're open, in this one if it's blank, else in new
  *  ones. Rejects with the path of a file that is gone, and opens nothing. */
@@ -206,12 +210,50 @@ export async function installMenuBar(menus: MenuItems, windowItems: MenuItems, h
   for (const old of replaced) void old.close();
 }
 
-/** Shows a native context menu at the pointer (the call returns once it has closed). */
-export async function popupMenu(items: MenuItems) {
+/** A menu item's picture: RGBA pixels, shown 18 points high (36 pixels on Retina). */
+export type Picture = { rgba: Uint8Array; width: number; height: number };
+type PictureItem = { text: string; icon: Picture; action: () => void };
+type PopupItem = MenuItems[number] | PictureItem | { text: string; items: PopupItem[] };
+const isPicture = (icon: unknown): icon is Picture => typeof icon === "object" && icon !== null && (icon as Picture).rgba instanceof Uint8Array;
+
+// macOS leaves 8 points more right of a menu's pictures than left of them (room for key
+// equivalents): in a menu of pictures alone, each gets that much more on its left
+// (16 pixels on Retina), so it shows centered.
+const CENTERING = 16;
+
+/** `picture` with `by` transparent pixels more on its left. */
+function shifted({ rgba, width, height }: Picture, by: number): Picture {
+  const wider = new Uint8Array((width + by) * height * 4);
+  for (let y = 0; y < height; y++) wider.set(rgba.subarray(y * width * 4, (y + 1) * width * 4), (y * (width + by) + by) * 4);
+  return { rgba: wider, width: width + by, height };
+}
+
+/** Shows a native context menu at the pointer (the call returns once it has closed). An
+ *  item may show a picture before its text, in a submenu too. */
+export async function popupMenu(items: PopupItem[]) {
   if (!isNative) return;
-  const menu = await Menu.new({ items });
+  const images: Image[] = [];
+  // Each picture becomes an image the menu can show, freed once it has closed; in a menu
+  // of pictures alone (as main.rs tells them: no text; separators aside), centered.
+  const withImages = async (list: PopupItem[]): Promise<MenuItems> => {
+    const alone = list.every((item) => !("text" in item) || (item.text === "" && "icon" in item && isPicture(item.icon)));
+    return Promise.all(
+      list.map(async (item) => {
+        if ("icon" in item && isPicture(item.icon)) {
+          const picture = alone ? shifted(item.icon, CENTERING) : item.icon;
+          const image = await Image.new(picture.rgba, picture.width, picture.height);
+          images.push(image);
+          return { ...item, icon: image };
+        }
+        if ("items" in item && Array.isArray(item.items)) return { ...item, items: await withImages(item.items as PopupItem[]) };
+        return item;
+      }),
+    ) as Promise<MenuItems>;
+  };
+  const menu = await Menu.new({ items: await withImages(items) });
   await menu.popup();
   await menu.close();
+  for (const image of images) void image.close();
 }
 
 export type Theme = "system" | "light" | "dark";

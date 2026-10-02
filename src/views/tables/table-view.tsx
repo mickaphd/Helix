@@ -2,6 +2,7 @@
 // the project store, which keeps the Undo history for the whole project.
 import * as React from "react";
 import type { ProjectNode, TableData } from "../../store/types";
+import type { TableMove } from "../../store/references";
 import { useProjectStore } from "../../store/use-project-store";
 import { Section, Row, WithInspector } from "../../components/common/inspector";
 import { useLayout } from "../../store/use-layout";
@@ -16,8 +17,8 @@ import { TABLES } from ".";
 export function TableView({ node }: { node: ProjectNode }) {
   const data = node.data!;
   const { updateTable } = useProjectStore();
-  const update = (next: TableData, label: string, renamed?: Record<string, string>) => {
-    if (next !== data) updateTable(node.id, next, label, renamed);
+  const update = (next: TableData, label: string, move?: TableMove) => {
+    if (next !== data) updateTable(node.id, next, label, move);
   };
   const { setLayout } = useLayout();
   const tag = TABLES[node.tableType ?? "column"].label;

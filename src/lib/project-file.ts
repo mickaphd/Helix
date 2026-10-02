@@ -11,16 +11,26 @@
 import {
   DEFAULT_GRAPH_OPTIONS,
   type GraphOptions,
+  type FillPattern,
+  type GraphPalette,
+  type LineDash,
   type NodeType,
   type PaletteColor,
+  type PaletteKind,
+  type Place,
+  type PointShape,
+  type PointStyle,
   type ProjectNode,
+  SAME_AS_FILL,
+  type SeriesStyle,
   type TableData,
 } from "../store/types";
 import type { AnalysisParams } from "../stats/types";
-import { PALETTE_ORDER } from "./palette";
+import { NAMED_COLORS, paletteNamed, savedPalette } from "./palettes";
 import { TABLES } from "../views/tables";
 import { GRAPHS, GRAPH_OPTIONS_BY_TABLE } from "../views/graphs";
 import { ANALYSES } from "../stats";
+import { GRAPH_SIZE } from "../views/graphs/plot-helpers";
 
 export const PROJECT_FILE_EXTENSION = "hlx";
 
@@ -83,7 +93,7 @@ const NODE_KEYS = Object.keys({
 } satisfies Record<keyof ProjectNode, 1>);
 const DATA_KEYS = Object.keys({
   columns: 1, rows: 1, groups: 1, replicates: 1, excluded: 1,
-  seriesColors: 1, pointColors: 1, widths: 1, freezeTitle: 1,
+  widths: 1, freezeTitle: 1,
 } satisfies Record<keyof TableData, 1>);
 
 // Graph options without a default, by the kind of value they hold.
@@ -92,7 +102,9 @@ const OPTIONAL_OPTIONS = {
   yMin: "number", yMax: "number", yStep: "number", xMin: "number", xMax: "number", xStep: "number",
   sigAnalysisId: "text", sigPairs: "texts", regAnalysisId: "text", doseY: "text",
   volcanoX: "text", volcanoY: "text", volcanoLabel: "text", volcanoGroupA: "text", volcanoGroupB: "text",
-} as const satisfies Record<OptionalOption, "number" | "text" | "texts">;
+  palette: "palette", series: "styles", points: "pointStyles", outlineColor: "color", pointOutlineColor: "color", errorColor: "color",
+  legend: "place", note: "place",
+} as const satisfies Record<OptionalOption, keyof typeof READ_OPTION>;
 // Options whose text is the user's (titles, column names), not a choice from a list.
 const FREE_TEXT_OPTIONS = new Set(["title", "xLabel", "yLabel"]);
 
@@ -102,23 +114,105 @@ const PARAM_KEYS = Object.keys({
   y: 1, forceOrigin: 1, baseline: 1, model: 1, method: 1, mode: 1, datasets: 1, dependent: 1,
   predictors: 1, design: 1, posthocTarget: 1, pooledSd: 1, correction: 1, q: 1,
 } satisfies Record<ParamKey, 1>);
-// Params naming columns: their text is the user's.
+// Params naming columns: their text is the user's. The others are numbers, yes/no, or
+// a word from a list ("two-sided"), which the R code is written with: anything else
+// is left out, so a file can't slip R code into it.
 const FREE_TEXT_PARAMS = new Set(["y", "dependent", "datasets", "predictors"]);
 
 const isFiniteNumber = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 const isCount = (v: unknown): v is number => Number.isInteger(v) && (v as number) > 0;
 const cellText = (v: unknown) => (typeof v === "string" ? v : typeof v === "number" || typeof v === "boolean" ? String(v) : null);
 
+const isHex = (v: unknown): v is string => typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v);
+
+const isWord = (v: unknown) => typeof v === "boolean" || isFiniteNumber(v) || (typeof v === "string" && /^[a-z0-9.-]+$/.test(v));
+
+/** Whether `key` is one of `list`'s own entries (not a name every object has, as "constructor"). */
+const isIn = (list: object, key: unknown) => typeof key === "string" && Object.hasOwn(list, key);
+
+const isNamed = (v: unknown): v is PaletteColor => typeof v === "string" && Object.hasOwn(NAMED_COLORS, v);
+
+/** Named colors (Helix 1.0's), by key. */
 function colors(v: unknown): Record<string, PaletteColor> | undefined {
   if (!isObj(v)) return undefined;
   const out = Object.entries(v)
     .map(([k, c]) => [k, lower(c)] as const)
-    .filter((e): e is [string, PaletteColor] => PALETTE_ORDER.includes(e[1] as PaletteColor));
+    .filter((e): e is [string, PaletteColor] => isNamed(e[1]));
   return out.length ? Object.fromEntries(out) : undefined;
 }
 
-function readData(raw: Obj): TableData | null {
-  const d = canonical(raw, DATA_KEYS);
+const KINDS: PaletteKind[] = ["categorical", "sequential", "diverging"];
+const SHAPES: PointShape[] = ["circle", "square", "diamond", "triangle-up", "triangle-down"];
+const DASHES: LineDash[] = ["solid", "dash", "dot", "dashdot"];
+const PATTERNS: FillPattern[] = ["diagonal", "back-diagonal", "crosshatch", "horizontal", "vertical", "grid", "dots"];
+
+function readPalette(v: unknown): GraphPalette | undefined {
+  if (!isObj(v)) return undefined;
+  const p = canonical(v, ["name", "kind", "colors", "reversed"]);
+  const colors = Array.isArray(p.colors) ? p.colors.filter(isHex) : [];
+  if (typeof p.name !== "string" || !colors.length) return undefined;
+  const kind = KINDS.find((k) => k === lower(p.kind)) ?? "categorical";
+  return defined({ ...p, name: p.name, kind, colors, reversed: p.reversed === true || undefined });
+}
+
+/** Each series' style, keeping what this version doesn't know of it. */
+function readStyles(v: unknown): Record<string, SeriesStyle> | undefined {
+  if (!isObj(v)) return undefined;
+  const out = Object.entries(v)
+    .filter((e): e is [string, Obj] => isObj(e[1]))
+    .map(([key, raw]) => {
+      const style = canonical(raw, ["color", "shape", "dash", "pattern"]);
+      const shape = SHAPES.find((s) => s === lower(style.shape));
+      const dash = DASHES.find((d) => d === lower(style.dash));
+      const pattern = PATTERNS.find((p) => p === lower(style.pattern));
+      return [key, defined({ ...style, color: isHex(style.color) ? style.color : undefined, shape, dash, pattern })] as const;
+    })
+    .filter(([, style]) => Object.keys(style).length);
+  return out.length ? Object.fromEntries(out) : undefined;
+}
+
+/** A position, both coordinates numbers. */
+const readPlace = (v: unknown): Place | undefined =>
+  isObj(v) && isFiniteNumber(v.x) && isFiniteNumber(v.y) ? { x: v.x, y: v.y } : undefined;
+
+/** Each point's style, keeping what this version doesn't know of it. */
+function readPointStyles(v: unknown): Record<string, PointStyle> | undefined {
+  if (!isObj(v)) return undefined;
+  const size = (n: unknown) => (isFiniteNumber(n) && n > 0 ? n : undefined);
+  const outline = (n: unknown) => (isFiniteNumber(n) && n >= 0 ? n : undefined);
+  const fill = (n: unknown) => (isFiniteNumber(n) && n >= 0 && n <= 1 ? n : undefined);
+  const out = Object.entries(v)
+    .filter((e): e is [string, Obj] => isObj(e[1]) && /#\d+$/.test(e[0]))
+    .map(([key, raw]) => {
+      const p = canonical(raw, ["color", "size", "shape", "fill", "outline", "outlineColor", "label", "labelOffset"]);
+      const shape = SHAPES.find((s) => s === lower(p.shape));
+      const color = isHex(p.color) ? p.color : undefined;
+      const outlineColor = isHex(p.outlineColor) ? p.outlineColor : lower(p.outlineColor) === SAME_AS_FILL ? SAME_AS_FILL : undefined;
+      const label = p.label === true || undefined;
+      const labelOffset = readPlace(p.labelOffset);
+      return [key, defined({ ...p, color, size: size(p.size), shape, fill: fill(p.fill), outline: outline(p.outline), outlineColor, label, labelOffset })] as const;
+    })
+    .filter(([, style]) => Object.keys(style).length);
+  return out.length ? Object.fromEntries(out) : undefined;
+}
+
+const READ_OPTION = {
+  number: (v: unknown) => (isFiniteNumber(v) ? v : undefined),
+  text: (v: unknown) => (typeof v === "string" ? v : undefined),
+  texts: (v: unknown) => (Array.isArray(v) && v.every((s) => typeof s === "string") ? v : undefined),
+  palette: readPalette,
+  styles: readStyles,
+  pointStyles: readPointStyles,
+  place: readPlace,
+  color: (v: unknown) => (isHex(v) ? v : undefined),
+};
+
+/** Colors a table kept for its graphs before Helix 1.0.3: its series' and its cells'. */
+type TableColors = { series?: Record<string, PaletteColor>; cells?: Record<string, PaletteColor> };
+
+/** A table's data, and the colors it kept for its graphs. */
+function readData(raw: Obj): { data: TableData; colors: TableColors } | null {
+  const { seriesColors, pointColors, ...d } = canonical(raw, [...DATA_KEYS, "seriesColors", "pointColors"]);
   if (!Array.isArray(d.columns) || !Array.isArray(d.rows)) return null;
   const columns = d.columns.map((c) => cellText(c) ?? "");
   const excluded = Array.isArray(d.excluded)
@@ -127,18 +221,17 @@ function readData(raw: Obj): TableData | null {
   const widths = isObj(d.widths)
     ? Object.fromEntries(Object.entries(d.widths).filter(([, w]) => isFiniteNumber(w) && w > 0))
     : {};
-  return defined({
+  const data = defined({
     ...d,
     columns: columns.length ? columns : ["Title"],
     rows: d.rows.map((row) => (Array.isArray(row) ? row.map((c) => cellText(c) || null) : [])),
     groups: isCount(d.groups) && isCount(d.replicates) ? d.groups : undefined,
     replicates: isCount(d.groups) && isCount(d.replicates) ? d.replicates : undefined,
     excluded: excluded.length ? excluded : undefined,
-    seriesColors: colors(d.seriesColors),
-    pointColors: colors(d.pointColors),
     widths: Object.keys(widths).length ? (widths as Record<string, number>) : undefined,
     freezeTitle: d.freezeTitle === true || undefined,
   } as TableData);
+  return { data, colors: { series: colors(seriesColors), cells: colors(pointColors) } };
 }
 
 /** Every option, each of the right type: a missing or wrong one takes its default. */
@@ -149,24 +242,31 @@ function readOptions(raw: unknown): GraphOptions {
     const v = typeof o[key] === "string" && !FREE_TEXT_OPTIONS.has(key) ? lower(o[key]) : o[key];
     if (typeof v === typeof fallback && (typeof v !== "number" || Number.isFinite(v))) out[key] = v;
   }
-  for (const [key, kind] of Object.entries(OPTIONAL_OPTIONS)) {
-    const v = o[key];
-    const ok =
-      kind === "number" ? isFiniteNumber(v) : kind === "text" ? typeof v === "string" : Array.isArray(v) && v.every((s) => typeof s === "string");
-    out[key] = ok ? v : undefined;
-  }
+  for (const [key, kind] of Object.entries(OPTIONAL_OPTIONS)) out[key] = READ_OPTION[kind](o[key]);
+  // A drawing within the sizes Helix offers: a huge one would fill the memory.
+  out.width = Math.min(GRAPH_SIZE.maxWidth, Math.max(GRAPH_SIZE.minWidth, out.width as number));
+  out.height = Math.min(GRAPH_SIZE.maxHeight, Math.max(GRAPH_SIZE.minHeight, out.height as number));
   return defined(out) as unknown as GraphOptions;
 }
 
 function readParams(raw: unknown): AnalysisParams | undefined {
   if (!isObj(raw)) return undefined;
   const p = canonical(raw, PARAM_KEYS);
-  return Object.fromEntries(Object.entries(p).map(([k, v]) => [k, FREE_TEXT_PARAMS.has(k) ? v : lower(v)])) as unknown as AnalysisParams;
+  const kept = Object.entries(p)
+    .map(([k, v]) => [k, FREE_TEXT_PARAMS.has(k) ? v : lower(v)] as const)
+    .filter(([k, v]) => FREE_TEXT_PARAMS.has(k) || isWord(v));
+  return Object.fromEntries(kept) as unknown as AnalysisParams;
 }
 
 const NODE_TYPES: NodeType[] = ["table", "analysis", "graph"];
 
-function readNode(id: string, raw: unknown, issues: ProjectIssue[]): ProjectNode | null {
+/** `tableColors`: where a table leaves the colors it kept for its graphs. */
+function readNode(
+  id: string,
+  raw: unknown,
+  issues: ProjectIssue[],
+  tableColors: Record<string, TableColors>,
+): ProjectNode | null {
   if (!isObj(raw)) return null;
   const n = canonical(raw, NODE_KEYS);
   const type = lower(n.type) as NodeType;
@@ -174,25 +274,26 @@ function readNode(id: string, raw: unknown, issues: ProjectIssue[]): ProjectNode
   const node = { ...n, id, type, name: cellText(n.name) ?? "Untitled", parentId: typeof n.parentId === "string" ? n.parentId : null } as ProjectNode;
 
   if (type === "table") {
-    const data = isObj(n.data) ? readData(n.data) : null;
-    if (!data) return null;
-    node.data = data;
+    const read = isObj(n.data) ? readData(n.data) : null;
+    if (!read) return null;
+    node.data = read.data;
+    tableColors[id] = read.colors;
     node.parentId = null;
     node.tableType = lower(n.tableType) as ProjectNode["tableType"];
-    if (!node.tableType || !(node.tableType in TABLES)) {
+    if (!isIn(TABLES, node.tableType)) {
       issues.push({ severity: "warning", message: `Table “${node.name}” has a type this version doesn't know; it opens as a Column table.` });
       node.tableType = "column";
     }
   } else if (type === "analysis") {
     node.analysisType = lower(n.analysisType) as ProjectNode["analysisType"];
     node.analysisParams = readParams(n.analysisParams);
-    if (!node.analysisType || !(node.analysisType in ANALYSES)) {
+    if (!isIn(ANALYSES, node.analysisType)) {
       issues.push({ severity: "error", message: `Analysis “${node.name}” uses a test this version doesn't know.` });
     }
   } else {
     node.graphType = lower(n.graphType) as ProjectNode["graphType"];
     node.graphOptions = readOptions(n.graphOptions);
-    if (!node.graphType || !(node.graphType in GRAPHS)) {
+    if (!isIn(GRAPHS, node.graphType)) {
       issues.push({ severity: "error", message: `Graph “${node.name}” uses a chart this version doesn't know.` });
     }
   }
@@ -210,9 +311,10 @@ export function parseProjectFile(raw: unknown): { project: ProjectFilePayload; i
 
   const issues: ProjectIssue[] = [];
   const nodes: Record<string, ProjectNode> = {};
+  const tableColors: Record<string, TableColors> = {};
   let skipped = 0;
   for (const [id, raw] of Object.entries(project.nodes)) {
-    const node = readNode(id, raw, issues);
+    const node = readNode(id, raw, issues, tableColors);
     if (node) nodes[id] = node;
     else skipped++;
   }
@@ -243,9 +345,13 @@ export function parseProjectFile(raw: unknown): { project: ProjectFilePayload; i
   const activeNodeId = typeof project.activeNodeId === "string" && nodes[project.activeNodeId] ? project.activeNodeId : rootOrder[0];
 
   for (const node of Object.values(nodes)) {
+    if (node.type === "graph") {
+      if (!node.graphOptions!.palette) colorsFromHelix1(node, tableColors[node.parentId!]?.series);
+      pointsFromCells(node, tableColors[node.parentId!]?.cells);
+    }
     const tableType = node.parentId ? nodes[node.parentId]?.tableType : undefined;
     if (node.type !== "graph" || !node.graphType || !tableType) continue;
-    if (node.graphType in GRAPHS && !GRAPH_OPTIONS_BY_TABLE[tableType].some((o) => o.value === node.graphType)) {
+    if (isIn(GRAPHS, node.graphType) && !GRAPH_OPTIONS_BY_TABLE[tableType].some((o) => o.value === node.graphType)) {
       issues.push({ severity: "warning", message: `Graph “${node.name}” isn't a chart Helix offers for a ${TABLES[tableType].label} table.` });
     }
     const o = node.graphOptions!;
@@ -255,4 +361,74 @@ export function parseProjectFile(raw: unknown): { project: ProjectFilePayload; i
   }
 
   return { project: { nodes, rootOrder, childOrder, activeNodeId }, issues };
+}
+
+// ── Files from Helix 1.0 ─────────────────────────────────────────────────
+// A graph's colors came from its table (`seriesColors`, named colors), a heatmap
+// had one of three color scales, and a volcano two named colors. A graph saved
+// without a palette gets them back as its own, so it looks as it did: the Helix
+// palette with its table's colors, or its heatmap scale as Plotly drew it.
+
+/** The heatmap scales of Helix 1.0 that the catalog doesn't have, as Plotly defines them. */
+const HEATMAP_SCALES: Record<string, { name: string; kind: PaletteKind; stops: [number, string][] }> = {
+  "red-blue": {
+    name: "Red/Blue (Helix 1.0)",
+    kind: "diverging",
+    stops: [[0, "#050AAC"], [0.35, "#6A89F7"], [0.5, "#BEBEBE"], [0.6, "#DCAA84"], [0.7, "#E6915A"], [1, "#B20A1C"]],
+  },
+  "yellow-red": {
+    name: "Heat (Helix 1.0)",
+    kind: "sequential",
+    stops: [
+      [0, "#800026"], [0.125, "#BD0026"], [0.25, "#E31A1C"], [0.375, "#FC4E2A"], [0.5, "#FD8D3C"],
+      [0.625, "#FEB24C"], [0.75, "#FED976"], [0.875, "#FFEDA0"], [1, "#FFFFCC"],
+    ],
+  },
+};
+
+/** A scale's stops as 256 evenly spaced colors, blended as Plotly blends them. */
+function resample(stops: [number, string][]): string[] {
+  const channels = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  return Array.from({ length: 256 }, (_, i) => {
+    const t = i / 255;
+    const j = Math.max(1, stops.findIndex(([at]) => at >= t));
+    const [[a, from], [b, to]] = [stops[j - 1], stops[j]];
+    const f = (t - a) / (b - a);
+    const [c0, c1] = [channels(from), channels(to)];
+    return "#" + c0.map((c, k) => Math.round(c + (c1[k] - c) * f).toString(16).padStart(2, "0")).join("").toUpperCase();
+  });
+}
+
+const LEGACY_OPTIONS = ["heatmapColorScale", "volcanoColorUp", "volcanoColorDown", "volcanoPointSize"];
+
+function colorsFromHelix1(node: ProjectNode, tableColors: Record<string, PaletteColor> | undefined) {
+  const all = node.graphOptions as unknown as Obj;
+  const old = canonical(all, LEGACY_OPTIONS);
+  const named = (v: unknown, fallback: PaletteColor) => (isNamed(lower(v)) ? (lower(v) as PaletteColor) : fallback);
+  let palette = savedPalette(paletteNamed("helix")!);
+  let colors = tableColors;
+  if (node.graphType === "heatmap") {
+    const name = lower(old.heatmapColorScale);
+    const scale = isIn(HEATMAP_SCALES, name) ? HEATMAP_SCALES[name as string] : undefined;
+    palette = scale ? { name: scale.name, kind: scale.kind, colors: resample(scale.stops) } : savedPalette(paletteNamed("viridis")!);
+  } else if (node.graphType === "volcano") {
+    colors = { down: named(old.volcanoColorDown, "blue"), up: named(old.volcanoColorUp, "red") };
+  }
+  const series = colors && Object.fromEntries(Object.entries(colors).map(([key, c]) => [key, { color: NAMED_COLORS[c] }]));
+  const options = Object.fromEntries(Object.entries(all).filter(([k]) => !LEGACY_OPTIONS.some((o) => o.toLowerCase() === k.toLowerCase())));
+  // Helix 1.0 filled shapes and points half-opaque (a pie's and a volcano's, their type's fill), and
+  // set a row's bars side by side; its points had their type's size and outline (a
+  // volcano, the size set on it).
+  const { defaults } = isIn(GRAPHS, node.graphType) ? GRAPHS[node.graphType!] : {};
+  const size = isFiniteNumber(old.volcanoPointSize) ? { pointSize: old.volcanoPointSize } : {};
+  node.graphOptions = defined({ ...options, ...defaults, ...size, palette, series, fill: defaults?.fill ?? 0.5, pointFill: defaults?.pointFill ?? 0.5, barGap: 0 }) as unknown as GraphOptions;
+}
+
+/** Points colored in their table's cells (before Helix 1.0.3) keep their color on
+ *  each of its graphs, under any style the graph gives them itself. */
+function pointsFromCells(node: ProjectNode, cells: Record<string, PaletteColor> | undefined) {
+  if (!cells) return;
+  const options = node.graphOptions!;
+  const colored = Object.fromEntries(Object.entries(cells).map(([key, c]) => [key, { color: NAMED_COLORS[c] }]));
+  node.graphOptions = { ...options, points: { ...colored, ...options.points } };
 }

@@ -6,13 +6,13 @@
 // Only rows and columns that were written are stored; the grid shows empty
 // ones beyond them, and writing there extends the table.
 //
-// Two annotations follow the cells around: excluded cells ("row,col" keys) and
-// per-point colors ("column#row" keys). Structural edits remap them so they
-// stay attached to their values.
-import type { PaletteColor, TableData, TableType } from "../../store/types";
-import { parsePointKey, pointKeyOf, seriesKeyOf } from "../../lib/columns";
+// Excluded cells ("row,col" keys) follow the cells around: structural edits remap
+// them so they stay attached to their values. (Graphs follow on their own: see
+// store/references.ts.)
+import type { TableData, TableType } from "../../store/types";
+import { seriesKeyOf } from "../../lib/columns";
 
-export type Cell = string | null;
+type Cell = string | null;
 
 /** An inclusive, normalized block of cells. */
 export interface Range {
@@ -81,20 +81,6 @@ function remapExcluded(data: TableData, fn: (r: number, c: number) => [number, n
   return out.length ? out : undefined;
 }
 
-/** Moves per-point colors through `fn`, which gets the column name and row. */
-function remapPoints(
-  data: TableData,
-  fn: (column: string, row: number) => [string, number] | null,
-): Record<string, PaletteColor> | undefined {
-  const out: Record<string, PaletteColor> = {};
-  for (const [key, color] of Object.entries(data.pointColors ?? {})) {
-    const { column, row } = parsePointKey(key);
-    const moved = fn(column, row);
-    if (moved) out[pointKeyOf(moved[0], moved[1])] = color;
-  }
-  return Object.keys(out).length ? out : undefined;
-}
-
 // ── Cells ──────────────────────────────────────────────────────────────
 
 /**
@@ -158,41 +144,27 @@ export function toggleExcluded(data: TableData, range: Range): TableData {
   return { ...data, excluded: excluded.size ? [...excluded] : undefined };
 }
 
-/** Colors the points of `range` (undefined resets them to their series color). */
-export function colorPoints(data: TableData, range: Range, color: PaletteColor | undefined): TableData {
-  const pointColors = { ...data.pointColors };
-  for (let c = Math.max(1, range.c0); c <= Math.min(range.c1, data.columns.length - 1); c++) {
-    for (let r = range.r0; r <= Math.min(range.r1, data.rows.length - 1); r++) {
-      const key = pointKeyOf(data.columns[c], r);
-      if (color) pointColors[key] = color;
-      else delete pointColors[key];
-    }
-  }
-  return { ...data, pointColors: Object.keys(pointColors).length ? pointColors : undefined };
-}
-
 // ── Rows and columns ───────────────────────────────────────────────────
+
+/** Where each row goes when `count` rows are inserted before row `at`. */
+export const rowsInserted = (at: number, count: number) => (r: number) => (r >= at ? r + count : r);
+/** Where each row goes when `count` rows are deleted from row `at` (null: deleted). */
+export const rowsDeleted = (at: number, count: number) => (r: number) => (r < at ? r : r >= at + count ? r - count : null);
 
 export function insertRows(data: TableData, at: number, count: number): TableData {
   if (at >= data.rows.length) return data; // the grid already shows empty rows there
   const rows = [...data.rows.slice(0, at), ...emptyRows(count, data.columns.length), ...data.rows.slice(at)];
-  const shift = (r: number) => (r >= at ? r + count : r);
-  return {
-    ...data,
-    rows,
-    excluded: remapExcluded(data, (r, c) => [shift(r), c]),
-    pointColors: remapPoints(data, (col, r) => [col, shift(r)]),
-  };
+  const shift = rowsInserted(at, count);
+  return { ...data, rows, excluded: remapExcluded(data, (r, c) => [shift(r), c]) };
 }
 
 export function deleteRows(data: TableData, at: number, count: number): TableData {
   const rows = data.rows.filter((_, r) => r < at || r >= at + count);
-  const shift = (r: number) => (r < at ? r : r >= at + count ? r - count : null);
+  const shift = rowsDeleted(at, count);
   return {
     ...data,
     rows,
     excluded: remapExcluded(data, (r, c) => (shift(r) === null ? null : [shift(r)!, c])),
-    pointColors: remapPoints(data, (col, r) => (shift(r) === null ? null : [col, shift(r)!])),
   };
 }
 
@@ -212,34 +184,30 @@ export function insertColumns(data: TableData, at: number, count: number, type: 
 export function deleteColumns(data: TableData, at: number, count: number): TableData {
   const n = Math.min(count, data.columns.length - 2);
   if (n <= 0) return data;
-  const gone = new Set(data.columns.slice(at, at + n));
   const keep = (_: unknown, c: number) => c < at || c >= at + n;
   return {
     ...data,
     columns: data.columns.filter(keep),
     rows: data.rows.map((row) => row.filter(keep)),
     excluded: remapExcluded(data, (r, c) => (c < at ? [r, c] : c >= at + n ? [r, c - n] : null)),
-    pointColors: remapPoints(data, (col, r) => (gone.has(col) ? null : [col, r])),
   };
 }
 
-/** Moves `map[from]` to `map[to]` (colors and widths are keyed by column name). */
+/** Moves `map[from]` to `map[to]` (widths are keyed by column name). */
 function renameKey<T>(map: Record<string, T> | undefined, from: string, to: string): Record<string, T> | undefined {
   if (!map || map[from] === undefined) return map;
   const { [from]: value, ...rest } = map;
   return { ...rest, [to]: value };
 }
 
-/** Renames column `c`, carrying its color, width and point colors over. */
+/** Renames column `c`, carrying its width over. */
 export function renameColumn(data: TableData, c: number, name: string): TableData {
   const old = data.columns[c];
   if (!name || name === old || data.columns.includes(name)) return data;
   return {
     ...data,
     columns: data.columns.map((n, i) => (i === c ? name : n)),
-    seriesColors: renameKey(data.seriesColors, old, name),
     widths: renameKey(data.widths, old, name),
-    pointColors: remapPoints(data, (col, r) => [col === old ? name : col, r]),
   };
 }
 
@@ -253,14 +221,12 @@ export function renameGroup(data: TableData, oldKey: string, newKey: string): Ta
   return {
     ...data,
     columns: data.columns.map(rename),
-    seriesColors: renameKey(data.seriesColors, oldKey, newKey),
     widths,
-    pointColors: remapPoints(data, (col, r) => [rename(col), r]),
   };
 }
 
 /** Changes how many groups and sub-columns a grouped table has. Every value stays
- *  in its group and sub-column (with its exclusion and color); groups keep their
+ *  in its group and sub-column (with its exclusion); groups keep their
  *  names; only groups or sub-columns beyond the new counts are dropped. */
 export function regroupTable(data: TableData, groups: number, replicates: number): TableData {
   const keys = [...new Set(data.columns.slice(1).map(seriesKeyOf))].slice(0, groups);
@@ -276,7 +242,6 @@ export function regroupTable(data: TableData, groups: number, replicates: number
     groups,
     replicates,
     excluded: remapExcluded(data, (r, c) => (to(c) < 0 ? null : [r, to(c)])),
-    pointColors: remapPoints(data, (col, r) => (columns.includes(col) ? [col, r] : null)),
   };
 }
 

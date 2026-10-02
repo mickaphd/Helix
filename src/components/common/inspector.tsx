@@ -2,7 +2,7 @@
 // full height like the sidebar, and the building blocks its sections share.
 import * as React from "react";
 import { cn, IconButton } from "../../ui/controls";
-import { ChevronRightIcon, PanelRightIcon } from "lucide-react";
+import { CaretRightIcon, SidebarSimpleIcon } from "@phosphor-icons/react";
 import { SidePanel, Toolbar } from "../../ui/layout";
 import { clampWidth, INSPECTOR_WIDTH, useLayout } from "../../store/use-layout";
 
@@ -50,7 +50,7 @@ function InspectorToggle() {
       aria-pressed={inspector}
       onClick={() => setLayout({ inspector: !inspector })}
     >
-      <PanelRightIcon />
+      <SidebarSimpleIcon className="-scale-x-100" />
     </IconButton>
   );
 }
@@ -59,12 +59,15 @@ function InspectorToggle() {
  *  the title collapses or expands it. */
 export function Section({
   title,
+  icon,
   action,
   collapsed,
   onToggle,
   children,
 }: {
   title: string;
+  /** Shown before the title, as the sidebar's icons. */
+  icon?: React.ReactNode;
   action?: React.ReactNode;
   collapsed?: boolean;
   onToggle?: () => void;
@@ -77,11 +80,12 @@ export function Section({
           type="button"
           onClick={onToggle}
           disabled={!onToggle}
-          className="flex items-center gap-1 text-small-strong uppercase tracking-wide text-primary"
+          className="flex items-center gap-1.5 text-small-strong uppercase tracking-wide text-primary"
         >
           {onToggle && (
-            <ChevronRightIcon className={cn("size-3.5 text-secondary transition-transform", !collapsed && "rotate-90")} />
+            <CaretRightIcon className={cn("size-3.5 text-secondary transition-transform", !collapsed && "rotate-90")} />
           )}
+          {icon && <span className="text-secondary [&_svg]:size-4">{icon}</span>}
           {title}
         </button>
         {action}

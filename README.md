@@ -34,7 +34,7 @@ which update as soon as the data change.
 - Five table types: **Column**, **XY**, **Grouped**, **Multiple Variables** and **Contingency**
 - A spreadsheet that feels like one: copy and paste with Excel or Numbers, fill down, find,
   undo and redo everything
-- Exclude a value from the analyses without deleting it; color a whole series or a single point
+- Exclude a value from the analyses without deleting it
 
 ### Analyses
 
@@ -57,8 +57,11 @@ for you. Every result comes from R.
   scatter plots, dose-response curves, Kaplan-Meier survival curves, heatmaps, pie charts, and
   volcano plots that handle tens of thousands of genes
 - Significance stars and regression lines drawn straight from your analyses
-- Figures ready for a paper: resize by dragging an axis, set exact sizes, pick colors, white or
-  transparent background; export as PNG (300 dpi), SVG or JPG, or copy and paste anywhere
+- Colors from scientific palettes (Okabe-Ito, Paul Tol, Viridis…); style each series, or each
+  point you click: color, shape, size, outline, dashed lines, fill patterns
+- Figures ready for a paper: resize by dragging an axis, set exact sizes, move the legend and
+  labels, white or transparent background; export as PNG or JPG (150, 300 or 600 dpi) or SVG,
+  or copy and paste anywhere
 
 ### Projects
 
@@ -99,8 +102,8 @@ Helix is free software: you can redistribute it and modify it under the terms of
 
 Helix stands on the shoulders of [R](https://www.r-project.org) and
 [webR](https://github.com/r-wasm/webr), which bring R to the app,
-[Plotly.js](https://plotly.com/javascript/) for the graphs, and [Tauri](https://tauri.app)
-and [React](https://react.dev) for the app itself. See
+[Plotly.js](https://plotly.com/javascript/) for the graphs, [Phosphor Icons](https://phosphoricons.com)
+for its icons, and [Tauri](https://tauri.app) and [React](https://react.dev) for the app itself. See
 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for all of them and their licenses.
 
 GraphPad Prism is a trademark of GraphPad Software, LLC. Helix is an independent project,

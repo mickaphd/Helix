@@ -45,7 +45,7 @@ export const IconButton = ({ className, ...props }: React.ComponentProps<"button
     type="button"
     title={props["aria-label"]}
     className={cn(
-      "inline-flex size-7 items-center justify-center rounded-md text-secondary disabled:opacity-40 [&_svg]:size-[18px] [&_svg]:stroke-[1.75]",
+      "inline-flex size-7 items-center justify-center rounded-md text-secondary disabled:opacity-40 [&_svg]:size-[18px]",
       BUTTON.ghost,
       className,
     )}

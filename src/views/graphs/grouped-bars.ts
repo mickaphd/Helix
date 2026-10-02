@@ -5,6 +5,7 @@ import { buildGroupedBars } from "./grouped-common";
 export const groupedBars: GraphModule = {
   label: "Interleaved bars",
   family: "grouped",
-  build: (columns, options, seriesColors, _points, titles) =>
-    buildGroupedBars(columns, options, "group", false, seriesColors, titles),
+  patterns: () => true,
+  build: (columns, options, paint, titles) =>
+    buildGroupedBars(columns, options, "group", false, paint, titles),
 };

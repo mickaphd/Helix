@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CirclePlusIcon, TableIcon, SigmaIcon, LineChartIcon, PanelLeftIcon } from "lucide-react";
+import { ChartLineIcon, GridNineIcon, PlusCircleIcon, SidebarSimpleIcon, SigmaIcon } from "@phosphor-icons/react";
 import { Button, IconButton } from "../../ui/controls";
 import { PromptDialog } from "../../ui/dialog";
 import { SidePanel, SidebarItem } from "../../ui/layout";
@@ -59,7 +59,7 @@ export function SidebarToggle({ className }: { className?: string }) {
       className={className}
       onClick={() => setLayout({ sidebar: !sidebar })}
     >
-      <PanelLeftIcon />
+      <SidebarSimpleIcon />
     </IconButton>
   );
 }
@@ -189,6 +189,12 @@ export function ProjectSidebar() {
     else next.add(id);
     setCollapsed(next);
   };
+  // An analysis or graph that comes to show (a new one, one brought back by Undo) is
+  // never hidden in its folded table.
+  React.useEffect(() => {
+    const table = activeNodeId ? nodes[activeNodeId]?.parentId : null;
+    if (table && collapsed.has(table)) setOpen(table, true);
+  }, [activeNodeId]);
 
   // The keyboard, as in the Finder: ↑↓ move, ←→ fold and unfold (← from an analysis
   // or graph goes to its table), Return renames. ⌘⌫ deletes, from the Table menu.
@@ -242,7 +248,7 @@ export function ProjectSidebar() {
           className="text-secondary"
           onClick={() => openSelector({ kind: "new-table" })}
         >
-          <CirclePlusIcon className="size-4" />
+          <PlusCircleIcon className="size-4" />
           New Table
         </Button>
       }
@@ -258,12 +264,16 @@ export function ProjectSidebar() {
         {tables.map((table) => (
           <SidebarItem
             key={table.id}
-            icon={<TableIcon className="size-4" />}
+            icon={<GridNineIcon className="size-4" />}
             title={table.name}
             selected={activeNodeId === table.id}
             open={!collapsed.has(table.id)}
             onToggle={() => setOpen(table.id, collapsed.has(table.id))}
-            onClick={() => select(table.id)}
+            // A click shows the table and folds or unfolds its analyses and graphs.
+            onClick={() => {
+              select(table.id);
+              setOpen(table.id, collapsed.has(table.id));
+            }}
             onContextMenu={(e) => {
               e.preventDefault();
               tableMenu(table);
@@ -274,7 +284,7 @@ export function ProjectSidebar() {
             {childrenOf(table.id).map((child) => (
               <SidebarItem
                 key={child.id}
-                icon={child.type === "analysis" ? <SigmaIcon className="size-4" /> : <LineChartIcon className="size-4" />}
+                icon={child.type === "analysis" ? <SigmaIcon className="size-4" /> : <ChartLineIcon className="size-4" />}
                 title={child.name}
                 selected={activeNodeId === child.id}
                 onClick={() => select(child.id)}

@@ -1,12 +1,11 @@
 import * as React from "react";
 
 import type { NodeType, ProjectNode, TableData, TableType, GraphType, GraphOptions } from "./types";
-import { DEFAULT_GRAPH_OPTIONS } from "./types";
 import type { AnalysisParams, AnalysisPickerValue, AnalysisType } from "../stats/types";
 import { TABLES } from "../views/tables";
-import { GRAPHS } from "../views/graphs";
+import { GRAPHS, newGraphOptions } from "../views/graphs";
 import { ANALYSES } from "../stats";
-import { renameReferences } from "./references";
+import { followTable, type TableMove } from "./references";
 
 export type { ProjectNode } from "./types";
 
@@ -57,9 +56,8 @@ type Action =
   | { type: "setActive"; id: string | null }
   | { type: "rename"; id: string; name: string }
   | { type: "remove"; id: string }
-  /** `label` names the edit in the Edit menu; `renamed`: columns or groups it renamed
-   *  (old → new name). */
-  | { type: "updateTable"; id: string; data: TableData; label: string; renamed?: Record<string, string> }
+  /** `label` names the edit in the Edit menu; `move`: what it renamed or moved. */
+  | { type: "updateTable"; id: string; data: TableData; label: string; move?: TableMove }
   | { type: "updateGraph"; id: string; options: GraphOptions; at: number }
   | { type: "undo" }
   | { type: "redo" }
@@ -156,7 +154,7 @@ function applyAction(state: ProjectState, action: Action): ProjectState {
       return { ...state, activeNodeId: action.id };
     case "rename": {
       const node = state.nodes[action.id];
-      if (!node) return state;
+      if (!node || node.name === action.name) return state;
       return {
         ...state,
         nodes: { ...state.nodes, [action.id]: { ...node, name: action.name } },
@@ -187,10 +185,12 @@ function applyAction(state: ProjectState, action: Action): ProjectState {
       const node = state.nodes[action.id];
       if (!node || node.type !== "table") return state;
       const nodes = { ...state.nodes, [action.id]: { ...node, data: action.data } };
-      // The table's analyses and graphs follow its renamed columns and groups.
-      if (action.renamed) {
+      // The table's analyses and graphs follow its renamed columns and groups, its moved
+      // rows and its deleted columns.
+      const columnsChanged = action.data.columns.join("\n") !== node.data?.columns.join("\n");
+      if (action.move || columnsChanged) {
         for (const child of Object.values(state.nodes)) {
-          if (child.parentId === action.id) nodes[child.id] = renameReferences(child, action.renamed);
+          if (child.parentId === action.id) nodes[child.id] = followTable(child, action.move ?? {}, action.data.columns);
         }
       }
       return { ...state, nodes, isDirty: true };
@@ -342,9 +342,9 @@ interface ProjectContextValue {
   setActiveNode: (id: string | null) => void;
   renameNode: (id: string, name: string) => void;
   removeNode: (id: string) => void;
-  /** `label` names the edit for Undo ("Paste"); `renamed`: columns or groups it renamed
-   *  (old → new), which the table's analyses and graphs then follow. */
-  updateTable: (id: string, data: TableData, label: string, renamed?: Record<string, string>) => void;
+  /** `label` names the edit for Undo ("Paste"); `move`: the columns or groups it renamed
+   *  and the rows it moved, which the table's analyses and graphs then follow. */
+  updateTable: (id: string, data: TableData, label: string, move?: TableMove) => void;
   updateGraph: (id: string, options: GraphOptions) => void;
   openSelector: (selector: Selector) => void;
   closeSelector: () => void;
@@ -460,7 +460,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             name,
             parentId,
             graphType,
-            graphOptions: DEFAULT_GRAPH_OPTIONS,
+            graphOptions: newGraphOptions(graphType),
           },
         });
         return id;
@@ -468,7 +468,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       setActiveNode: (id) => dispatch({ type: "setActive", id }),
       renameNode: (id, name) => dispatch({ type: "rename", id, name }),
       removeNode: (id) => dispatch({ type: "remove", id }),
-      updateTable: (id, data, label, renamed) => dispatch({ type: "updateTable", id, data, label, renamed }),
+      updateTable: (id, data, label, move) => dispatch({ type: "updateTable", id, data, label, move }),
       updateGraph: (id, options) => dispatch({ type: "updateGraph", id, options, at: Date.now() }),
       openSelector: (selector) => dispatch({ type: "openSelector", selector }),
       closeSelector: () => dispatch({ type: "closeSelector" }),

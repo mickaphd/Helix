@@ -7,6 +7,8 @@ import { groupsOf, readTable, type Column } from "./dataset";
 import { tTwoSidedP } from "./student-t";
 
 interface DEGRow {
+  /** The table row it comes from (rows lacking data are skipped, so not its place here). */
+  row: number;
   label: string;
   log2FC: number;
   p: number;
@@ -83,7 +85,7 @@ export function computeGroupedDEG(
     }
     const p = welchP(a, b);
     if (!Number.isFinite(p)) return;
-    rows.push({ label: String(title ?? "").trim(), log2FC, p, padj: 1 });
+    rows.push({ row: r, label: String(title ?? "").trim(), log2FC, p, padj: 1 });
   });
   bhAdjust(rows);
   return rows;

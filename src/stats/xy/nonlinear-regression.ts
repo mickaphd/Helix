@@ -35,8 +35,8 @@ interface ModelSpec {
   terms: string[];
   /** Derived quantities computed from the fit's named coefficients (`cf[["Name"]]`). */
   derived?: { label: string; expr: string }[];
-  /** Guard: some curves need X > 0 (log/ratio forms). Rejected up front with this message. */
-  requirePositiveX?: string;
+  /** Curves of log or ratio forms fit the points with X > 0 only. */
+  positiveX?: boolean;
 }
 
 function modelSpec(model: NonlinearModel): ModelSpec {
@@ -53,7 +53,7 @@ function modelSpec(model: NonlinearModel): ModelSpec {
         kind: "lm",
         fit: "m<-lm(y~log(x))",
         terms: ["Intercept", "Slope"],
-        requirePositiveX: "The semilog line needs every X value to be greater than 0 (it uses ln(X)).",
+        positiveX: true,
       };
     case "sigmoidal-4pl-logx":
       // X is already log10(dose). EC50 = 10^LogEC50.
@@ -73,7 +73,7 @@ function modelSpec(model: NonlinearModel): ModelSpec {
         fit: "m<-nls(y~Bottom+(Top-Bottom)/(1+(EC50/x)^HillSlope),start=list(Bottom=min(y),Top=max(y),EC50=median(x[x>0]),HillSlope=1))",
         terms: ["Bottom", "Top", "EC50", "HillSlope"],
         derived: [{ label: "Span", expr: 'cf[["Top"]]-cf[["Bottom"]]' }],
-        requirePositiveX: "This curve needs every X value to be greater than 0 (X is concentration).",
+        positiveX: true,
       };
     case "hyperbola":
       // Y = Bmax * X / (Kd + X).
@@ -81,7 +81,7 @@ function modelSpec(model: NonlinearModel): ModelSpec {
         kind: "nls",
         fit: "m<-nls(y~Bmax*x/(Kd+x),start=list(Bmax=max(y)*1.1,Kd=median(x[x>0])))",
         terms: ["Bmax", "Kd"],
-        requirePositiveX: "The hyperbola needs every X value to be greater than 0 (X is concentration).",
+        positiveX: true,
       };
   }
 }
@@ -91,7 +91,7 @@ export async function runNonlinearRegression(
   params: NonlinearRegressionParams | undefined,
 ): Promise<AnalysisOutcome> {
   const model = params?.model;
-  if (!model || !(model in MODEL_LABEL)) return { error: "Choose a standard curve to fit." };
+  if (!model || !Object.hasOwn(MODEL_LABEL, model)) return { error: "Choose a standard curve to fit." };
 
   const { x: xCol, ys: yCols } = splitXY(columns);
   if (params?.y !== undefined && !columns.some((c) => c.name === params.y)) return { error: missingColumn(params.y) };
@@ -109,7 +109,7 @@ export async function runNonlinearRegression(
   // rejecting the whole curve, mirroring how these curves are conventionally fit.
   let xs = complete.x;
   let ys = complete.y;
-  if (spec.requirePositiveX) {
+  if (spec.positiveX) {
     xs = [];
     ys = [];
     complete.x.forEach((x, i) => {
@@ -120,7 +120,7 @@ export async function runNonlinearRegression(
     });
   }
   if (xs.length < nParams + 1) {
-    const scope = spec.requirePositiveX ? " with X > 0" : "";
+    const scope = spec.positiveX ? " with X > 0" : "";
     return { error: `Not enough complete points${scope} (${xs.length}) to fit this curve; need at least ${nParams + 1}.` };
   }
 

@@ -39,7 +39,6 @@ export function deriveComparisons(outcome: AnalysisOutcome | null, numericNames:
   return [];
 }
 
-
 /** The highest drawn Y for each column, so a bracket can clear the actual marks —
  *  bars/points/whiskers AND the error-bar cap. `mean-error` draws only the center
  *  ± error, so its top is center+error; the point/box families also draw every raw

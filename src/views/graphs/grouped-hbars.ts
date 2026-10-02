@@ -5,6 +5,7 @@ import { buildGroupedBars } from "./grouped-common";
 export const groupedHbars: GraphModule = {
   label: "Horizontal bars",
   family: "grouped",
-  build: (columns, options, seriesColors, _points, titles) =>
-    buildGroupedBars(columns, options, "group", true, seriesColors, titles),
+  patterns: () => true,
+  build: (columns, options, paint, titles) =>
+    buildGroupedBars(columns, options, "group", true, paint, titles),
 };

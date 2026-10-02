@@ -6,5 +6,7 @@ import { buildGroupedLines } from "./grouped-common";
 export const groupedLines: GraphModule = {
   label: "Connected lines",
   family: "grouped",
-  build: (columns, options, seriesColors, _points, titles) => buildGroupedLines(columns, options, seriesColors, titles),
+  points: () => true,
+  lines: () => true,
+  build: (columns, options, paint, titles) => buildGroupedLines(columns, options, paint, titles),
 };

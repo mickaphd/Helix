@@ -275,6 +275,22 @@ fn set_recent_documents(app: AppHandle, paths: Vec<String>) {
     });
 }
 
+/// The accent color chosen in System Settings ▸ Appearance, as `#RRGGBB`: what Helix
+/// highlights with (selections, focus, buttons), as every Mac app does.
+#[tauri::command]
+fn accent_color() -> Option<String> {
+    unsafe {
+        let color: *mut AnyObject = objc2::msg_send![objc2::class!(NSColor), controlAccentColor];
+        let space: *mut AnyObject = objc2::msg_send![objc2::class!(NSColorSpace), sRGBColorSpace];
+        let rgb: *mut AnyObject = objc2::msg_send![color.as_ref()?, colorUsingColorSpace: space];
+        let rgb = rgb.as_ref()?;
+        let channel = |c: f64| (c.clamp(0.0, 1.0) * 255.0).round() as u8;
+        let (r, g, b): (f64, f64, f64) =
+            (objc2::msg_send![rgb, redComponent], objc2::msg_send![rgb, greenComponent], objc2::msg_send![rgb, blueComponent]);
+        Some(format!("#{:02X}{:02X}{:02X}", channel(r), channel(g), channel(b)))
+    }
+}
+
 /// Helix's website, GitHub page or releases, in the default browser: fixed
 /// addresses, so the page can't open anything else.
 #[tauri::command]
@@ -321,6 +337,55 @@ fn ask_before_quitting(app: &AppHandle) {
         let imp: Imp = std::mem::transmute(should_terminate as extern "C-unwind" fn(_, _, _) -> _);
         let class = delegate.class() as *const AnyClass as *mut AnyClass;
         objc2::ffi::class_addMethod(class, objc2::sel!(applicationShouldTerminate:), imp, c"Q@:@".as_ptr());
+    }
+}
+
+/// macOS 27 hides menu items' pictures unless told to show them. Helix's own (a
+/// palette's band, a color's swatch) are what their item says, so they stay; the
+/// system's symbols (template images) keep macOS's choice. A menu of pictures alone
+/// (swatches, shapes) drops the column kept for check marks, so it is no wider than
+/// they are.
+/// Set as each item is added, before any menu shows.
+fn show_menu_pictures() {
+    extern "C-unwind" fn item_added(_: &AnyObject, _: Sel, note: &AnyObject) {
+        unsafe {
+            let menu: *mut AnyObject = objc2::msg_send![note, object];
+            let Some(menu) = menu.as_ref() else { return };
+            let count: isize = objc2::msg_send![menu, numberOfItems];
+            let mut pictures_only = true;
+            for i in 0..count {
+                let item: *mut AnyObject = objc2::msg_send![menu, itemAtIndex: i];
+                let separator: bool = objc2::msg_send![item, isSeparatorItem];
+                if separator {
+                    continue;
+                }
+                let title: *mut AnyObject = objc2::msg_send![item, title];
+                let title_length: usize = objc2::msg_send![title, length];
+                let image: *mut AnyObject = objc2::msg_send![item, image];
+                pictures_only &= title_length == 0 && !image.is_null();
+                let Some(image) = image.as_ref() else { continue };
+                let template: bool = objc2::msg_send![image, isTemplate];
+                let can: bool = objc2::msg_send![item, respondsToSelector: objc2::sel!(setPreferredImageVisibility:)];
+                if !template && can {
+                    let _: () = objc2::msg_send![item, setPreferredImageVisibility: 1isize]; // .visible
+                }
+            }
+            if pictures_only {
+                let _: () = objc2::msg_send![menu, setShowsStateColumn: false];
+            }
+        }
+    }
+    unsafe {
+        let ns_app: *mut AnyObject = objc2::msg_send![objc2::class!(NSApplication), sharedApplication];
+        let delegate: *mut AnyObject = objc2::msg_send![ns_app, delegate];
+        let Some(delegate) = delegate.as_ref() else { return };
+        let imp: Imp = std::mem::transmute(item_added as extern "C-unwind" fn(_, _, _));
+        let class = delegate.class() as *const AnyClass as *mut AnyClass;
+        objc2::ffi::class_addMethod(class, objc2::sel!(helixMenuItemAdded:), imp, c"v@:@".as_ptr());
+        let name: *mut AnyObject =
+            objc2::msg_send![objc2::class!(NSString), stringWithUTF8String: c"NSMenuDidAddItemNotification".as_ptr()];
+        let center: *mut AnyObject = objc2::msg_send![objc2::class!(NSNotificationCenter), defaultCenter];
+        let _: () = objc2::msg_send![center, addObserver: delegate, selector: objc2::sel!(helixMenuItemAdded:), name: name, object: std::ptr::null_mut::<AnyObject>()];
     }
 }
 
@@ -389,6 +454,7 @@ fn main() {
         .manage(REngine::default())
         .setup(|app| {
             ask_before_quitting(app.handle());
+            show_menu_pictures();
             restore_session(app.handle())?;
             Ok(())
         })
@@ -403,6 +469,7 @@ fn main() {
             read_text,
             write_file,
             set_recent_documents,
+            accent_color,
             open_link,
             eval_r,
             r_result,

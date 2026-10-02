@@ -2,11 +2,11 @@
 // window's title bar is hidden (see tauri.conf.json), so the panel tops and every
 // toolbar double as drag areas; the traffic lights sit centered in them.
 import * as React from "react";
-import { ChevronRightIcon } from "lucide-react";
+import { CaretRightIcon } from "@phosphor-icons/react";
 import { cn } from "./controls";
 
-/** Top bar of a pane: a title, a tag saying what it is (a gray pill, left out when the
- *  title already says it), and buttons on the right.
+/** Top bar of a pane: a title, a tag saying what it is (a gray pill), and buttons on
+ *  the right.
  *  Dragging it moves the window. Its left inset is `--toolbar-inset`: room for the
  *  traffic lights when the sidebar is hidden. */
 export function Toolbar({ title, tag, actions }: { title: string; tag?: string; actions?: React.ReactNode }) {
@@ -17,7 +17,7 @@ export function Toolbar({ title, tag, actions }: { title: string; tag?: string; 
     >
       <div className="pointer-events-none flex min-w-0 flex-1 items-center gap-2">
         <h1 className="truncate text-strong">{title}</h1>
-        {tag && tag !== title && (
+        {tag && (
           <span className="shrink-0 rounded-full bg-control px-2 py-0.5 text-small-strong text-secondary">{tag}</span>
         )}
       </div>
@@ -127,18 +127,21 @@ export function SidebarItem({ icon, title, selected, open = true, onToggle, chil
           type="button"
           tabIndex={-1}
           aria-label={open ? "Collapse" : "Expand"}
-          onClick={onToggle}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggle?.();
+          }}
           onPointerDown={(e) => e.stopPropagation()}
           className={cn("text-secondary", selected && "group-focus:text-white", !hasChildren && "invisible")}
         >
-          <ChevronRightIcon className={cn("size-3.5 transition-transform", open && "rotate-90")} />
+          <CaretRightIcon className={cn("size-3.5 transition-transform", open && "rotate-90")} />
         </button>
         <span className={cn("text-secondary", selected && "group-focus:text-white")}>{icon}</span>
         <span className="truncate" title={title}>
           {title}
         </span>
       </div>
-      {hasChildren && open && <div className="pl-4">{children}</div>}
+      {hasChildren && open && <div className="pl-2">{children}</div>}
     </>
   );
 }

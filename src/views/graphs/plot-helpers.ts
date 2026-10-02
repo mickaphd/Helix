@@ -1,43 +1,198 @@
-// Shared statistics + Plotly layout helpers for the column graph family.
-import type { GraphOptions, PaletteColor } from "../../store/types";
+// What every graph shares: how its series are painted (`Paint`), the statistics it
+// draws (centers, errors), and the Plotly layout of each family.
+import {
+  SAME_AS_FILL,
+  type FillPattern,
+  type GraphOptions,
+  type LineDash,
+  type Place,
+  type PointShape,
+  type PointStyle,
+} from "../../store/types";
 import type { Column } from "../../lib/dataset";
 import type { GraphFigure } from ".";
-import { seriesStyle, pointStyle } from "../../lib/palette";
+import { paletteColor, paletteOf, withOpacity } from "../../lib/palettes";
 
 export const INK = "#111827"; // axes + titles only
+export const GUIDE = "#9CA3AF"; // what guides the eye: threshold lines, a name's leader line
 
-/** Every series (a column, or a Grouped-family group) is keyed by name so color
- *  assignments survive column reordering — see `seriesColors` on `TableData`. */
-export type SeriesColors = Record<string, PaletteColor> | undefined;
-/** Per-point overrides, keyed by `pointKeyOf(column, row)` — see `TableData.pointColors`. */
-type PointColors = Record<string, PaletteColor> | undefined;
+/** How a graph paints its series (a column, or a Grouped-family group, by name). */
+export interface Paint {
+  /** The series' color: its lines, and what its fills and outlines start from. */
+  color: (key: string, index: number) => string;
+  /** The outline of its bars, boxes, violins, areas and slices (Plotly's `line`). */
+  edge: (key: string, index: number) => { color: string; width: number };
+  /** Its line (Plotly's `line`): its dashes, else the graph's. */
+  line: (key: string, index: number) => { color: string; width: number; dash: LineDash };
+  /** The bars of a series: their fill, outline and pattern (Plotly's bar `marker`). */
+  bars: (key: string, index: number) => Record<string, unknown>;
+  /** The pattern over its fill, if it has one (Plotly's `pattern` / `fillpattern`). */
+  pattern: (key: string, index: number) => { shape: string; fgcolor: string; bgcolor: string } | undefined;
+  /** Its error bars of `array` (Plotly's `error_y` or `error_x`). */
+  errorBars: (key: string, index: number, array: number[]) => Record<string, unknown>;
+  /** Its mean or median line, drawn like its error bars (Plotly's `line`). */
+  centerLine: (key: string, index: number) => { color: string; width: number };
+  /** The fill of its bars, boxes, violins and areas. */
+  fill: (key: string, index: number) => string;
+  /** The fill of its points. */
+  dot: (key: string, index: number) => string;
+  /** Its points' shape: the series' own, else the graph's. */
+  shape: (key: string) => PointShape;
+  /** One point's style (`pointKey`, see `pointKeyOf`): its own, else its series'. */
+  point: (pointKey: string, key: string, index: number) => Required<Omit<PointStyle, "label" | "labelOffset">>;
+  /** Every point's size and outline thickness (px). */
+  size: number;
+  outline: number;
+  /** The outline color of a point colored `color`: `own` (its own choice), else the graph's. */
+  outlineColor: (color: string, own?: string) => string;
+}
 
-/** Resolved border color for one series (explicit override, else palette-by-position). */
-export const seriesColor = (seriesColors: SeriesColors, key: string, index: number) =>
-  seriesStyle(seriesColors, key, index).color;
-/** Resolved translucent fill color for one series. */
-export const seriesFill = (seriesColors: SeriesColors, key: string, index: number) =>
-  seriesStyle(seriesColors, key, index).fill;
-/** A point/circle marker: translucent fill with a solid same-color outline. */
-export const seriesMarker = (size: number, seriesColors: SeriesColors, key: string, index: number) => {
-  const s = seriesStyle(seriesColors, key, index);
-  return { color: s.fill, size, line: { color: s.color, width: 1.5 } };
+/** How fine a pattern is drawn (`replace`: its own background shows between its lines). */
+export const PATTERN_LOOK = { fillmode: "replace", size: 8, solidity: 0.3 };
+/** How strong a patterned fill's tint is, of the fill's opacity. */
+export const TINT = 0.4;
+
+/** Each fill pattern as Plotly draws it. */
+const PATTERN_SHAPES: Record<FillPattern, string> = {
+  diagonal: "/",
+  "back-diagonal": "\\",
+  crosshatch: "x",
+  horizontal: "-",
+  vertical: "|",
+  grid: "+",
+  dots: ".",
 };
 
-/** Per-point marker: like `seriesMarker`, but each point (`pointKeys[i]`) can carry
- *  its own color override, falling back to the series color where unset — Plotly's
- *  `marker.color`/`marker.line.color` accept a same-length array for exactly this. */
-export const seriesPointMarker = (
-  size: number,
-  seriesColors: SeriesColors,
-  pointColors: PointColors,
-  key: string,
-  index: number,
-  pointKeys: string[],
-) => {
-  const styles = pointKeys.map((k) => pointStyle(seriesColors, pointColors, k, key, index));
-  return { color: styles.map((s) => s.fill), size, line: { color: styles.map((s) => s.color), width: 1.5 } };
-};
+/** The thickness an outline of none (0) takes when given a color, so the color shows. */
+export const visibleOutline = (width: number, color: string) => (width === 0 && color !== SAME_AS_FILL ? 1.5 : undefined);
+
+/** An outline's color: `chosen`, or with none (or `SAME_AS_FILL`) that of what it outlines. */
+const outlineOf = (chosen: string | undefined, color: string) => (!chosen || chosen === SAME_AS_FILL ? color : chosen);
+
+/** A series takes its color picked by hand, else the palette's for its place
+ *  (`index` among `count`). */
+export function paintOf(options: GraphOptions, count: number): Paint {
+  const palette = paletteOf(options);
+  const color = (key: string, index: number) => options.series?.[key]?.color ?? paletteColor(palette, index, count);
+  const shape = (key: string) => options.series?.[key]?.shape ?? options.pointShape;
+  const outlineColor = (c: string, own?: string) => outlineOf(own ?? options.pointOutlineColor, c);
+  const errorColor = (key: string, index: number) => options.errorColor ?? color(key, index);
+  const fill = (key: string, index: number) => withOpacity(color(key, index), options.fill);
+  const edge = (key: string, index: number) => ({ color: outlineOf(options.outlineColor, color(key, index)), width: options.outline });
+  // Lines in the series' color over a light tint of it (its fill's strength), so they show.
+  const pattern = (key: string, index: number) => {
+    const name = options.series?.[key]?.pattern;
+    const c = color(key, index);
+    return name && { shape: PATTERN_SHAPES[name], fgcolor: c, bgcolor: withOpacity(c, options.fill * TINT), ...PATTERN_LOOK };
+  };
+  return {
+    color,
+    edge,
+    line: (key, index) => ({ color: color(key, index), width: options.lineWidth, dash: options.series?.[key]?.dash ?? options.lineDash }),
+    bars: (key, index) => {
+      const over = pattern(key, index);
+      return { color: fill(key, index), line: edge(key, index), ...(over && { pattern: over }) };
+    },
+    pattern,
+    errorBars: (key, index, array) => {
+      // Only above (or right of) the value: none below, and no cap at its foot (`withCaps`).
+      const above = options.errorDirection === "above";
+      return {
+        type: "data",
+        array,
+        ...(above ? { symmetric: false, arrayminus: array.map(() => 0) } : {}),
+        color: errorColor(key, index),
+        thickness: options.errorWidth,
+        width: above ? 0 : options.errorCaps,
+      };
+    },
+    centerLine: (key, index) => ({ color: errorColor(key, index), width: options.errorWidth }),
+    fill,
+    dot: (key, index) => withOpacity(color(key, index), options.pointFill),
+    shape,
+    point: (pointKey, key, index) => {
+      const own = options.points?.[pointKey];
+      const c = own?.color ?? color(key, index);
+      return {
+        color: c,
+        size: own?.size ?? options.pointSize,
+        shape: own?.shape ?? shape(key),
+        fill: own?.fill ?? options.pointFill,
+        outline: own?.outline ?? options.pointOutline,
+        outlineColor: outlineColor(c, own?.outlineColor),
+      };
+    },
+    size: options.pointSize,
+    outline: options.pointOutline,
+    outlineColor,
+  };
+}
+
+/** A series' point marker: its fill, shape, size and outline. */
+export const seriesMarker = (paint: Paint, key: string, index: number) => ({
+  color: paint.dot(key, index),
+  size: paint.size,
+  symbol: paint.shape(key),
+  line: { color: paint.outlineColor(paint.color(key, index)), width: paint.outline },
+});
+
+/** A series' individual points, each (`pointKeys[i]`) with its own style — Plotly's
+ *  marker color, size, symbol and outline accept a same-length array — and its key, so
+ *  a click tells which point it was (`customdata`). */
+export function seriesPoints(paint: Paint, key: string, index: number, pointKeys: string[]) {
+  const styles = pointKeys.map((k) => paint.point(k, key, index));
+  return {
+    customdata: pointKeys,
+    marker: {
+      color: styles.map((s) => withOpacity(s.color, s.fill)),
+      size: styles.map((s) => s.size),
+      symbol: styles.map((s) => s.shape),
+      line: { color: styles.map((s) => s.outlineColor), width: styles.map((s) => s.outline) },
+    },
+  };
+}
+
+/** A trace as `withCaps` reads it. */
+interface ErrorTrace {
+  type: string;
+  x: (number | string | null)[];
+  y: (number | string | null)[];
+  orientation?: string;
+  width?: number;
+  offsetgroup?: string;
+  error_x?: { array: number[]; color: string; thickness: number };
+  error_y?: { array: number[]; color: string; thickness: number };
+}
+
+/** The caps of error bars that go one way only: Plotly caps both ends, so those bars
+ *  have none, and each such trace gets an invisible twin whose zero-long error bars, at
+ *  their tips, are the caps. A bar's twin shares its place (`offsetgroup`). */
+export function withCaps(data: unknown[], options: GraphOptions): unknown[] {
+  if (options.errorDirection !== "above" || !options.errorCaps) return data;
+  return (data as ErrorTrace[]).flatMap((trace, i) => {
+    const key = trace.error_y ? "error_y" : trace.error_x ? "error_x" : null;
+    if (!key) return [trace];
+    const { array, color, thickness } = trace[key]!;
+    const along = key === "error_y" ? "y" : "x";
+    const tips = trace[along].map((v, j) => (typeof v === "number" ? v + array[j] : null));
+    const bar = trace.type === "bar";
+    const group = trace.offsetgroup ?? String(i);
+    const twin = {
+      type: trace.type,
+      orientation: trace.orientation,
+      x: trace.x,
+      y: trace.y,
+      [along]: tips,
+      width: trace.width,
+      ...(bar ? { offsetgroup: group } : { mode: "markers" }),
+      marker: { color: "rgba(0,0,0,0)" },
+      [key]: { type: "data", array: tips.map(() => 0), color, thickness, width: options.errorCaps },
+      hoverinfo: "skip",
+      showlegend: false,
+    };
+    return [bar ? { ...trace, offsetgroup: group } : trace, twin];
+  });
+}
 
 /** Smallest and largest value (a loop, safe for any number of points). */
 export const extent = (v: number[]): [number, number] => [
@@ -45,11 +200,33 @@ export const extent = (v: number[]): [number, number] => [
   v.reduce((a, b) => Math.max(a, b), -Infinity),
 ];
 
-/** Adds a text note in the plot's top-left corner (a fit's equation). */
-export function addNote(fig: GraphFigure, text: string, fontSize: number) {
+/** The width a text of `fontSize` takes, roughly (no measuring before drawing). */
+export const textWidth = (text: string, fontSize: number) => text.length * fontSize * 0.6 + 4;
+
+// The texts that can be moved by hand: those with an arrow (the note's is invisible),
+// so significance labels, which have none, stay on their brackets. Plotly reports where
+// each was dropped; graph-view keeps it by the annotation's `name`.
+export const MOVABLE = { annotationTail: true, legendPosition: true, colorbarPosition: true };
+
+/** Which text Plotly says was moved (`moved`: its new place, by attribute, as
+ *  "legend.x" or "annotations[2].ax"; `names`: each annotation's), and to where. */
+export function movedText(moved: Record<string, number | undefined>, names: (string | undefined)[]) {
+  const x = moved["legend.x"] ?? moved["colorbar.x"];
+  const y = moved["legend.y"] ?? moved["colorbar.y"];
+  if (x !== undefined && y !== undefined) return { name: "legend", at: { x, y } };
+  const [, index] = Object.keys(moved)[0]?.match(/^annotations\[(\d+)\]\.a[xy]$/) ?? [];
+  const name = index && names[Number(index)];
+  const ax = moved[`annotations[${index}].ax`];
+  const ay = moved[`annotations[${index}].ay`];
+  return name && ax !== undefined && ay !== undefined ? { name, at: { x: ax, y: ay } } : null;
+}
+
+/** Adds a text note in the plot's top-left corner (a fit's equation), or where it was moved. */
+export function addNote(fig: GraphFigure, text: string, options: GraphOptions) {
   fig.layout.annotations = [
     ...((fig.layout.annotations as unknown[]) ?? []),
     {
+      name: "note",
       xref: "paper",
       yref: "paper",
       x: 0.02,
@@ -57,12 +234,34 @@ export function addNote(fig: GraphFigure, text: string, fontSize: number) {
       xanchor: "left",
       yanchor: "top",
       align: "left",
-      showarrow: false,
+      showarrow: true,
+      arrowcolor: "rgba(0,0,0,0)",
+      ax: options.note?.x ?? 0,
+      ay: options.note?.y ?? 0,
       text,
-      font: { color: INK, size: Math.max(fontSize - 1, 8) },
+      font: { color: INK, size: Math.max(options.fontSize - 1, 8) },
     },
   ];
 }
+
+/** A point's name (`key`, see `pointKeyOf`) at `offset` px from it, joined to it by a
+ *  thin line once it's moved away from a point `size` px wide. */
+export const pointName = (key: string, x: number, y: number, text: string, offset: Place, size: number, fontSize: number) => ({
+  name: key,
+  x,
+  y,
+  xref: "x",
+  yref: "y",
+  text,
+  showarrow: true,
+  arrowhead: 0,
+  arrowwidth: 0.5,
+  arrowcolor: GUIDE,
+  standoff: size / 2,
+  ax: offset.x,
+  ay: offset.y,
+  font: { color: INK, size: fontSize },
+});
 
 export const mean = (v: number[]) => v.reduce((a, b) => a + b, 0) / v.length;
 export const sd = (v: number[]) => {
@@ -92,6 +291,8 @@ export const jitter = (col: number, i: number) => {
 
 /** The drawing's size limits (px), for dragging an axis or typing a size. */
 export const GRAPH_SIZE = { minWidth: 150, maxWidth: 2400, minHeight: 120, maxHeight: 1800 };
+/** A point's size in pixels, wherever it is set (Style, Selected points, the right-click menu). */
+export const POINT_SIZE = { min: 2, max: 20 };
 
 /** The least space around the plot area. Every axis has `automargin`, so Plotly widens
  *  it just enough for tick labels, axis titles and legends: the sheet hugs the figure. */
@@ -117,6 +318,12 @@ function chromeLayout(options: GraphOptions): Record<string, unknown> {
       : {}),
   };
 }
+
+/** The legend, right of the plot, or where it was moved. */
+const legendOf = (options: GraphOptions) => ({ x: 1.02, y: 1, xanchor: "left", ...options.legend });
+
+/** An axis's title, `gap` px from its tick labels; none without text. */
+const axisTitle = (text: string, gap: number) => (text ? { title: { text, standoff: gap } } : {});
 
 /** Axis min/max/step config shared by every graph family/axis. Full explicit range when
  *  both bounds are set; otherwise let Plotly keep auto-scaling the unset side while
@@ -182,13 +389,13 @@ export function baseLayout(
       // Symmetric half-unit padding so categories never hug the Y axis (uniform across graph types).
       range: [-0.5, names.length - 0.5],
       ...axisChrome(options),
-      ...(options.xLabel ? { title: { text: options.xLabel, standoff: 12 } } : {}),
+      ...axisTitle(options.xLabel, options.xTitleGap),
     },
     yaxis: {
       // Minimalist: only the axis spine + ticks — no internal gridlines.
       ...axisChrome(options),
       ...yAxisRange(options, opts.zeroBase),
-      ...(options.yLabel ? { title: { text: options.yLabel } } : {}),
+      ...axisTitle(options.yLabel, options.yTitleGap),
     },
   };
 }
@@ -212,7 +419,7 @@ export function heatmapLayout(options: GraphOptions, colNames: string[], rowName
       categoryarray: colNames,
       autotickangles: [0, 90],
       ...axisChrome(options),
-      ...(options.xLabel ? { title: { text: options.xLabel, standoff: 12 } } : {}),
+      ...axisTitle(options.xLabel, options.xTitleGap),
     },
     yaxis: {
       type: "category",
@@ -220,34 +427,34 @@ export function heatmapLayout(options: GraphOptions, colNames: string[], rowName
       categoryarray: rowNames,
       autorange: "reversed",
       ...axisChrome(options),
-      ...(options.yLabel ? { title: { text: options.yLabel } } : {}),
+      ...axisTitle(options.yLabel, options.yTitleGap),
     },
   };
 }
 
 /** XY family layout: a genuine numeric X axis (not category ticks), with a legend
- *  once there's more than one Y series. `xName` is the X column's own name, used as
- *  the axis title fallback when the user hasn't set a custom X-axis label. */
+ *  once there's more than one Y series. `xName` (the X column's name) and `yName`
+ *  title the axes the user hasn't titled. */
 export function xyLayout(
   options: GraphOptions,
   xName: string,
   seriesCount: number,
-  opts: { zeroBase?: boolean } = {},
+  opts: { zeroBase?: boolean; yName?: string } = {},
 ): Record<string, unknown> {
   return {
     ...chromeLayout(options),
     showlegend: seriesCount > 1,
-    legend: { x: 1.02, y: 1, xanchor: "left" },
+    legend: legendOf(options),
     xaxis: {
       type: "linear",
       ...axisChrome(options),
       ...xAxisRange(options),
-      title: { text: options.xLabel || xName, standoff: 12 },
+      ...axisTitle(options.xLabel || xName, options.xTitleGap),
     },
     yaxis: {
       ...axisChrome(options),
       ...yAxisRange(options, opts.zeroBase),
-      ...(options.yLabel ? { title: { text: options.yLabel } } : {}),
+      ...axisTitle(options.yLabel || (opts.yName ?? ""), options.yTitleGap),
     },
   };
 }
@@ -348,7 +555,7 @@ export function groupedBarLayout(
   const value = {
     ...axisChrome(options),
     ...yAxisRange(options, true),
-    ...(options.yLabel ? { title: { text: options.yLabel } } : {}),
+    ...axisTitle(options.yLabel, options.yTitleGap),
   };
   // Separated blocks need numeric positions with gaps between them, so they use
   // explicit tick placement instead of Plotly's evenly-spaced "category" axis.
@@ -357,12 +564,12 @@ export function groupedBarLayout(
       ? { tickmode: "array", tickvals: opts.separated.tickvals, ticktext: opts.separated.ticktext, range: opts.separated.range }
       : { type: "category" }),
     ...axisChrome(options),
-    ...(options.xLabel ? { title: { text: options.xLabel, standoff: 12 } } : {}),
+    ...axisTitle(options.xLabel, options.xTitleGap),
   };
   return {
     ...chromeLayout(options),
     showlegend: seriesCount > 1,
-    legend: { x: 1.02, y: 1, xanchor: "left" },
+    legend: legendOf(options),
     xaxis: opts.horizontal ? value : category,
     yaxis: opts.horizontal ? category : value,
   };
@@ -379,19 +586,19 @@ export function groupedScatterLayout(
   return {
     ...chromeLayout(options),
     showlegend: seriesCount > 1,
-    legend: { x: 1.02, y: 1, xanchor: "left" },
+    legend: legendOf(options),
     xaxis: {
       tickmode: "array",
       tickvals: separated ? separated.tickvals : labels.map((_, i) => i),
       ticktext: separated ? separated.ticktext : labels,
       range: separated ? separated.range : [-0.5, labels.length - 0.5],
       ...axisChrome(options),
-      ...(options.xLabel ? { title: { text: options.xLabel, standoff: 12 } } : {}),
+      ...axisTitle(options.xLabel, options.xTitleGap),
     },
     yaxis: {
       ...axisChrome(options),
       ...yAxisRange(options),
-      ...(options.yLabel ? { title: { text: options.yLabel } } : {}),
+      ...axisTitle(options.yLabel, options.yTitleGap),
     },
   };
 }

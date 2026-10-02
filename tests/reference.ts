@@ -9,8 +9,9 @@ import { fileURLToPath } from "node:url";
 import { startR } from "../src/stats/webr";
 import { runAnalysis } from "../src/stats";
 import type { AnalysisParams, AnalysisType } from "../src/stats/types";
-import { DEFAULT_GRAPH_OPTIONS, type GraphOptions, type GraphType, type TableData } from "../src/store/types";
-import { GRAPHS, plotColumns } from "../src/views/graphs";
+import type { GraphOptions, GraphType, TableData } from "../src/store/types";
+import { GRAPHS, graphSeries, newGraphOptions, plotColumns } from "../src/views/graphs";
+import { paintOf } from "../src/views/graphs/plot-helpers";
 import { pairUp, readTable, splitXY } from "../src/lib/dataset";
 import { countDataColumns, countDataGroups } from "../src/views/analyses";
 import { fitLinear } from "../src/views/graphs/regression-overlay";
@@ -267,8 +268,15 @@ async function run() {
     out[`${type} ${name} ${JSON.stringify(params ?? {})}`] = await runAnalysis(type, data, params);
   }
   for (const [name, data, type, options] of GRAPH_CASES) {
-    const opts = { ...DEFAULT_GRAPH_OPTIONS, ...options };
-    out[`graph ${type} ${name}`] = GRAPHS[type].build(plotColumns(readTable(data), type), opts, { Low: "red" }, { "Control#1": "green" }, readTable(data).titles);
+    const opts = {
+      ...newGraphOptions(type),
+      series: { Low: { color: "#D55E00" } },
+      points: { "Control#1": { color: "#4ADE80" } },
+      ...options,
+    };
+    const columns = plotColumns(readTable(data), type);
+    const paint = paintOf(opts, GRAPHS[type].family === "volcano" ? 2 : columns.length);
+    out[`graph ${type} ${name}`] = GRAPHS[type].build(columns, opts, paint, readTable(data).titles);
   }
   for (const [name, data] of Object.entries({ column, xy, grouped, twoGroups, multiple })) {
     out[`counts ${name}`] = { columns: countDataColumns(data), groups: countDataGroups(data) };
@@ -326,7 +334,9 @@ async function sampleFailures(): Promise<string[]> {
       const outcome = await runAnalysis(node.analysisType!, data!, node.analysisParams);
       if ("error" in outcome) out.push(`Sample analysis “${node.name}”: ${outcome.error}`);
     } else if (node.type === "graph") {
-      const fig = GRAPHS[node.graphType!].build(plotColumns(readTable(data!), node.graphType!), node.graphOptions!, data!.seriesColors, data!.pointColors, readTable(data!).titles);
+      const type = node.graphType!;
+      const paint = paintOf(node.graphOptions!, graphSeries(type, data!, nodes[node.parentId!].tableType!).length);
+      const fig = GRAPHS[type].build(plotColumns(readTable(data!), type), node.graphOptions!, paint, readTable(data!).titles);
       if (!fig.data.length) out.push(`Sample graph “${node.name}” draws nothing.`);
     }
   }

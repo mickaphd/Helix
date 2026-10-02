@@ -8,11 +8,12 @@
 // cells, in the same frame.
 import * as React from "react";
 import type { TableData, TableType } from "../../store/types";
+import type { TableMove } from "../../store/references";
 import type { EditCommand } from "../../app-menu";
 import { parseCell } from "../../lib/numeric";
 import { seriesKeyOf } from "../../lib/columns";
 import { popupMenu } from "../../native";
-import { XIcon } from "lucide-react";
+import { XIcon } from "@phosphor-icons/react";
 import { cn, IconButton } from "../../ui/controls";
 import { gridMenu, type MenuZone } from "./grid-menu";
 import {
@@ -105,9 +106,9 @@ function columnAt(xs: number[], x: number): number {
 interface GridProps {
   data: TableData;
   type: TableType;
-  /** `label` names the edit for Undo ("Paste"); `renamed`: the columns or groups it
-   *  renamed (old → new), for the analyses and graphs that name them. */
-  update: (next: TableData, label: string, renamed?: Record<string, string>) => void;
+  /** `label` names the edit for Undo ("Paste"); `move`: the columns or groups it renamed
+   *  and the rows it moved, for the analyses and graphs that name them. */
+  update: (next: TableData, label: string, move?: TableMove) => void;
   configure: () => void;
 }
 
@@ -252,9 +253,9 @@ export function Grid({ data, type, update, configure }: GridProps) {
       move(dr, dc, false, { r: ed.r, c: ed.c });
     }
     if (!cancel && ed.kind === "column") {
-      update(renameColumn(data, ed.c, value), "Rename Column", { [data.columns[ed.c]]: value });
+      update(renameColumn(data, ed.c, value), "Rename Column", { renamed: { [data.columns[ed.c]]: value } });
     }
-    if (!cancel && ed.kind === "group") update(renameGroup(data, ed.key, value), "Rename Group", { [ed.key]: value });
+    if (!cancel && ed.kind === "group") update(renameGroup(data, ed.key, value), "Rename Group", { renamed: { [ed.key]: value } });
     setEditing(null);
     focusGrid();
   };
