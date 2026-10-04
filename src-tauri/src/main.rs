@@ -99,9 +99,13 @@ fn new_window(app: &AppHandle, opening: Option<Opening>) -> tauri::Result<()> {
     let config = WindowConfig { label, visible: front.is_none(), ..template.clone() };
     let window = WebviewWindowBuilder::from_config(app, &config)?.build()?;
     if let Some(front) = front {
-        let at = front.outer_position()?.to_logical::<f64>(front.scale_factor()?);
-        window.set_size(front.inner_size()?)?;
-        window.set_position(LogicalPosition::new(at.x + CASCADE, at.y + CASCADE))?;
+        // A front window still being made (Helix launched by opening a file) can't say
+        // where it is yet: the new one then keeps the remembered frame.
+        if let (Ok(at), Ok(scale), Ok(size)) = (front.outer_position(), front.scale_factor(), front.inner_size()) {
+            let at = at.to_logical::<f64>(scale);
+            window.set_size(size)?;
+            window.set_position(LogicalPosition::new(at.x + CASCADE, at.y + CASCADE))?;
+        }
         window.show()?;
         window.set_focus()?;
     }
@@ -212,17 +216,18 @@ fn save_session(app: &AppHandle) {
     }
 }
 
-/// Reopens the last session's projects that are still there, else a blank project.
-fn restore_session(app: &AppHandle) -> tauri::Result<()> {
+/// Reopens the last session's projects that are still there, else a blank project. Like the
+/// Finder's, each goes through `open`: a file already opened (Helix launched by opening it)
+/// isn't opened twice. A project that can't be reopened never stops Helix.
+fn restore_session(app: &AppHandle) {
     let text = session_file(app).and_then(|file| fs::read_to_string(file).ok()).unwrap_or_default();
-    let paths: Vec<_> = text.lines().filter(|path| Path::new(path).is_file()).collect();
-    if paths.is_empty() {
-        return new_window(app, None);
+    for path in text.lines().filter(|path| Path::new(path).is_file()) {
+        let _ = open(app, None, Opening { path: path.into(), untitled: false });
     }
-    for path in paths {
-        new_window(app, Some(Opening { path: path.into(), untitled: false }))?;
+    let opened = !app.state::<Projects>().0.lock().unwrap().documents.is_empty();
+    if !opened && front_window(app).is_none() {
+        let _ = new_window(app, None);
     }
-    Ok(())
 }
 
 // ── Files ────────────────────────────────────────────────────────────────
@@ -455,7 +460,7 @@ fn main() {
         .setup(|app| {
             ask_before_quitting(app.handle());
             show_menu_pictures();
-            restore_session(app.handle())?;
+            restore_session(app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
