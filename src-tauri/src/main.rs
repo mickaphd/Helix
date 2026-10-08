@@ -1,20 +1,19 @@
 // Helix's native shell: the project windows showing the web app (src/), a hidden
 // window running R (src/engine.ts), and the few things a web page can't do on its
 // own. See src/native.ts for the other side.
+use objc2::runtime::{AnyClass, AnyObject, Imp, Sel};
+use serde::Serialize;
 use std::{
     collections::HashMap,
     fs,
     path::Path,
     sync::{Mutex, OnceLock},
 };
-use objc2::runtime::{AnyClass, AnyObject, Imp, Sel};
-use serde::Serialize;
 use tauri::{
     async_runtime::{channel, Sender},
     ipc::{InvokeBody, Request},
     utils::config::WindowConfig,
-    AppHandle, Emitter, LogicalPosition, Manager, RunEvent, State, WebviewWindow, WebviewWindowBuilder,
-    WindowEvent,
+    AppHandle, Emitter, LogicalPosition, Manager, RunEvent, State, WebviewWindow, WebviewWindowBuilder, WindowEvent,
 };
 use tauri_plugin_dialog::DialogExt;
 
@@ -65,6 +64,17 @@ impl ProjectWindows {
         self.documents.insert(label.into(), Document { path, blank: false });
         self.openings.insert(label.into(), opening);
     }
+
+    /// A new window's label, and its project held at once: with the lock still held,
+    /// no other opening (the Finder's, the last session's) can take the same file.
+    fn reserve(&mut self, opening: Option<Opening>) -> String {
+        self.count += 1;
+        let label = format!("project-{}", self.count);
+        if let Some(opening) = opening {
+            self.hold(&label, opening);
+        }
+        label
+    }
 }
 
 /// New windows cascade down and right from the front one, as in the Finder.
@@ -80,20 +90,15 @@ fn front_window(app: &AppHandle) -> Option<WebviewWindow> {
     windows.iter().find(|w| w.is_focused().unwrap_or(false)).or(windows.first()).cloned()
 }
 
-/// Opens a project window, built from the "project" template in tauri.conf.json;
-/// blank unless it has something to open.
+/// Opens a project window; blank unless it has something to open.
 fn new_window(app: &AppHandle, opening: Option<Opening>) -> tauri::Result<()> {
+    let label = app.state::<Projects>().0.lock().unwrap().reserve(opening);
+    build_window(app, label)
+}
+
+/// Builds the window `label` from the "project" template in tauri.conf.json.
+fn build_window(app: &AppHandle, label: String) -> tauri::Result<()> {
     let template = app.config().app.windows.iter().find(|w| w.label == "project").expect("window template");
-    let state = app.state::<Projects>();
-    let label = {
-        let mut projects = state.0.lock().unwrap();
-        projects.count += 1;
-        let label = format!("project-{}", projects.count);
-        if let Some(opening) = opening {
-            projects.hold(&label, opening);
-        }
-        label
-    };
     let front = front_window(app);
     // The first window appears where the last one was; the others appear once cascaded.
     let config = WindowConfig { label, visible: front.is_none(), ..template.clone() };
@@ -116,16 +121,16 @@ fn new_window(app: &AppHandle, opening: Option<Opening>) -> tauri::Result<()> {
 fn open(app: &AppHandle, into: Option<String>, opening: Opening) -> tauri::Result<()> {
     let state = app.state::<Projects>();
     let mut projects = state.0.lock().unwrap();
-    if let Some(path) = opening.file() {
-        let open_in = projects.documents.iter().find(|(_, d)| d.path.as_ref() == Some(path));
-        if let Some(window) = open_in.and_then(|(label, _)| app.get_webview_window(label)) {
-            return window.set_focus();
-        }
+    let path = opening.file();
+    if let Some((label, _)) = projects.documents.iter().find(|(_, d)| path.is_some() && d.path.as_ref() == path) {
+        // Open already: its window comes forward, or, still being made, shows itself.
+        return app.get_webview_window(label).map_or(Ok(()), |window| window.set_focus());
     }
     let blank = |label: &String| is_project(label) && projects.documents.get(label).is_none_or(|d| d.blank);
     let Some(label) = into.filter(blank) else {
+        let label = projects.reserve(Some(opening));
         drop(projects);
-        return new_window(app, Some(opening));
+        return build_window(app, label);
     };
     projects.hold(&label, opening);
     drop(projects);
@@ -257,7 +262,10 @@ fn write_file(request: Request) -> Result<(), String> {
     check_extension(&path, &["hlx", "png", "jpg", "jpeg", "svg"])?;
     let InvokeBody::Raw(data) = request.body() else { return Err("expected raw bytes".into()) };
     let tmp = format!("{path}.tmp");
-    fs::write(&tmp, data).and_then(|()| fs::rename(&tmp, path.as_ref())).map_err(|e| e.to_string())
+    fs::write(&tmp, data).and_then(|()| fs::rename(&tmp, path.as_ref())).map_err(|e| {
+        let _ = fs::remove_file(&tmp); // a failed save leaves nothing behind
+        e.to_string()
+    })
 }
 
 // ── macOS ────────────────────────────────────────────────────────────────
@@ -272,8 +280,7 @@ fn set_recent_documents(app: AppHandle, paths: Vec<String>) {
         let _: () = objc2::msg_send![controller, clearRecentDocuments: std::ptr::null_mut::<AnyObject>()];
         for path in paths.iter().rev() {
             let Ok(path) = std::ffi::CString::new(path.as_str()) else { continue };
-            let text: *mut AnyObject =
-                objc2::msg_send![objc2::class!(NSString), stringWithUTF8String: path.as_ptr()];
+            let text: *mut AnyObject = objc2::msg_send![objc2::class!(NSString), stringWithUTF8String: path.as_ptr()];
             let url: *mut AnyObject = objc2::msg_send![objc2::class!(NSURL), fileURLWithPath: text];
             let _: () = objc2::msg_send![controller, noteNewRecentDocumentURL: url];
         }
@@ -290,20 +297,24 @@ fn accent_color() -> Option<String> {
         let rgb: *mut AnyObject = objc2::msg_send![color.as_ref()?, colorUsingColorSpace: space];
         let rgb = rgb.as_ref()?;
         let channel = |c: f64| (c.clamp(0.0, 1.0) * 255.0).round() as u8;
-        let (r, g, b): (f64, f64, f64) =
-            (objc2::msg_send![rgb, redComponent], objc2::msg_send![rgb, greenComponent], objc2::msg_send![rgb, blueComponent]);
+        let (r, g, b): (f64, f64, f64) = (
+            objc2::msg_send![rgb, redComponent],
+            objc2::msg_send![rgb, greenComponent],
+            objc2::msg_send![rgb, blueComponent],
+        );
         Some(format!("#{:02X}{:02X}{:02X}", channel(r), channel(g), channel(b)))
     }
 }
 
-/// Helix's website, GitHub page or releases, in the default browser: fixed
-/// addresses, so the page can't open anything else.
+/// Helix's website, GitHub page, releases or Buy Me a Coffee page, in the default
+/// browser: fixed addresses, so the page can't open anything else.
 #[tauri::command]
 fn open_link(link: String) {
     let url = match link.as_str() {
         "website" => c"https://www.helix-desktop.com",
         "github" => c"https://github.com/mickaphd/Helix",
         "releases" => c"https://github.com/mickaphd/Helix/releases/latest",
+        "coffee" => c"https://buymeacoffee.com/mickaphd",
         _ => return,
     };
     unsafe {
@@ -349,8 +360,7 @@ fn ask_before_quitting(app: &AppHandle) {
 /// palette's band, a color's swatch) are what their item says, so they stay; the
 /// system's symbols (template images) keep macOS's choice. A menu of pictures alone
 /// (swatches, shapes) drops the column kept for check marks, so it is no wider than
-/// they are.
-/// Set as each item is added, before any menu shows.
+/// they are. Set as each item is added, before any menu shows.
 fn show_menu_pictures() {
     extern "C-unwind" fn item_added(_: &AnyObject, _: Sel, note: &AnyObject) {
         unsafe {
@@ -372,7 +382,8 @@ fn show_menu_pictures() {
                 let template: bool = objc2::msg_send![image, isTemplate];
                 let can: bool = objc2::msg_send![item, respondsToSelector: objc2::sel!(setPreferredImageVisibility:)];
                 if !template && can {
-                    let _: () = objc2::msg_send![item, setPreferredImageVisibility: 1isize]; // .visible
+                    // NSMenuItemImageVisibility.visible
+                    let _: () = objc2::msg_send![item, setPreferredImageVisibility: 1isize];
                 }
             }
             if pictures_only {

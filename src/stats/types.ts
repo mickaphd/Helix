@@ -26,6 +26,28 @@ export type AnalysisType =
  *  or Friedman (as Prism does). */
 export type AnalysisPickerValue = AnalysisType | "compare-many-groups";
 
+// The choices of the params, one list each: wizards ask among them, the types come from
+// them, and a file's value outside them is left out (the test takes its default).
+export const TAILS = ["two-sided", "less", "greater"] as const;
+export const POSTHOCS = ["none", "tukey", "bonferroni"] as const;
+export const RANK_POSTHOCS = ["none", "dunn"] as const;
+export const NONLINEAR_MODELS = [
+  "line",
+  "sigmoidal-4pl-logx",
+  "sigmoidal-4pl-x",
+  "semilog-line",
+  "hyperbola",
+  "quadratic",
+  "cubic",
+] as const;
+export const CORRELATION_METHODS = ["pearson", "spearman"] as const;
+export const CORRELATION_MODES = ["x-vs-every-y", "two-datasets", "matrix"] as const;
+export const TWO_WAY_DESIGNS = ["ordinary", "repeated-measures", "nonparametric"] as const;
+export const POSTHOC_TARGETS = ["groups", "rows"] as const;
+export const CORRECTIONS = ["holm", "fdr", "none"] as const;
+/** ROUT's Q, in percent. */
+export const ROUT_Q = { min: 0.01, max: 50 };
+
 /** Params for "compare-two-groups": resolves to Student/Welch t-test, paired
  *  t-test, ratio t-test, Mann-Whitney, or Wilcoxon signed-rank, Prism-wizard style. */
 export interface CompareTwoGroupsParams {
@@ -37,31 +59,31 @@ export interface CompareTwoGroupsParams {
    *  instead of differences — for data where proportional change is what matters. */
   ratio: boolean;
   /** "less"/"greater" follow R's t.test semantics: alternative on (col0 vs col1). */
-  tails: "two-sided" | "less" | "greater";
+  tails: (typeof TAILS)[number];
 }
 
 /** Params for "one-sample-t": tests each column against a hypothetical value —
  *  resolves to a one-sample t test (gaussian) or a Wilcoxon signed-rank test. */
 export interface OneSampleTParams {
   hypotheticalValue: number;
-  tails: "two-sided" | "less" | "greater";
+  tails: (typeof TAILS)[number];
   gaussian: boolean;
 }
 
 /** Params for "anova": optional post-hoc pairwise comparisons between groups. */
 export interface AnovaParams {
-  posthoc: "none" | "tukey" | "bonferroni";
+  posthoc: (typeof POSTHOCS)[number];
 }
 
 /** Params for "kruskal-wallis": optional Dunn's post-hoc pairwise comparisons between groups. */
 export interface KruskalWallisParams {
-  posthoc: "none" | "dunn";
+  posthoc: (typeof RANK_POSTHOCS)[number];
 }
 
 /** Params for "friedman": optional Dunn's post-hoc pairwise comparisons between groups
  *  (block-rank flavor — same "none" | "dunn" shape as Kruskal-Wallis). */
 export interface FriedmanParams {
-  posthoc: "none" | "dunn";
+  posthoc: (typeof RANK_POSTHOCS)[number];
 }
 
 /** Params for "linear-regression" (XY table): which Y series to regress on X, and
@@ -83,14 +105,7 @@ export interface AreaUnderCurveParams {
  *  fit reliably in WebR. `-logx`/`-x` note whether X is log(concentration) or the
  *  raw concentration. Line/semilog/quadratic/cubic are linear-in-parameters (lm);
  *  the sigmoidal + hyperbola forms are nonlinear (nls). */
-export type NonlinearModel =
-  | "line"
-  | "sigmoidal-4pl-logx"
-  | "sigmoidal-4pl-x"
-  | "semilog-line"
-  | "hyperbola"
-  | "quadratic"
-  | "cubic";
+export type NonlinearModel = (typeof NONLINEAR_MODELS)[number];
 
 /** Params for "nonlinear-regression" (XY table): which Y series to fit, and which
  *  curated standard curve. */
@@ -103,15 +118,15 @@ export interface NonlinearRegressionParams {
 /** Params for "correlation-matrix": Pearson (parametric) vs. Spearman
  *  (rank-based, non-parametric). */
 export interface CorrelationParams {
-  method: "pearson" | "spearman";
+  method: (typeof CORRELATION_METHODS)[number];
 }
 
 /** Params for "correlation" on an XY table, Prism-style: Pearson vs. Spearman, and
  *  which of 3 modes to run — X against every Y series, two explicitly chosen data
  *  series, or a full correlation matrix among the Y series (X excluded). */
 export interface XYCorrelationParams {
-  method: "pearson" | "spearman";
-  mode: "x-vs-every-y" | "two-datasets" | "matrix";
+  method: (typeof CORRELATION_METHODS)[number];
+  mode: (typeof CORRELATION_MODES)[number];
   /** Required for "two-datasets": the two column names to correlate. */
   datasets?: [string, string];
 }
@@ -131,9 +146,9 @@ export interface MultipleRegressionParams {
  *  `posthoc` (parametric designs only) pairwise-compares either groups within each
  *  row or rows within each group ("row means"), Tukey- or Bonferroni-corrected. */
 export interface TwoWayAnovaParams {
-  design: "ordinary" | "repeated-measures" | "nonparametric";
-  posthoc: "none" | "tukey" | "bonferroni";
-  posthocTarget: "groups" | "rows";
+  design: (typeof TWO_WAY_DESIGNS)[number];
+  posthoc: (typeof POSTHOCS)[number];
+  posthocTarget: (typeof POSTHOC_TARGETS)[number];
 }
 
 /** Params for "multiple-t-tests": a per-row t test (or Wilcoxon/Mann-Whitney)
@@ -146,7 +161,7 @@ export interface MultipleTTestsParams {
   paired: boolean;
   gaussian: boolean;
   pooledSd: boolean;
-  correction: "holm" | "fdr" | "none";
+  correction: (typeof CORRECTIONS)[number];
 }
 
 /** Params for "outliers" (Column table): ROUT-style outlier detection — each
@@ -157,21 +172,30 @@ export interface OutliersParams {
   q: number;
 }
 
-export type AnalysisParams =
-  | CompareTwoGroupsParams
-  | OneSampleTParams
-  | AnovaParams
-  | KruskalWallisParams
-  | FriedmanParams
-  | CorrelationParams
-  | XYCorrelationParams
-  | LinearRegressionParams
-  | AreaUnderCurveParams
-  | NonlinearRegressionParams
-  | TwoWayAnovaParams
-  | MultipleTTestsParams
-  | MultipleRegressionParams
-  | OutliersParams;
+/** The data sets an analysis runs on, in this order: columns, or a grouped table's groups.
+ *  Absent (files before Helix 1.0.5): all of them, the first two for a two-group test. */
+interface DataSetsParam {
+  sets?: string[];
+}
+
+export type AnalysisParams = DataSetsParam &
+  (
+    | DataSetsParam
+    | CompareTwoGroupsParams
+    | OneSampleTParams
+    | AnovaParams
+    | KruskalWallisParams
+    | FriedmanParams
+    | CorrelationParams
+    | XYCorrelationParams
+    | LinearRegressionParams
+    | AreaUnderCurveParams
+    | NonlinearRegressionParams
+    | TwoWayAnovaParams
+    | MultipleTTestsParams
+    | MultipleRegressionParams
+    | OutliersParams
+  );
 
 /** What every test reads: the table's data columns, parsed once (see lib/dataset.ts). */
 export type { Column } from "../lib/dataset";

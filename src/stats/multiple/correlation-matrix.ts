@@ -32,27 +32,23 @@ export async function runCorrelationMatrix(
     assigns.push(`r_${i}_${j}=unname(${ct}$estimate),p_${i}_${j}=${ct}$p.value`);
   }
 
-  try {
-    const v = assigns.length ? await evalNamedVector(`${stmts.join(";")};c(${assigns.join(",")})`) : {};
-    const r: (number | null)[][] = vars.map((_, i) => vars.map((__, j) => (i === j ? 1 : null)));
-    const p: (number | null)[][] = vars.map(() => vars.map(() => null));
-    for (const [i, j] of pairs) {
-      r[i][j] = r[j][i] = v[`r_${i}_${j}`] ?? null;
-      p[i][j] = p[j][i] = v[`p_${i}_${j}`] ?? null;
-    }
-    const described = vars.map(describe);
-    return {
-      testType: "correlation-matrix",
-      subtitle: method === "spearman" ? "Spearman correlation matrix" : "Pearson correlation matrix",
-      stats: [],
-      groups: described,
-      notes:
-        method === "spearman"
-          ? "Spearman rank correlation between every pair of variables, computed on pairwise-complete rows; non-parametric, no linearity assumption."
-          : "Pearson correlation between every pair of variables, computed on pairwise-complete rows; assumes linear relationships.",
-      matrix: { variables: vars.map((c) => c.name), r, p, label: "Correlation matrix (r)" },
-    };
-  } catch (err) {
-    return { error: `Could not run the test: ${err instanceof Error ? err.message : String(err)}` };
+  const v = assigns.length ? await evalNamedVector(`${stmts.join(";")};c(${assigns.join(",")})`) : {};
+  const r: (number | null)[][] = vars.map((_, i) => vars.map((__, j) => (i === j ? 1 : null)));
+  const p: (number | null)[][] = vars.map(() => vars.map(() => null));
+  for (const [i, j] of pairs) {
+    r[i][j] = r[j][i] = v[`r_${i}_${j}`] ?? null;
+    p[i][j] = p[j][i] = v[`p_${i}_${j}`] ?? null;
   }
+  const described = vars.map(describe);
+  return {
+    testType: "correlation-matrix",
+    subtitle: method === "spearman" ? "Spearman correlation matrix" : "Pearson correlation matrix",
+    stats: [],
+    groups: described,
+    notes:
+      method === "spearman"
+        ? "Spearman rank correlation between every pair of variables, computed on pairwise-complete rows; non-parametric, no linearity assumption."
+        : "Pearson correlation between every pair of variables, computed on pairwise-complete rows; assumes linear relationships.",
+    matrix: { variables: vars.map((c) => c.name), r, p, label: "Correlation matrix (r)" },
+  };
 }

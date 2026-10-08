@@ -3,8 +3,8 @@ import { useProjectStore, type ProjectNode } from "./use-project-store";
 import { parseProjectFile, serializeProjectFile, PROJECT_FILE_EXTENSION } from "../lib/project-file";
 import * as native from "../native";
 import { loadRecents, MAX_RECENTS, saveRecents } from "./recents";
-import { openProjectsOrSay } from "../menus";
-import { fileTitle } from "../lib/paths";
+import { openProjectsOrSay, sayGone } from "../menus";
+import { fileName, fileTitle } from "../lib/paths";
 
 const UNTITLED = "Untitled";
 
@@ -64,7 +64,7 @@ export function useDocument() {
     // Read the project only now, after the dialog: edits made while it was open
     // must end up in the file. The revision lets markProjectSaved keep the dirty
     // flag if something changes during the write itself.
-    const s = latest.current;
+    const s = latest.current.get();
     const revision = s.revision;
     try {
       await native.writeFile(target, serializeProjectFile(s));
@@ -72,7 +72,12 @@ export function useDocument() {
       addRecent(target);
       return true;
     } catch (err) {
-      await native.alert("Couldn't Save Project", `“${fileTitle(target)}” couldn't be saved there (${err}). Try Save As… another folder.`, "error");
+      const name = fileName(target);
+      await native.alert(
+        "Couldn't Save Project",
+        `“${name}” couldn't be saved there (${err}). Try Save As… another folder.`,
+        "error",
+      );
       return false;
     }
   };
@@ -93,7 +98,7 @@ export function useDocument() {
       report();
       // Gone since it was opened last: it leaves Open Recent too.
       setRecents((list) => list.filter((p) => p !== path));
-      return native.alert("Couldn't Open Project", `“${fileTitle(path)}” couldn't be found. It may have been moved or deleted.`, "error");
+      return sayGone(path);
     }
     try {
       const parsed = parseProjectFile(JSON.parse(text));
@@ -101,15 +106,27 @@ export function useDocument() {
         report();
         return native.alert("Couldn't Open Project", parsed.error, "error");
       }
-      latest.current.loadProject({ ...parsed.project, filePath: untitled ? null : path });
+      // A file changed as it was read (repaired, or from an older Helix) opens edited: saving
+      // it keeps the project as it is now. The sample stays untitled, never to be saved.
+      const edited = parsed.updated && !untitled;
+      latest.current.loadProject({ ...parsed.project, filePath: untitled ? null : path, edited });
       if (untitled) setUntitled(fileTitle(path));
       else addRecent(path);
       // The project is loaded; still tell the user what in it couldn't be read as is.
       const { issues } = parsed;
+      const save = edited ? "Save the project to keep it as it is now." : "";
       if (issues.length > 0) {
         const shown = issues.slice(0, 12).map((i) => `• ${i.message}`);
         if (issues.length > 12) shown.push(`…and ${issues.length - 12} more.`);
-        await native.alert(`Opened with ${issues.length} issue${issues.length === 1 ? "" : "s"}`, shown.join("\n"));
+        if (save) shown.push("", save);
+        await native.alert(`Opened with ${issues.length} Issue${issues.length === 1 ? "" : "s"}`, shown.join("\n"));
+      } else if (edited) {
+        await native.alert(
+          "Project Updated",
+          "This project was made with an older Helix, or part of it couldn't be read as it was. " +
+            "Helix brought it up to date; save it to keep the update.",
+          "info",
+        );
       }
     } catch {
       report();
@@ -130,11 +147,7 @@ export function useDocument() {
   });
   React.useEffect(() => native.onCloseRequested(() => handlers.current.confirmDiscard()), []);
   React.useEffect(() => native.onDrop((paths) => handlers.current.openPaths(paths)), []);
-  React.useEffect(
-    () =>
-      native.onOpening(({ path, untitled }) => void handlers.current.load(path, untitled)),
-    [],
-  );
+  React.useEffect(() => native.onOpening(({ path, untitled }) => void handlers.current.load(path, untitled)), []);
 
   return { save, recents, forgetRecent, clearRecents };
 }
@@ -143,7 +156,7 @@ export type DocumentActions = ReturnType<typeof useDocument>;
 
 /** Deletes a table (with its analyses and graphs), an analysis or a graph once the
  *  user confirms (Edit ▸ Undo brings it back). */
-export async function removeWithConfirm(node: ProjectNode, remove: (id: string) => void) {
+export async function removeWithConfirm(node: Pick<ProjectNode, "id" | "name" | "type">, remove: (id: string) => void) {
   const detail =
     node.type === "table" ? "Its analyses and graphs will be deleted too. You can undo this." : "You can undo this.";
   if (await native.confirmDelete(`Delete “${node.name}”?`, detail)) remove(node.id);

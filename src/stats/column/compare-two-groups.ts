@@ -3,7 +3,17 @@
 // `paired` / `gaussian` / `equalVariance` / `tails`. Mirrors GraphPad Prism's
 // cascade of questions instead of listing every variant as its own test.
 import type { CompareTwoGroupsParams, StatRow } from "../types";
-import { dataGroups, declareGroups, pairedGroups, pRow, rAlt, rBool, type ColumnTestSpec, type Group } from "./base";
+import {
+  dataGroups,
+  declareGroups,
+  matchedRowsNote,
+  pairedGroups,
+  pRow,
+  rAlt,
+  rBool,
+  type ColumnTestSpec,
+  type Group,
+} from "./base";
 
 const DEFAULTS: CompareTwoGroupsParams = {
   paired: false,
@@ -24,7 +34,7 @@ function notes(p: CompareTwoGroupsParams): string {
   if (!p.gaussian) {
     return p.paired
       ? `Non-parametric: no normality assumption on the paired differences. ${tail}`
-      : `Non-parametric: no normality assumption. Uses a normal approximation when ties are present. ${tail}`;
+      : `Non-parametric: no normality assumption. ${tail}`;
   }
   if (p.paired) {
     return p.ratio
@@ -96,10 +106,15 @@ export const compareTwoGroupsSpec: ColumnTestSpec<CompareTwoGroupsParams> = {
         { label: "Hodges-Lehmann difference", value: v.hl },
       ];
       if (!p.paired) {
-        rows.splice(2, 0, { label: `Sum of ranks (${groups[0].name})`, value: v.sa }, {
-          label: `Sum of ranks (${groups[1].name})`,
-          value: v.sb,
-        });
+        rows.splice(
+          2,
+          0,
+          { label: `Sum of ranks (${groups[0].name})`, value: v.sa },
+          {
+            label: `Sum of ranks (${groups[1].name})`,
+            value: v.sb,
+          },
+        );
       }
       return rows;
     }
@@ -134,12 +149,16 @@ export const compareTwoGroupsSpec: ColumnTestSpec<CompareTwoGroupsParams> = {
   },
   // Prism compares exactly two data sets: say which two, when the table has more.
   notes: (params, groups, columns) => {
-    const ignored = dataGroups(columns).slice(2).map((c) => c.name);
+    const ignored = dataGroups(columns)
+      .slice(2)
+      .map((c) => c.name);
     const which = ignored.length
       ? ` Compares “${groups[0].name}” and “${groups[1].name}”, the first two columns with data; ` +
         `not included: ${ignored.map((n) => `“${n}”`).join(", ")}.`
       : "";
-    return notes(params ?? DEFAULTS) + which;
+    const p = params ?? DEFAULTS;
+    const rows = p.paired ? ` ${matchedRowsNote(dataGroups(columns).slice(0, 2))}` : "";
+    return notes(p) + rows + which;
   },
   subtitle: (params) => subtitle(params ?? DEFAULTS),
 };

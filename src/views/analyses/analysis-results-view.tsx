@@ -3,8 +3,7 @@
 // then one compact table per part of the result, the descriptive statistics, and the
 // notes. Numbers keep same-width digits so columns line up; everything is selectable.
 import type * as React from "react";
-import type { AnalysisResult } from "../../stats/types";
-import { ANALYSES } from "../../stats";
+import type { AnalysisResult, StatRow } from "../../stats/types";
 import { cn } from "../../ui/controls";
 import { isSignificant, num, pStars, pValue } from "../../lib/format";
 
@@ -70,10 +69,18 @@ function Table({ title, columns, rows }: { title?: string; columns: Column[]; ro
   );
 }
 
+/** The test's own P value, shown as Significant or not by the heading: its only one, or
+ *  the one named "P value…" beside a side check (a t test's F test); none when it has
+ *  several (one per group or factor). */
+export function headline(stats: StatRow[]): number | null {
+  const pRows = stats.filter((s) => s.p);
+  const main = pRows.length === 1 ? pRows : pRows.filter((s) => s.label.startsWith("P value"));
+  return main.length === 1 ? main[0].value : null;
+}
+
 export function AnalysisResultsView({ result }: { result: AnalysisResult }) {
-  // A test with one P value says in its title whether it is significant.
-  const pRows = result.stats.filter((s) => s.p);
-  const headlineP = pRows.length === 1 ? pRows[0].value : null;
+  const headlineP = headline(result.stats);
+  const showP = headlineP != null && !Number.isNaN(headlineP);
   const groups = result.groups;
   // The 95% CI and Min/Max/Range only come from the Descriptive statistics analysis.
   const showCi = groups.some((g) => g.ciLow != null || g.ciHigh != null);
@@ -82,10 +89,12 @@ export function AnalysisResultsView({ result }: { result: AnalysisResult }) {
 
   return (
     <div className="flex max-w-4xl flex-col gap-7 px-8 py-6 text-regular text-primary tabular-nums select-text">
-      <header className="flex flex-col gap-1">
-        <div className="flex items-center gap-2.5">
-          <h2 className="text-large-strong">{ANALYSES[result.testType].label}</h2>
-          {headlineP != null && !Number.isNaN(headlineP) && (
+      {/* The toolbar already names the analysis: the heading says which exact test ran, and
+          whether it is significant. */}
+      {(result.subtitle || showP) && (
+        <header className="flex items-center gap-2.5">
+          {result.subtitle && <h2 className="text-large-strong">{result.subtitle}</h2>}
+          {showP && (
             <span
               className={cn(
                 "rounded-full px-2 py-0.5 text-small-strong",
@@ -95,9 +104,8 @@ export function AnalysisResultsView({ result }: { result: AnalysisResult }) {
               {isSignificant(headlineP) ? `Significant ${pStars(headlineP)}` : "Not significant"}
             </span>
           )}
-        </div>
-        {result.subtitle && <p className="text-secondary">{result.subtitle}</p>}
-      </header>
+        </header>
+      )}
 
       {(result.equation || result.stats.length > 0) && (
         <Table
@@ -115,7 +123,11 @@ export function AnalysisResultsView({ result }: { result: AnalysisResult }) {
       {result.comparisons && result.comparisons.length > 0 && (
         <Table
           title={result.comparisonsLabel ?? "Multiple comparisons"}
-          columns={[{ label: "Comparison" }, { label: "Difference", numeric: true }, { label: "P value", numeric: true }]}
+          columns={[
+            { label: "Comparison" },
+            { label: "Difference", numeric: true },
+            { label: "P value", numeric: true },
+          ]}
           rows={result.comparisons.map((c) => [
             c.group2 ? `${c.group1} vs. ${c.group2}` : c.group1,
             num(c.diff),
@@ -148,7 +160,9 @@ export function AnalysisResultsView({ result }: { result: AnalysisResult }) {
             columns={[{ label: "" }, ...matrix.variables.map((v) => ({ label: v, numeric: true }))]}
             rows={matrix.variables.map((name, i) => [
               name,
-              ...matrix.variables.map((_, j) => (i === j ? <span className="text-secondary">—</span> : <P p={matrix.p[i]?.[j]} />)),
+              ...matrix.variables.map((_, j) =>
+                i === j ? <span className="text-secondary">—</span> : <P p={matrix.p[i]?.[j]} />,
+              ),
             ])}
           />
         </>
@@ -222,9 +236,7 @@ export function AnalysisResultsView({ result }: { result: AnalysisResult }) {
             num(g.mean),
             num(g.sd),
             num(g.sem),
-            ...(showCi
-              ? [g.ciLow == null && g.ciHigh == null ? "—" : `${num(g.ciLow)} to ${num(g.ciHigh)}`]
-              : []),
+            ...(showCi ? [g.ciLow == null && g.ciHigh == null ? "—" : `${num(g.ciLow)} to ${num(g.ciHigh)}`] : []),
             num(g.median),
             ...(showRange ? [num(g.min), num(g.max), num(g.range)] : []),
             g.n,

@@ -1,0 +1,3 @@
+# The style main.rs is written in: up to 120 columns, a short chain on one line.
+max_width = 120
+use_small_heuristics = "Max"

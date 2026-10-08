@@ -3,15 +3,9 @@
 // resulting numbers. Descriptive stats are computed here in JS (not R) so they
 // are identical across every test and work for any number of groups.
 
-import type {
-  AnalysisType,
-  AnalysisOutcome,
-  Column,
-  ComparisonRow,
-  GroupDescriptives,
-  StatRow,
-} from "../types";
+import type { TAILS, AnalysisType, AnalysisOutcome, Column, ComparisonRow, GroupDescriptives, StatRow } from "../types";
 import { evalNamedVector } from "../webr";
+import { mean, median, sd, sem } from "../../lib/summary";
 
 /** A group as a test sees it: a name and its numbers. */
 export interface Group {
@@ -22,6 +16,20 @@ export interface Group {
 /** The columns holding at least one number, each an independent group. */
 export function dataGroups(columns: Column[]): Column[] {
   return columns.filter((c) => c.values.length > 0);
+}
+
+/** How many rows a matched test (on `columns`) leaves out: those holding some of its
+ *  values, not one in every column. Empty rows don't count. */
+export function incompleteRows(columns: Column[]): number {
+  const used = new Set(dataGroups(columns).flatMap((c) => c.rows)).size;
+  return used - (pairedGroups(columns)[0]?.values.length ?? 0);
+}
+
+/** What a matched test says of its rows: complete ones only, and how many it left out. */
+export function matchedRowsNote(columns: Column[]): string {
+  const left = incompleteRows(columns);
+  const leftOut = left ? ` ${left} row${left === 1 ? "" : "s"} left out for missing data.` : "";
+  return `Uses complete rows only (every subject measured in every group).${leftOut}`;
 }
 
 /** Row-aligned groups for matched tests: only the rows where every column holding
@@ -36,12 +44,14 @@ export function pairedGroups(columns: Column[]): Group[] {
 
 export function describe({ name, values }: Group): GroupDescriptives {
   const n = values.length;
-  const mean = values.reduce((a, b) => a + b, 0) / n;
-  const sd = n > 1 ? Math.sqrt(values.reduce((a, b) => a + (b - mean) ** 2, 0) / (n - 1)) : null;
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(n / 2);
-  const median = n % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-  return { name, mean, sd, sem: sd != null ? sd / Math.sqrt(n) : null, median, n };
+  return {
+    name,
+    mean: mean(values),
+    sd: n > 1 ? sd(values) : null,
+    sem: n > 1 ? sem(values) : null,
+    median: median(values),
+    n,
+  };
 }
 
 /** Render an R numeric vector literal from values. */
@@ -52,8 +62,7 @@ export const rVec = (values: number[]) => `c(${values.join(",")})`;
 export const rStr = (s: string) => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 
 /** Declare each group as an R variable `g0`, `g1`, … for use in a test's rCode. */
-export const declareGroups = (groups: Group[]) =>
-  groups.map((g, i) => `g${i}<-${rVec(g.values)}`).join(";");
+export const declareGroups = (groups: Group[]) => groups.map((g, i) => `g${i}<-${rVec(g.values)}`).join(";");
 
 /** The error for a column a wizard chose that the table no longer has (deleted, or
  *  renamed outside Helix): never fall back on another column. */
@@ -68,8 +77,7 @@ export const pRow = (label: string, value: number | null): StatRow => ({ label, 
 export const rBool = (b: boolean) => (b ? "TRUE" : "FALSE");
 
 /** R's t.test/wilcox.test `alternative=` uses "two.sided" (dot); our params use kebab-case. */
-export const rAlt = (tails: "two-sided" | "less" | "greater") =>
-  tails === "two-sided" ? "two.sided" : tails;
+export const rAlt = (tails: (typeof TAILS)[number]) => (tails === "two-sided" ? "two.sided" : tails);
 
 /** Declares g0,g1,…, stacks them into `v`, and factors them into `gr` with
  *  generic "G1","G2",… labels — the shared setup every ≥3-group test (and its
@@ -151,7 +159,7 @@ export function dunnPosthocStatements(
 
 /** Assembles the displayed comparisons table from already-computed group
  *  descriptives (diff) and a P-value lookup by (i, j) pair index. */
-export function buildComparisons(
+function buildComparisons(
   groups: GroupDescriptives[],
   pValueFor: (i: number, j: number) => number | null,
 ): ComparisonRow[] {
@@ -162,6 +170,17 @@ export function buildComparisons(
     p: pValueFor(i, j),
   }));
 }
+
+/** The post-hoc comparisons a test can follow with, as their table is headed. */
+const POSTHOC_LABELS: Record<string, string> = {
+  tukey: "Tukey's multiple comparisons test",
+  bonferroni: "Bonferroni-corrected multiple comparisons",
+  dunn: "Dunn's multiple comparisons test (Bonferroni-corrected)",
+};
+
+/** The heading of the post-hoc a test's params ask for; none for "none". */
+export const posthocOf = (params: { posthoc?: string } | undefined) =>
+  params?.posthoc && Object.hasOwn(POSTHOC_LABELS, params.posthoc) ? POSTHOC_LABELS[params.posthoc] : undefined;
 
 export interface ColumnTestSpec<P = unknown> {
   testType: AnalysisType;
@@ -177,19 +196,10 @@ export interface ColumnTestSpec<P = unknown> {
   /** R that ends in a `c(name=value, …)` named vector, given the parsed groups (g0, g1, … available). */
   rCode: (groups: Group[], params: P | undefined) => string;
   /** Map the marshalled R values (+ descriptives) into display rows. */
-  rows: (
-    v: Record<string, number | null>,
-    groups: GroupDescriptives[],
-    params: P | undefined,
-  ) => StatRow[];
-  /** Optional pairwise post-hoc comparisons table (e.g. Tukey/Bonferroni/pairwise Wilcoxon). */
-  comparisons?: (
-    v: Record<string, number | null>,
-    groups: GroupDescriptives[],
-    params: P | undefined,
-  ) => ComparisonRow[] | undefined;
-  /** Heading for the comparisons table, e.g. "Tukey's multiple comparisons test". */
-  comparisonsLabel?: (params: P | undefined) => string | undefined;
+  rows: (v: Record<string, number | null>, groups: GroupDescriptives[], params: P | undefined) => StatRow[];
+  /** The post-hoc comparisons that ran, as their table's heading ("Tukey's multiple
+   *  comparisons test"); none, no table. Its R gives each pair's P value as `p_i_j`. */
+  posthoc?: (params: P | undefined) => string | undefined;
   /** Static notes, or resolved from params (e.g. which t-test variant ran) — also given
    *  the parsed groups and raw columns, for notes that depend on data shape (e.g. how
    *  many rows were dropped for missing data). */
@@ -220,23 +230,18 @@ export async function runColumnTest<P>(
   }
   // Only the columns the test actually consumes are run and described.
   const groups = spec.maxGroups ? available.slice(0, spec.maxGroups) : available;
-  try {
-    const v = await evalNamedVector(spec.rCode(groups, params));
-    const described = groups.map(describe);
-    const notes =
-      typeof spec.notes === "function" ? spec.notes(params, groups, columns) : spec.notes;
-    const comparisons = spec.comparisons?.(v, described, params);
-    return {
-      testType: spec.testType,
-      subtitle: spec.subtitle?.(params),
-      equation: spec.equation?.(v, described, params),
-      stats: spec.rows(v, described, params),
-      groups: described,
-      notes,
-      comparisons,
-      comparisonsLabel: comparisons?.length ? spec.comparisonsLabel?.(params) : undefined,
-    };
-  } catch (err) {
-    return { error: `Could not run the test: ${err instanceof Error ? err.message : String(err)}` };
-  }
+  const v = await evalNamedVector(spec.rCode(groups, params));
+  const described = groups.map(describe);
+  // A post-hoc that ran gives every pair's P value as `p_i_j` (`pairIndices`).
+  const posthoc = spec.posthoc?.(params);
+  return {
+    testType: spec.testType,
+    subtitle: spec.subtitle?.(params),
+    equation: spec.equation?.(v, described, params),
+    stats: spec.rows(v, described, params),
+    groups: described,
+    notes: typeof spec.notes === "function" ? spec.notes(params, groups, columns) : spec.notes,
+    comparisons: posthoc ? buildComparisons(described, (i, j) => v[`p_${i}_${j}`]) : undefined,
+    comparisonsLabel: posthoc,
+  };
 }

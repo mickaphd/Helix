@@ -4,6 +4,7 @@ import type { ProjectNode } from "../../store/types";
 import { useProjectStore } from "../../store/use-project-store";
 import { Toolbar } from "../../ui/layout";
 import { ANALYSES } from "../../stats";
+import { titleCase } from "../../lib/format";
 import { AnalysisResultsView } from "./analysis-results-view";
 import { useAnalysis } from "./use-analysis";
 
@@ -14,7 +15,7 @@ export function AnalysisView({ node }: { node: ProjectNode }) {
 
   return (
     <>
-      <Toolbar title={node.name} tag={ANALYSES[node.analysisType!].label} />
+      <Toolbar title={node.name} tag={titleCase(ANALYSES[node.analysisType!].label)} />
       <div className="flex-1 overflow-auto">
         {outcome && !("error" in outcome) ? (
           <AnalysisResultsView result={outcome} />

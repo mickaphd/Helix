@@ -34,7 +34,10 @@ export const oneSampleTSpec: ColumnTestSpec<OneSampleTParams> = {
       return groups.flatMap((g, i) => [
         { label: `${g.name} — Test statistic (V)`, value: v[`V${i}`] },
         pRow(`${g.name} — P value`, v[`p${i}`]),
-        { label: `${g.name} — Median vs. hypothetical`, value: g.median != null ? g.median - p.hypotheticalValue : null },
+        {
+          label: `${g.name} — Median vs. hypothetical`,
+          value: g.median != null ? g.median - p.hypotheticalValue : null,
+        },
       ]);
     }
     return groups.flatMap((g, i) => [

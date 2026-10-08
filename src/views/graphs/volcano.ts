@@ -6,8 +6,9 @@
 // -log10 transform so a P/FDR column becomes the vertical axis.
 //
 // Rendered as a `scattergl` (WebGL) trace with per-point arrays so tens of thousands
-// of genes stay smooth; points are colored up / down / not-significant by the
-// fold-change + significance thresholds, which also draw the dashed guide lines.
+// of genes stay smooth (an export draws them as plain shapes, `vectorTraces`); points
+// are colored up / down / not-significant by the fold-change + significance thresholds,
+// which also draw the dashed guide lines.
 // Genes styled one by one (`points`, by row) are a second trace, over the others.
 // The most significant genes are annotated, and those asked to show their name.
 import type { GraphOptions } from "../../store/types";
@@ -19,8 +20,6 @@ import { pointKeyOf } from "../../lib/columns";
 
 const NS = "#B8BEC9"; // not significant (fixed muted grey)
 
-const log10 = (v: number) => Math.log(v) / Math.LN10;
-
 /** A gene's key: its row, whatever columns its values come from (see `pointKeyOf`). */
 const geneKey = (row: number) => pointKeyOf("", row);
 
@@ -28,16 +27,29 @@ const geneKey = (row: number) => pointKeyOf("", row);
  *  and in any case. `missing`: the names no gene has. */
 export function genesNamed(columns: Column[], options: GraphOptions, query: string) {
   const labelCol = columns.find((c) => c.name === options.volcanoLabel);
-  const wanted = query.split(",").map((n) => n.trim()).filter(Boolean);
+  const wanted = query
+    .split(",")
+    .map((n) => n.trim())
+    .filter(Boolean);
   const rowsOf = new Map<string, number[]>();
   labelCol?.cells.forEach((cell, r) => {
-    const name = String(cell ?? "").trim().toLowerCase();
+    const name = String(cell ?? "")
+      .trim()
+      .toLowerCase();
     if (name) rowsOf.set(name, [...(rowsOf.get(name) ?? []), r]);
   });
   return {
     keys: wanted.flatMap((n) => (rowsOf.get(n.toLowerCase()) ?? []).map(geneKey)),
     missing: wanted.filter((n) => !rowsOf.has(n.toLowerCase())),
   };
+}
+
+/** The two groups of a grouped table a volcano compares: the ones chosen, else (none,
+ *  or renamed in the table) the first two. */
+export function volcanoPair(groups: string[], options: GraphOptions): [string | undefined, string | undefined] {
+  const pick = (name: string | undefined, fallback: string | undefined) =>
+    name && groups.includes(name) ? name : fallback;
+  return [pick(options.volcanoGroupA, groups[0]), pick(options.volcanoGroupB, groups[1])];
 }
 
 /** A volcano's two colored series, by key: what it calls them. */
@@ -91,7 +103,7 @@ function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFig
     if (xv == null || yv == null) continue;
     if (yIsP) {
       if (yv <= 0) continue; // a p / FDR must be > 0 to take -log10
-      yv = -log10(yv);
+      yv = -Math.log10(yv);
     }
     const passSig = yIsP ? yv >= sigY : yv <= sigY;
     const sig = Math.abs(xv) >= fc && passSig;
@@ -220,7 +232,12 @@ function placeLabels(labels: Name[], xs: number[], ys: number[], options: GraphO
   const points = labels.map((l) => toPx(l.x, l.y));
   const r = options.pointSize / 2 + 1;
   const taken: Box[] = points.map(({ px, py }) => ({ left: px - r, top: py - r, right: px + r, bottom: py + r }));
-  const boxAt = (px: number, py: number, w: number, h: number) => ({ left: px - w / 2, top: py - h / 2, right: px + w / 2, bottom: py + h / 2 });
+  const boxAt = (px: number, py: number, w: number, h: number) => ({
+    left: px - w / 2,
+    top: py - h / 2,
+    right: px + w / 2,
+    bottom: py + h / 2,
+  });
 
   return labels.map((l, i) => {
     const { px, py } = points[i];
@@ -229,7 +246,16 @@ function placeLabels(labels: Name[], xs: number[], ys: number[], options: GraphO
     let best = options.points?.[l.key]?.labelOffset;
     if (!best) {
       const out = l.x >= 0 ? 1 : -1; // away from the middle first
-      const directions = [[0, -1], [out, -1], [-out, -1], [out, 0], [-out, 0], [out, 1], [-out, 1], [0, 1]];
+      const directions = [
+        [0, -1],
+        [out, -1],
+        [-out, -1],
+        [out, 0],
+        [-out, 0],
+        [out, 1],
+        [-out, 1],
+        [0, 1],
+      ];
       let score = Infinity;
       best = { x: 0, y: -12 - h / 2 };
       for (const distance of [8, 18, 30, 45, 64]) {

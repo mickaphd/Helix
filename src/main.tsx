@@ -8,12 +8,6 @@ import { accentColor, evalR, isNative, onFocusChange } from "./native";
 import { checkForUpdatesDaily } from "./updates";
 import "./styles.css";
 
-// The page follows the window's appearance (system, or View ▸ Appearance).
-const dark = matchMedia("(prefers-color-scheme: dark)");
-const syncDark = () => document.documentElement.classList.toggle("dark", dark.matches);
-dark.addEventListener("change", syncDark);
-syncDark();
-
 // Highlights take the accent color chosen in System Settings, read again whenever
 // the window comes to the front (it can only change while System Settings is).
 const syncAccent = () =>

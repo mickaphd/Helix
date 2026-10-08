@@ -1,7 +1,7 @@
 # The Helix project file (`.hlx`)
 
 A Helix project is one plain-text JSON file (UTF-8). Any program can read or write
-it: your data is never locked into Helix.
+it: your data are never locked into Helix.
 
 ## Promises
 
@@ -10,8 +10,14 @@ it: your data is never locked into Helix.
 - **Newer files open too.** A version of Helix keeps the fields it doesn't know and
   writes them back when saving, so opening a newer file in an older Helix loses nothing.
 - **Forgiving reading.** Field names and choices are read whatever their case
-  (`tableType`, `TableType`, `"XY"`). A value of the wrong type falls back to its
-  default. A broken item is left out on its own, and Helix says so.
+  (`tableType`, `TableType`, `"XY"`). A value of the wrong type, or a choice Helix doesn't
+  offer (a dash `"zigzag"`), falls back to its default; a number beyond what Helix offers
+  is brought back within (a point size of 500 reads as 20). A broken item is left out on
+  its own, and Helix says so. A table is put straight: values beyond its last column are left
+  out (and said), exclusions and column widths that point nowhere are dropped, and a grouped
+  table's `groups` and `replicates` are those of its columns. A file Helix had to change as
+  it read it (repaired, or written by an older Helix) opens as edited, and saving it writes it
+  up to date.
 - **Nothing about you.** The file holds the project only: no file paths, user
   names or app state.
 
@@ -89,14 +95,16 @@ colors of the table's graphs (see Graph).
 {
   "id": "analysis_k3m4", "type": "analysis", "name": "Analysis 1", "parentId": "table_x1y2",
   "analysisType": "two-way-anova",
-  "analysisParams": { "design": "ordinary", "posthoc": "tukey", "posthocTarget": "groups" }
+  "analysisParams": { "design": "ordinary", "posthoc": "tukey", "posthocTarget": "groups", "sets": ["A", "C"] }
 }
 ```
 
 An analysis stores what to compute, never its results: Helix computes them again
 from the table when the file opens, so results always match the data.
 `analysisParams` holds the choices made in the analysis's wizard (see
-`src/stats/types.ts`).
+`src/stats/types.ts`). `sets` (Helix 1.0.5 and later) names the data sets it runs on, in
+order: columns, or a grouped table's groups. Without it, an analysis runs on all of
+them (a two-group test: the first two holding data).
 
 ### Graph
 
@@ -135,35 +143,36 @@ A graph's colors and style are its own:
   `"grid"`, `"dots"`); the others take the palette's color for their place and the
   graph's `pointShape` and `lineDash`.
 - `points`: the points styled one by one, as `"column name#row"` (row 0 is the first),
-  each with any of `color`, `size`, `shape`, `fill` (how opaque, 0 to 1), `outline`, `outlineColor` (a color, or
-  `"fill"`: the point's own color), `label` (`true`: it shows its row's title, or its
-  row number, beside it) and `labelOffset` (where that name was moved, in pixels from
-  the point, `y` downward); the rest comes from its series and
-  the graph. A volcano's genes are their rows alone, `"#row"`; a gene's own style wins
+  each with any of `color`, `size`, `shape`, `fill` (how opaque, 0 to 1), `outline`,
+  `outlineColor` (a color, or `"fill"`: the point's own color), `label` (`true`: it shows
+  its row's title, or its row number, beside it) and `labelOffset` (where that name was
+  moved, in pixels from the point, `y` downward); the rest comes from its series and the
+  graph. A volcano's genes are their rows alone, `"#row"`; a gene's own style wins
   over its up / down / not significant look. They follow the table: a renamed column,
   inserted or deleted rows.
 - `fill`: how opaque bars, boxes, violins and areas are, from 0 to 1; `pointFill`,
   points.
-- `pointSize` and `pointOutline` (in pixels) and `pointShape` (`"circle"`, `"square"`,
-  `"diamond"`, `"triangle-up"`, `"triangle-down"`): every point of the graph.
-- `outline` (in pixels) and `outlineColor`: the outline of bars, boxes, violins, areas
-  and pie slices; `pointOutlineColor`, of points. Without a color, an outline takes the
-  color of what it outlines.
+- `pointSize` (2 to 20) and `pointOutline` (0 to 6), in pixels, and `pointShape`
+  (`"circle"`, `"square"`, `"diamond"`, `"triangle-up"`, `"triangle-down"`): every point of
+  the graph.
+- `outline` (in pixels, 0 to 6) and `outlineColor`: the outline of bars, boxes, violins,
+  areas and pie slices; `pointOutlineColor`, of points. Without a color, an outline takes
+  the color of what it outlines.
 - `barGap`: on interleaved grouped bars and XY bars, the gap between the bars of a row
-  (or of an X), as a fraction of it (0: side by side).
-- `lineWidth`, `lineDash`: every series line's thickness (in pixels) and dashes.
-- `errorWidth`, `errorCaps` (in pixels), `errorColor` (none: each series' color) and
-  `errorDirection` (`"both"` or `"above"`: up, or right on horizontal bars): error bars,
-  and the mean or median line drawn with them.
+  (or of an X), as a fraction of it, 0 (side by side) to 0.5.
+- `lineWidth`, `lineDash`: every series line's thickness (in pixels, 0.5 to 6) and dashes.
+- `errorWidth` (0.5 to 6) and `errorCaps` (0 to 20), in pixels, `errorColor` (none: each
+  series' color) and `errorDirection` (`"both"` or `"above"`: up, or right on horizontal
+  bars): error bars, and the mean or median line drawn with them.
 - `legend` and `note`: texts moved by hand. The legend (or a heatmap's color legend),
   as a fraction of the plot area from its bottom-left corner; the note (a fit's
   equation), in pixels from the plot's top-left corner, `y` downward. Without them,
   each sits in its usual place.
 - `xTitleGap`, `yTitleGap`: the space in pixels between each axis title and its tick
-  labels.
+  labels, 0 to 40.
 
 A graph without `palette` comes from Helix 1.0.2 or before: it takes the Helix
 palette, its table's `seriesColors`, its old `heatmapColorScale` or
 `volcanoColorUp` / `volcanoColorDown` / `volcanoPointSize`, fills at 0.5 (a pie's at 1,
-a volcano's points at 0.75), its type's point size and outline, and bars side by side (`barGap` 0),
-so it looks as it did.
+a volcano's points at 0.75), its type's point size and outline, and bars side by side
+(`barGap` 0), so it looks as it did.

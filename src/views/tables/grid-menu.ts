@@ -5,6 +5,7 @@
 import type { TableData, TableType } from "../../store/types";
 import type { TableMove } from "../../store/references";
 import type { MenuItems } from "../../native";
+import { isGrouped } from "../../lib/dataset";
 import {
   convertCommaDecimals,
   deleteColumns,
@@ -12,7 +13,6 @@ import {
   hasCommaDecimals,
   insertColumns,
   insertRows,
-  isGrouped,
   isRangeExcluded,
   rowsDeleted,
   rowsInserted,
@@ -36,10 +36,11 @@ interface MenuContext {
   /** Applies an edit, named for Undo. */
   update: (next: TableData, label: string, move?: TableMove) => void;
   rename: (column: number) => void;
-  configure: () => void;
+  /** Shows a grouped table's Groups panel. */
+  showGroups: () => void;
 }
 
-export function gridMenu({ data, type, zone, range, update, rename, configure }: MenuContext): MenuItems {
+export function gridMenu({ data, type, zone, range, update, rename, showGroups }: MenuContext): MenuItems {
   const grouped = isGrouped(data);
   const rows = range.r1 - range.r0 + 1;
   const cols = range.c1 - range.c0 + 1;
@@ -61,12 +62,17 @@ export function gridMenu({ data, type, zone, range, update, rename, configure }:
       SEPARATOR,
       {
         text: `Insert ${plural(rows, "Row")} Above`,
-        action: () => update(insertRows(data, range.r0, rows), `Insert ${plural(rows, "Row")}`, { rows: rowsInserted(range.r0, rows) }),
+        action: () =>
+          update(insertRows(data, range.r0, rows), `Insert ${plural(rows, "Row")}`, {
+            rows: rowsInserted(range.r0, rows),
+          }),
       },
       {
         text: `Insert ${plural(rows, "Row")} Below`,
         action: () =>
-          update(insertRows(data, range.r1 + 1, rows), `Insert ${plural(rows, "Row")}`, { rows: rowsInserted(range.r1 + 1, rows) }),
+          update(insertRows(data, range.r1 + 1, rows), `Insert ${plural(rows, "Row")}`, {
+            rows: rowsInserted(range.r1 + 1, rows),
+          }),
       },
     );
   }
@@ -86,8 +92,10 @@ export function gridMenu({ data, type, zone, range, update, rename, configure }:
   }
 
   if (onCells) {
-    items.push(SEPARATOR, { text: grouped && range.c0 > 0 ? "Rename Group…" : "Rename Column…", action: () => rename(range.c0) });
-
+    items.push(SEPARATOR, {
+      text: grouped && range.c0 > 0 ? "Rename Group" : "Rename Column",
+      action: () => rename(range.c0),
+    });
   }
 
   if (zone === "column" && range.c0 === 0) {
@@ -98,11 +106,14 @@ export function gridMenu({ data, type, zone, range, update, rename, configure }:
     });
   }
 
-  if (grouped) items.push(SEPARATOR, { text: "Configure Table…", action: configure });
+  if (grouped) items.push(SEPARATOR, { text: "Show Groups", action: showGroups });
 
   if (zone === "row") {
     const text = `Delete ${plural(rows, "Row")}`;
-    items.push(SEPARATOR, { text, action: () => update(deleteRows(data, range.r0, rows), text, { rows: rowsDeleted(range.r0, rows) }) });
+    items.push(SEPARATOR, {
+      text,
+      action: () => update(deleteRows(data, range.r0, rows), text, { rows: rowsDeleted(range.r0, rows) }),
+    });
   }
   if (zone === "column" && !grouped && onCells && range.c1 >= firstData) {
     const count = Math.min(range.c1, data.columns.length - 1) - firstData + 1;

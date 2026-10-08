@@ -11,16 +11,55 @@ export interface Palette extends GraphPalette {
 }
 
 /** Colors written as "RRGGBB RRGGBB …". */
-const hex = (list: string) => list.trim().split(/\s+/).map((c) => `#${c}`);
+const hex = (list: string) =>
+  list
+    .trim()
+    .split(/\s+/)
+    .map((c) => `#${c}`);
 const words = (list: string) => list.split(", ");
 
 export const PALETTES: Palette[] = [
-  { name: "okabe-ito", label: "Okabe-Ito", kind: "categorical", colors: hex("000000 E69F00 56B4E9 009E73 F0E442 0072B2 D55E00 CC79A7"), names: words("Black, Orange, Sky Blue, Bluish Green, Yellow, Blue, Vermilion, Reddish Purple") },
-  { name: "tol-bright", label: "Tol Bright", kind: "categorical", colors: hex("4477AA EE6677 228833 CCBB44 66CCEE AA3377 BBBBBB"), names: words("Blue, Red, Green, Yellow, Cyan, Purple, Grey") },
-  { name: "tol-muted", label: "Tol Muted", kind: "categorical", colors: hex("CC6677 332288 DDCC77 117733 88CCEE 882255 44AA99 999933 AA4499"), names: words("Rose, Indigo, Sand, Green, Cyan, Wine, Teal, Olive, Purple") },
-  { name: "tableau-10", label: "Tableau 10", kind: "categorical", colors: hex("4E79A7 F28E2C E15759 76B7B2 59A14F EDC949 AF7AA1 FF9DA7 9C755F BAB0AB") },
-  { name: "grayscale", label: "Grayscale", kind: "categorical", colors: hex("000000 4D4D4D 808080 B3B3B3 E6E6E6"), names: words("Black, Gray 70%, Gray 50%, Gray 30%, Gray 10%") },
-  { name: "helix", label: "Helix", kind: "categorical", colors: hex("8195FC F87171 4ADE80 A78BFA FB923C 6B7280"), names: words("Blue, Red, Green, Purple, Orange, Gray") },
+  {
+    name: "okabe-ito",
+    label: "Okabe-Ito",
+    kind: "categorical",
+    colors: hex("000000 E69F00 56B4E9 009E73 F0E442 0072B2 D55E00 CC79A7"),
+    names: words("Black, Orange, Sky Blue, Bluish Green, Yellow, Blue, Vermilion, Reddish Purple"),
+  },
+  {
+    name: "tol-bright",
+    label: "Tol Bright",
+    kind: "categorical",
+    colors: hex("4477AA EE6677 228833 CCBB44 66CCEE AA3377 BBBBBB"),
+    names: words("Blue, Red, Green, Yellow, Cyan, Purple, Grey"),
+  },
+  {
+    name: "tol-muted",
+    label: "Tol Muted",
+    kind: "categorical",
+    colors: hex("CC6677 332288 DDCC77 117733 88CCEE 882255 44AA99 999933 AA4499"),
+    names: words("Rose, Indigo, Sand, Green, Cyan, Wine, Teal, Olive, Purple"),
+  },
+  {
+    name: "tableau-10",
+    label: "Tableau 10",
+    kind: "categorical",
+    colors: hex("4E79A7 F28E2C E15759 76B7B2 59A14F EDC949 AF7AA1 FF9DA7 9C755F BAB0AB"),
+  },
+  {
+    name: "grayscale",
+    label: "Grayscale",
+    kind: "categorical",
+    colors: hex("000000 4D4D4D 808080 B3B3B3 E6E6E6"),
+    names: words("Black, Gray 70%, Gray 50%, Gray 30%, Gray 10%"),
+  },
+  {
+    name: "helix",
+    label: "Helix",
+    kind: "categorical",
+    colors: hex("8195FC F87171 4ADE80 A78BFA FB923C 6B7280"),
+    names: words("Blue, Red, Green, Purple, Orange, Gray"),
+  },
   {
     name: "viridis",
     label: "Viridis",
@@ -205,13 +244,19 @@ export const PALETTES: Palette[] = [
       B44F4F B34D4E B24C4C B24A4B B1494A B04748 AF4647 AF4446 AE4244 AD4143 AC3F42 AC3E40 AB3C3F AA3A3E A9393C A9373B
     `),
   },
-  { name: "rdbu", label: "RdBu", kind: "diverging", colors: hex("67001F B2182B D6604D F4A582 FDDBC7 F7F7F7 D1E5F0 92C5DE 4393C3 2166AC 053061") },
+  {
+    name: "rdbu",
+    label: "RdBu",
+    kind: "diverging",
+    colors: hex("67001F B2182B D6604D F4A582 FDDBC7 F7F7F7 D1E5F0 92C5DE 4393C3 2166AC 053061"),
+  },
 ];
 
 export const paletteNamed = (name: string) => PALETTES.find((p) => p.name === name);
 
 /** A graph's palette: Helix's for a graph that has none (made before palettes). */
-export const paletteOf = (options: { palette?: GraphPalette }): GraphPalette => options.palette ?? paletteNamed("helix")!;
+export const paletteOf = (options: { palette?: GraphPalette }): GraphPalette =>
+  options.palette ?? paletteNamed("helix")!;
 
 /** What a graph saves of a palette. */
 export const savedPalette = ({ name, kind, colors }: Palette): GraphPalette => ({ name, kind, colors });
@@ -219,13 +264,17 @@ export const savedPalette = ({ name, kind, colors }: Palette): GraphPalette => (
 /** Series' styles without the colors picked by hand, as a new palette leaves them; a
  *  style left empty goes. */
 export function withoutColors(series: Record<string, SeriesStyle> | undefined) {
-  const kept = Object.entries(series ?? {}).flatMap(([key, { color: _, ...rest }]) => (Object.keys(rest).length ? [[key, rest]] : []));
+  const kept = Object.entries(series ?? {}).flatMap(([key, { color: _, ...rest }]) =>
+    Object.keys(rest).length ? [[key, rest]] : [],
+  );
   return kept.length ? (Object.fromEntries(kept) as Record<string, SeriesStyle>) : undefined;
 }
 
 /** A graph's palette with its colors in the other order. */
 export const reversedPalette = (p: GraphPalette): GraphPalette =>
-  p.reversed ? { name: p.name, kind: p.kind, colors: [...p.colors].reverse() } : { ...p, colors: [...p.colors].reverse(), reversed: true };
+  p.reversed
+    ? { name: p.name, kind: p.kind, colors: [...p.colors].reverse() }
+    : { ...p, colors: [...p.colors].reverse(), reversed: true };
 
 /** Helix 1.0's colors by name, as its files hold them: its palette, in order. */
 const helix = paletteNamed("helix")!;
@@ -257,7 +306,13 @@ export const colorscaleOf = ({ colors }: GraphPalette) => colors.map((c, i) => [
 /** The #RRGGBB of `css`: a hex color, or one `withOpacity` made (its opacity dropped). */
 export function hexOf(css: string): string {
   const rgb = css.match(/^rgba\((\d+),(\d+),(\d+),/);
-  return rgb ? "#" + rgb.slice(1, 4).map((c) => Number(c).toString(16).padStart(2, "0").toUpperCase()).join("") : css;
+  return rgb
+    ? "#" +
+        rgb
+          .slice(1, 4)
+          .map((c) => Number(c).toString(16).padStart(2, "0").toUpperCase())
+          .join("")
+    : css;
 }
 
 /** The opacity of `css`: 1, or the one `withOpacity` gave it. */

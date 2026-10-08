@@ -2,11 +2,13 @@
 // step, each answer choosing the next question. A wizard only declares its questions
 // and how the answers make the test's params; analysis-wizard.tsx asks them.
 // A test without an entry here runs as soon as it is picked.
+import { ROUT_Q } from "../../stats/types";
 import type {
   AnalysisParams,
   AnalysisPickerValue,
   AnalysisType,
   CompareTwoGroupsParams,
+  CorrelationParams,
   MultipleTTestsParams,
   NonlinearRegressionParams,
   OneSampleTParams,
@@ -26,12 +28,11 @@ export type Question = { id: string; ask: string } & (
       normality?: boolean;
     }
   | { kind: "number"; label: string; initial: number; min?: number; max?: number; step?: number }
-  /** Several of `options`, all ticked at first. */
-  | { kind: "names"; options: string[] }
+  /** Several of `options`, all ticked at first: at least `min` (1 by default). */
+  | { kind: "names"; options: string[]; min?: number }
 );
 
 export interface Wizard {
-  title: string;
   /** Every question, given the answers so far (false: not asked with these answers). */
   questions: (a: Answers, table: Dataset) => (Question | false)[];
   /** The test to create, once every question is answered. */
@@ -50,16 +51,54 @@ const names = (list: string[]) => list.map((n): [string, string] => [n, n]);
 const yNames = (table: Dataset) => splitXY(table.columns).ys.map((c) => c.name);
 const dataNames = (table: Dataset) => table.numeric.map((c) => c.name);
 
+// Which data sets a test runs on (`sets`), asked first as in Prism, and only when there
+// is a choice: columns, or a grouped table's groups, holding numbers.
+const setNames = (table: Dataset) =>
+  table.sets.filter((s) => s.columns.some((c) => c.values.length > 0)).map((s) => s.name);
+
+/** The two data sets to compare, in order. */
+const twoSets = (a: Answers, table: Dataset): Question[] => {
+  const sets = setNames(table);
+  if (sets.length <= 2) return [];
+  return [
+    choice("set1", "Choose the first data set.", names(sets)),
+    choice("set2", "Choose the second data set.", names(sets.filter((n) => n !== a.set1))),
+  ];
+};
+
+/** The data sets to analyze, at least `min`, all ticked at first. */
+const someSets = (table: Dataset, min: number): Question[] => {
+  const sets = setNames(table);
+  if (sets.length <= min) return [];
+  const ask = min > 1 ? `Choose the data sets to analyze (at least ${min}).` : "Choose the data sets to analyze.";
+  return [{ id: "sets", ask, kind: "names", options: sets, min }];
+};
+
+/** The data sets answered, if they were asked. */
+export const chosenSets = (a: Answers): string[] | undefined =>
+  a.set1 && a.set2 ? [a.set1 as string, a.set2 as string] : (a.sets as string[] | undefined);
+
+/** `params` with the data sets answered. */
+const withSets = <P extends object>(a: Answers, params?: P) => {
+  const sets = chosenSets(a);
+  return sets ? { ...params, sets } : params;
+};
+
 const GAUSSIAN = "Assume the data are sampled from Gaussian (normal) distributions?";
 const PAIRED = "How was the data collected?";
 
 export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
+  "descriptive-statistics": {
+    questions: (_, table) => someSets(table, 1),
+    finish: (a) => ({ type: "descriptive-statistics", params: withSets(a) }),
+  },
+
   "compare-two-groups": {
-    title: "Compare two groups",
     questions: (a, table) => {
-      const [first = "Group 1", second = "Group 2"] = table.numeric.map((c) => c.name);
+      const [first = "Group 1", second = "Group 2"] = chosenSets(a) ?? setNames(table);
       const gaussian = a.gaussian === "yes";
       return [
+        ...twoSets(a, table),
         choice("paired", PAIRED, [
           ["unpaired", "Unpaired (independent groups)"],
           ["paired", "Paired (matched samples)"],
@@ -94,22 +133,22 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
     },
     finish: (a) => ({
       type: "compare-two-groups",
-      params: {
+      params: withSets(a, {
         paired: a.paired === "paired",
         gaussian: a.gaussian === "yes",
         equalVariance: a.variance !== "unequal",
         ratio: a.ratio === "ratio",
         tails: a.tails as CompareTwoGroupsParams["tails"],
-      },
+      }),
     }),
   },
 
   "compare-many-groups": {
-    title: "Compare more than two groups",
-    questions: (a) => {
+    questions: (a, table) => {
       const paired = a.paired === "paired";
       const nonParametric = paired ? "Friedman test" : "Kruskal-Wallis test";
       return [
+        ...someSets(table, 3),
         choice("paired", PAIRED, [
           ["unpaired", "Unpaired (independent groups)"],
           ["paired", "Paired (matched / repeated-measures)"],
@@ -142,18 +181,18 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
     finish: (a) => {
       const paired = a.paired === "paired";
       const type = a.gaussian === "yes" ? (paired ? "rm-anova" : "anova") : paired ? "friedman" : "kruskal-wallis";
-      return { type, params: { posthoc: a.posthoc } as AnalysisParams };
+      return { type, params: withSets(a, { posthoc: a.posthoc }) as AnalysisParams };
     },
   },
 
   "one-sample-t": {
-    title: "Compare one group to a value",
-    questions: (a) => {
+    questions: (a, table) => {
       const center = a.gaussian === "yes" ? "mean" : "median";
       return [
+        ...someSets(table, 1),
         {
           id: "value",
-          ask: "Test each column against a hypothetical value.",
+          ask: "Test each data set against a hypothetical value.",
           kind: "number",
           label: "Hypothetical value",
           initial: 0,
@@ -176,33 +215,31 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
     },
     finish: (a) => ({
       type: "one-sample-t",
-      params: {
+      params: withSets(a, {
         hypotheticalValue: a.value as number,
         gaussian: a.gaussian === "yes",
         tails: a.tails as OneSampleTParams["tails"],
-      },
+      }),
     }),
   },
 
   outliers: {
-    title: "Identify outliers",
-    questions: () => [
+    questions: (_, table) => [
+      ...someSets(table, 1),
       {
         id: "q",
         ask: "ROUT method: each column is fit to a robust mean, then residuals are flagged as outliers when their false discovery rate is below Q. Smaller Q is more conservative.",
         kind: "number",
         label: "Q (%) =",
         initial: 1,
-        min: 0.01,
-        max: 50,
+        ...ROUT_Q,
         step: 0.5,
       },
     ],
-    finish: (a) => ({ type: "outliers", params: { q: a.q as number } }),
+    finish: (a) => ({ type: "outliers", params: withSets(a, { q: a.q as number }) }),
   },
 
   correlation: {
-    title: "Correlation",
     questions: (a, table) => {
       const ys = yNames(table);
       return [
@@ -231,7 +268,6 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
   },
 
   "linear-regression": {
-    title: "Linear regression",
     questions: (_, table) => [
       choice("y", "Which Y data set should be regressed on X?", names(yNames(table))),
       choice("origin", "Force the line through the origin (0,0)?", [
@@ -243,7 +279,6 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
   },
 
   "area-under-curve": {
-    title: "Area under the curve",
     questions: () => [
       {
         id: "baseline",
@@ -257,7 +292,6 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
   },
 
   "nonlinear-regression": {
-    title: "Nonlinear regression",
     questions: (_, table) => [
       choice("y", "Which Y data set should be fitted?", names(yNames(table))),
       // Prism's "Standard curves to interpolate": the ones that fit reliably in WebR.
@@ -278,8 +312,8 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
   },
 
   "two-way-anova": {
-    title: "Two-way ANOVA",
-    questions: (a) => [
+    questions: (a, table) => [
+      ...someSets(table, 2),
       choice("design", "Compare column groups and row position, and their interaction.", [
         ["ordinary", "Ordinary two-way ANOVA (parametric)"],
         ["repeated-measures", "Repeated-measures (matched by row, parametric)"],
@@ -298,29 +332,28 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
       const [posthoc, posthocTarget = "groups"] = String(a.posthoc ?? "none").split(" ");
       return {
         type: "two-way-anova",
-        params: {
+        params: withSets(a, {
           design: a.design as TwoWayAnovaParams["design"],
           posthoc: posthoc as TwoWayAnovaParams["posthoc"],
           posthocTarget: posthocTarget as TwoWayAnovaParams["posthocTarget"],
-        },
+        }),
       };
     },
   },
 
   "multiple-t-tests": {
-    title: "Multiple t tests",
-    questions: (a) => [
-      choice(
-        "paired",
-        "Were the two groups' replicate values collected as matched pairs (e.g. before/after the same subject)?",
-        [
-          ["unpaired", "No — unpaired (recommended)"],
-          ["paired", "Yes — paired"],
-        ],
-      ),
+    questions: (a, table) => [
+      ...twoSets(a, table),
+      choice("paired", PAIRED, [
+        ["unpaired", "Unpaired (independent groups)"],
+        ["paired", "Paired (matched samples)"],
+      ]),
       choice("gaussian", "Assume the data are sampled from a Gaussian (normal) distribution?", [
         ["yes", "Yes — t test at each row (parametric)"],
-        ["no", `No — ${a.paired === "paired" ? "Wilcoxon signed-rank" : "Mann-Whitney"} test at each row (non-parametric)`],
+        [
+          "no",
+          `No — ${a.paired === "paired" ? "Wilcoxon signed-rank" : "Mann-Whitney"} test at each row (non-parametric)`,
+        ],
       ]),
       a.gaussian === "yes" &&
         choice("pooled", "Assume every row has the same amount of scatter (SD)?", [
@@ -335,28 +368,30 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
     ],
     finish: (a) => ({
       type: "multiple-t-tests",
-      params: {
+      params: withSets(a, {
         paired: a.paired === "paired",
         gaussian: a.gaussian === "yes",
         pooledSd: a.gaussian === "yes" && a.pooled === "yes",
         correction: a.correction as MultipleTTestsParams["correction"],
-      },
+      }),
     }),
   },
 
   "correlation-matrix": {
-    title: "Correlation matrix",
-    questions: () => [
+    questions: (_, table) => [
+      ...someSets(table, 2),
       choice("method", "Choose which correlation coefficient to compute for every pair of variables.", [
         ["pearson", "Pearson (parametric)"],
         ["spearman", "Spearman (non-parametric)"],
       ]),
     ],
-    finish: (a) => ({ type: "correlation-matrix", params: { method: a.method as "pearson" | "spearman" } }),
+    finish: (a) => ({
+      type: "correlation-matrix",
+      params: withSets(a, { method: a.method as CorrelationParams["method"] }),
+    }),
   },
 
   "multiple-regression": {
-    title: "Multiple regression",
     questions: (a, table) => [
       choice("dependent", "Choose the dependent variable (Y).", names(dataNames(table))),
       {

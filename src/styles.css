@@ -1,13 +1,12 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:where(.dark, .dark *));
-
 /* ── Design tokens ───────────────────────────────────────────────────── */
 
 :root {
   --fg: #000;
   --bg: rgb(255 255 255 / 0.85); /* over the window's native vibrancy */
   --surface: #fcfcfc; /* dialogs, menus */
+  --chosen: #fff; /* a segmented control's chosen segment, over its track */
   --accent: #0a84ff; /* until macOS's own accent color is read (main.tsx) */
   --green: #248a3d;
   --excluded: #0d74ce; /* excluded cells */
@@ -15,15 +14,19 @@
   --sheet-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.12), 0 2px 6px rgb(0 0 0 / 0.06), 0 12px 32px rgb(0 0 0 / 0.08);
 }
 
-.dark {
-  --fg: #fff;
-  --bg: rgb(0 0 0 / 0.4);
-  --surface: #2a2a2c;
-  --green: #30d158;
-  --excluded: #70b8ff;
-  --desk: rgb(0 0 0 / 0.3);
-  --sheet-shadow: 0 0 0 0.5px rgb(255 255 255 / 0.12), 0 4px 18px rgb(0 0 0 / 0.5);
-  color-scheme: dark;
+/* The window's appearance: the system's, or View ▸ Appearance (which sets the window's). */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg: #fff;
+    --bg: rgb(0 0 0 / 0.4);
+    --surface: #2a2a2c;
+    --chosen: rgb(255 255 255 / 0.2);
+    --green: #30d158;
+    --excluded: #70b8ff;
+    --desk: rgb(0 0 0 / 0.3);
+    --sheet-shadow: 0 0 0 0.5px rgb(255 255 255 / 0.12), 0 4px 18px rgb(0 0 0 / 0.5);
+    color-scheme: dark;
+  }
 }
 
 @theme {
@@ -34,6 +37,7 @@
   --color-separator: rgb(from var(--fg) r g b / 0.1);
   --color-control: rgb(from var(--fg) r g b / 0.06);
   --color-surface: var(--surface);
+  --color-chosen: var(--chosen);
   --color-accent: var(--accent);
   --color-support-green: var(--green);
   --color-excluded: var(--excluded);
@@ -99,4 +103,3 @@
 .checkerboard {
   background: repeating-conic-gradient(#e6e6e6 0 25%, #fff 0 50%) 0 0 / 16px 16px;
 }
-

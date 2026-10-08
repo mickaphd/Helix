@@ -29,13 +29,24 @@ function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFig
         mode: "markers",
         x: c.values.map((_, vi) => i + jitter(i, vi)),
         y: c.values,
-        ...seriesPoints(paint, c.name, i, c.rows.map((r) => pointKeyOf(c.name, r))),
+        ...seriesPoints(
+          paint,
+          c.name,
+          i,
+          c.rows.map((r) => pointKeyOf(c.name, r)),
+        ),
         hoverinfo: "y",
       });
     }
   });
 
-  return { data, layout: baseLayout(options, columns.map((c) => c.name)) };
+  return {
+    data,
+    layout: baseLayout(
+      options,
+      columns.map((c) => c.name),
+    ),
+  };
 }
 
 export const boxViolin: GraphModule = {

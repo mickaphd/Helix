@@ -33,39 +33,35 @@ export async function runChiSquare(columns: Column[]): Promise<AnalysisOutcome> 
     : `m<-matrix(c(${flat.join(",")}),nrow=${rows},byrow=TRUE);ct<-suppressWarnings(chisq.test(m));` +
       `c(chisq=as.numeric(ct$statistic),df=as.numeric(ct$parameter),p=ct$p.value,minexp=min(ct$expected),n=sum(m))`;
 
-  try {
-    const v = await evalNamedVector(rCode);
-    const stats: StatRow[] = [];
-    if (is2x2) {
-      stats.push({ label: "P value (Fisher's exact test)", value: v.p ?? null, p: true });
-      stats.push({ label: "Odds ratio", value: v.odds ?? null });
-      stats.push({ label: "Chi-square (for reference)", value: v.chisq ?? null });
-      stats.push({ label: "df", value: v.df ?? null });
-    } else {
-      stats.push({ label: "Chi-square", value: v.chisq ?? null });
-      stats.push({ label: "df", value: v.df ?? null });
-      stats.push({ label: "P value", value: v.p ?? null, p: true });
-    }
-
-    const lowExpected = !is2x2 && v.minexp != null && v.minexp < 5;
-    const notes =
-      `Contingency table ${rows}×${cols}, N = ${num(v.n ?? null)}. ` +
-      (is2x2
-        ? `Fisher's exact test (2×2). Odds ratio 95% CI: ${num(v.oddsLo ?? null)} to ${num(v.oddsHi ?? null)} ` +
-          `for the table as entered (rows × columns).`
-        : `Pearson's chi-square test.`) +
-      (lowExpected
-        ? " Warning: some expected counts are below 5, so the chi-square approximation may be unreliable — consider combining categories."
-        : "");
-
-    return {
-      testType: "chi-square",
-      subtitle: is2x2 ? "Fisher's exact test" : "Pearson's chi-square test",
-      stats,
-      groups: [],
-      notes,
-    };
-  } catch (err) {
-    return { error: `Could not run the test: ${err instanceof Error ? err.message : String(err)}` };
+  const v = await evalNamedVector(rCode);
+  const stats: StatRow[] = [];
+  if (is2x2) {
+    stats.push({ label: "P value (Fisher's exact test)", value: v.p ?? null, p: true });
+    stats.push({ label: "Odds ratio", value: v.odds ?? null });
+    stats.push({ label: "Chi-square (for reference)", value: v.chisq ?? null });
+    stats.push({ label: "df", value: v.df ?? null });
+  } else {
+    stats.push({ label: "Chi-square", value: v.chisq ?? null });
+    stats.push({ label: "df", value: v.df ?? null });
+    stats.push({ label: "P value", value: v.p ?? null, p: true });
   }
+
+  const lowExpected = !is2x2 && v.minexp != null && v.minexp < 5;
+  const notes =
+    `Contingency table ${rows}×${cols}, N = ${num(v.n ?? null)}. ` +
+    (is2x2
+      ? `Fisher's exact test (2×2). Odds ratio 95% CI: ${num(v.oddsLo ?? null)} to ${num(v.oddsHi ?? null)} ` +
+        `for the table as entered (rows × columns).`
+      : `Pearson's chi-square test.`) +
+    (lowExpected
+      ? " Warning: some expected counts are below 5, so the chi-square approximation may be unreliable — consider combining categories."
+      : "");
+
+  return {
+    testType: "chi-square",
+    subtitle: is2x2 ? "Fisher's exact test" : "Pearson's chi-square test",
+    stats,
+    groups: [],
+    notes,
+  };
 }

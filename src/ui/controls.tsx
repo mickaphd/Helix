@@ -79,19 +79,11 @@ export function NumberInput({
   );
 }
 
-export function Checkbox({
-  checked,
-  onChange,
-  className,
-}: {
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-  className?: string;
-}) {
+export function Checkbox({ checked, onChange }: { checked: boolean; onChange: (checked: boolean) => void }) {
   return (
     <input
       type="checkbox"
-      className={cn("size-3.5 accent-accent", className)}
+      className="size-3.5 accent-accent"
       checked={checked}
       onChange={(e) => onChange(e.target.checked)}
     />
@@ -186,7 +178,7 @@ export function Segmented<T extends string>({
           onClick={() => onChange(o.value)}
           className={cn(
             "h-6 flex-1 rounded-[5px] px-2 text-small",
-            value === o.value && "bg-surface text-primary shadow-sm",
+            value === o.value && "bg-chosen text-primary shadow-sm",
           )}
         >
           {o.label}

@@ -1,10 +1,10 @@
 // Points picked on a graph (by their key, see `pointKeyOf`): the ring drawn round
 // them, never exported; the style set on them; and the names of the points that
 // show theirs. The selection itself is the graph view's, never saved.
-import type { PointShape, PointStyle } from "../../store/types";
+import { clamp, GRAPH_LIMITS, type PointShape, type PointStyle } from "../../store/types";
 import { parsePointKey } from "../../lib/columns";
 import { hexOf, opacityOf } from "../../lib/palettes";
-import { INK, POINT_SIZE, pointName, textWidth } from "./plot-helpers";
+import { INK, pointName, textWidth } from "./plot-helpers";
 
 /** A trace of individual points, as `seriesPoints` (or the volcano) makes it: a style
  *  field is one value for all, or one per point. */
@@ -95,13 +95,18 @@ export function stylePoints(
 }
 
 /** `points` with each of `keys` made `by` pixels bigger (or smaller) than the figure
- *  draws it, within `POINT_SIZE`: points of different sizes keep their difference. */
-export function resizePoints(points: Record<string, PointStyle> | undefined, data: unknown[], keys: Iterable<string>, by: number) {
+ *  draws it, within `GRAPH_LIMITS.pointSize`: points of different sizes keep their difference. */
+export function resizePoints(
+  points: Record<string, PointStyle> | undefined,
+  data: unknown[],
+  keys: Iterable<string>,
+  by: number,
+) {
   const sizes = new Map(drawnPoints(data).map((p) => [p.key, p.style.size]));
   const next = { ...points };
   for (const key of keys) {
     const size = sizes.get(key);
-    if (size !== undefined) next[key] = { ...next[key], size: Math.min(POINT_SIZE.max, Math.max(POINT_SIZE.min, size + by)) };
+    if (size !== undefined) next[key] = { ...next[key], size: clamp(size + by, GRAPH_LIMITS.pointSize) };
   }
   return Object.keys(next).length ? next : undefined;
 }

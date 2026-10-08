@@ -3,7 +3,8 @@
 import type { GraphOptions } from "../../store/types";
 import type { GraphModule, GraphFigure } from ".";
 import type { Column } from "../../lib/dataset";
-import { PATTERN_LOOK, pieLayout, mean, type Paint } from "./plot-helpers";
+import { PATTERN_LOOK, pieLayout, type Paint } from "./plot-helpers";
+import { mean } from "../../lib/summary";
 
 const sum = (v: number[]) => v.reduce((a, b) => a + b, 0);
 

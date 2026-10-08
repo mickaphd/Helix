@@ -2,9 +2,11 @@
 // two groups compared row by row, each row getting an effect size (X), a Welch
 // t test P value and its BH FDR (Y). Plain TypeScript, so the volcano redraws
 // instantly. A Multiple Variables volcano reads columns the user already has.
-import type { TableData } from "../store/types";
+import type { GraphOptions, TableData } from "../store/types";
 import { groupsOf, readTable, type Column } from "./dataset";
 import { tTwoSidedP } from "./student-t";
+import { mean } from "./summary";
+import { adjustPValues } from "../stats/grouped/base";
 
 interface DEGRow {
   /** The table row it comes from (rows lacking data are skipped, so not its place here). */
@@ -16,7 +18,6 @@ interface DEGRow {
 }
 
 const log2 = (x: number) => Math.log(x) / Math.LN2;
-const mean = (v: number[]) => v.reduce((s, x) => s + x, 0) / v.length;
 const variance = (v: number[]) => {
   const m = mean(v);
   return v.reduce((s, x) => s + (x - m) ** 2, 0) / (v.length - 1);
@@ -39,19 +40,6 @@ function welchP(a: number[], b: number[]): number {
   return p >= 0 ? Math.min(1, Math.max(1e-300, p)) : 1;
 }
 
-/** Benjamini-Hochberg FDR adjustment (step-up, monotone), written back onto `padj`. */
-function bhAdjust(rows: DEGRow[]): void {
-  const m = rows.length;
-  if (!m) return;
-  const order = rows.map((_, i) => i).sort((i, j) => rows[i].p - rows[j].p);
-  let prev = 1;
-  for (let k = m - 1; k >= 0; k--) {
-    const i = order[k];
-    prev = Math.min(prev, (rows[i].p * m) / (k + 1));
-    rows[i].padj = Math.min(1, prev);
-  }
-}
-
 /**
  * Compute per-row DEG stats comparing two groups (by their column-name prefix,
  * e.g. "A"/"B") of a grouped table. Row label = the leading Title cell (gene name).
@@ -63,7 +51,7 @@ export function computeGroupedDEG(
   data: TableData,
   groupA: string,
   groupB: string,
-  effect: "log2ratio" | "difference",
+  effect: GraphOptions["volcanoEffect"],
 ): DEGRow[] {
   const { titles, columns } = readTable(data);
   const groups = groupsOf(columns);
@@ -87,6 +75,10 @@ export function computeGroupedDEG(
     if (!Number.isFinite(p)) return;
     rows.push({ row: r, label: String(title ?? "").trim(), log2FC, p, padj: 1 });
   });
-  bhAdjust(rows);
-  return rows;
+  // Benjamini-Hochberg FDR across the genes, as the grouped tests correct theirs.
+  const padj = adjustPValues(
+    rows.map((r) => r.p),
+    "fdr",
+  );
+  return rows.map((r, i) => ({ ...r, padj: padj[i]! }));
 }

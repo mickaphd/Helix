@@ -6,6 +6,5 @@ export const groupedStacked: GraphModule = {
   label: "Stacked bars",
   family: "grouped",
   patterns: () => true,
-  build: (columns, options, paint, titles) =>
-    buildGroupedBars(columns, options, "stack", false, paint, titles),
+  build: (columns, options, paint, titles) => buildGroupedBars(columns, options, "stack", false, paint, titles),
 };

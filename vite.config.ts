@@ -1,5 +1,5 @@
 import { cpSync, createReadStream, statSync } from "node:fs";
-import { extname, resolve } from "node:path";
+import { extname, resolve, sep } from "node:path";
 import { defineConfig, type Plugin } from "vite";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import babel from "@rolldown/plugin-babel";
@@ -19,7 +19,7 @@ function webrRuntime(): Plugin {
     configureServer(server) {
       server.middlewares.use("/webr", (req, res, next) => {
         const file = resolve(WEBR_DIST, `.${decodeURIComponent(req.url!.split("?")[0])}`);
-        if (!file.startsWith(WEBR_DIST) || !statSync(file, { throwIfNoEntry: false })?.isFile()) return next();
+        if (!file.startsWith(WEBR_DIST + sep) || !statSync(file, { throwIfNoEntry: false })?.isFile()) return next();
         res.setHeader("Content-Type", MIME[extname(file)] ?? "application/octet-stream");
         createReadStream(file).pipe(res);
       });
@@ -36,7 +36,8 @@ export default defineConfig({
   // The native side is rebuilt by Tauri; its build output must not reload the page.
   server: { port: 1420, strictPort: true, watch: { ignored: ["**/src-tauri/**"] } },
   build: {
-    target: "safari16",
+    // The oldest WebKit Helix meets: macOS 14's (`minimumSystemVersion` in tauri.conf.json).
+    target: "safari17",
     chunkSizeWarningLimit: 5000,
     // The app's pages: project windows, and the hidden window running R (engine.ts).
     rolldownOptions: { input: ["index.html", "engine.html"] },

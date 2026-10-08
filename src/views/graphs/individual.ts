@@ -7,11 +7,7 @@ import type { Column } from "../../lib/dataset";
 import { baseLayout, centers, errors, jitter, seriesPoints, type Paint } from "./plot-helpers";
 import { pointKeyOf } from "../../lib/columns";
 
-function build(
-  columns: Column[],
-  options: GraphOptions,
-  paint: Paint,
-): GraphFigure {
+function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFigure {
   const center = centers(columns, options.center);
   const errs = errors(columns, options.error);
   const data: unknown[] = [];
@@ -58,12 +54,24 @@ function build(
       mode: "markers",
       x: c.values.map((_, vi) => i + jitter(i, vi)),
       y: c.values,
-      ...seriesPoints(paint, c.name, i, c.rows.map((r) => pointKeyOf(c.name, r))),
+      ...seriesPoints(
+        paint,
+        c.name,
+        i,
+        c.rows.map((r) => pointKeyOf(c.name, r)),
+      ),
       hoverinfo: "y",
     });
   });
 
-  return { data, layout: baseLayout(options, columns.map((c) => c.name), { zeroBase: options.bars }) };
+  return {
+    data,
+    layout: baseLayout(
+      options,
+      columns.map((c) => c.name),
+      { zeroBase: options.bars },
+    ),
+  };
 }
 
 export const individual: GraphModule = {

@@ -7,6 +7,7 @@ import type { AnalysisOutcome, Column, OutlierGroupRow, OutliersParams } from ".
 import { describe } from "./base";
 import { adjustPValues } from "../grouped/base";
 import { evalNamedVector } from "../webr";
+import { median } from "../../lib/summary";
 
 const DEFAULTS: OutliersParams = { q: 1 };
 const MIN_POINTS = 3; // fewer than this, a robust fit + outlier test isn't meaningful
@@ -26,13 +27,11 @@ function groupPoints(columns: Column[]): { name: string; points: Point[] }[] {
 /** Robust location (Huber M-estimator) + scale (MADN) for one column's values.
  *  `sd: null` means every value is identical — no meaningful outlier test. */
 function robustFit(values: number[]): { mean: number; sd: number | null } {
-  const sorted = [...values].sort((a, b) => a - b);
-  const medianOf = (xs: number[]) => (xs.length % 2 ? xs[(xs.length - 1) / 2] : (xs[xs.length / 2 - 1] + xs[xs.length / 2]) / 2);
-  const median = medianOf(sorted);
-  const mad = medianOf(sorted.map((v) => Math.abs(v - median)).sort((a, b) => a - b));
+  const center = median(values);
+  const mad = median(values.map((v) => Math.abs(v - center)));
   const sd = mad * 1.4826;
-  if (sd === 0) return { mean: median, sd: null };
-  let mean = median;
+  if (sd === 0) return { mean: center, sd: null };
+  let mean = center;
   for (let i = 0; i < 30; i++) {
     let wSum = 0;
     let wxSum = 0;
@@ -58,25 +57,25 @@ export async function runRout(columns: Column[], params?: OutliersParams): Promi
   const { q: qPercent } = params ?? DEFAULTS;
   const q = qPercent / 100;
 
-  const fits = groups.map((g) => (g.points.length >= MIN_POINTS ? robustFit(g.points.map((p) => p.value)) : { mean: NaN, sd: null }));
+  const fits = groups.map((g) =>
+    g.points.length >= MIN_POINTS ? robustFit(g.points.map((p) => p.value)) : { mean: NaN, sd: null },
+  );
 
   // Batch every testable point's t statistic + df into one R round-trip for pt().
   const owner: { g: number; p: number; t: number; df: number }[] = [];
   groups.forEach((g, gi) => {
     const fit = fits[gi];
     if (g.points.length < MIN_POINTS || fit.sd == null) return;
-    g.points.forEach((pt, pi) => owner.push({ g: gi, p: pi, t: (pt.value - fit.mean) / fit.sd!, df: g.points.length - 1 }));
+    g.points.forEach((pt, pi) =>
+      owner.push({ g: gi, p: pi, t: (pt.value - fit.mean) / fit.sd!, df: g.points.length - 1 }),
+    );
   });
 
   let rawPByOwner: (number | null)[] = [];
   if (owner.length) {
-    try {
-      const code = `c(${owner.map((o, k) => `p${k}=2*pt(${-Math.abs(o.t)},${o.df})`).join(",")})`;
-      const v = await evalNamedVector(code);
-      rawPByOwner = owner.map((_, k) => v[`p${k}`] ?? null);
-    } catch (err) {
-      return { error: `Could not run the outlier test: ${err instanceof Error ? err.message : String(err)}` };
-    }
+    const code = `c(${owner.map((o, k) => `p${k}=2*pt(${-Math.abs(o.t)},${o.df})`).join(",")})`;
+    const v = await evalNamedVector(code);
+    rawPByOwner = owner.map((_, k) => v[`p${k}`] ?? null);
   }
 
   // Slice raw p-values back per group, then FDR-adjust within each group independently.
@@ -117,7 +116,7 @@ export async function runRout(columns: Column[], params?: OutliersParams): Promi
     (flagged.length
       ? `Flagged as outliers (FDR-adjusted P < Q): ${flagged
           .map((f) => `${f.group} row ${f.row + 1} (value ${f.value}, adj. P = ${f.p.toFixed(4)})`)
-          .join("; ")}. Use Exclude from Analysis (⌘E) on those cells to remove them from other tests/graphs.`
+          .join("; ")}. Use Edit ▸ Exclude / Include (⌘E) on those cells to leave them out of other tests and graphs.`
       : `No outliers detected at Q = ${qPercent}%.`) +
     ` Method: each column fit independently to a robust mean (Huber M-estimator, scale from the median absolute ` +
     `deviation), residuals tested via a two-tailed t distribution and FDR-corrected (Benjamini-Hochberg) within ` +

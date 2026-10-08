@@ -29,4 +29,10 @@ function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFig
   return { data, layout: xyLayout(options, xCol.name, ySeries.length, { zeroBase: true }) };
 }
 
-export const xyArea: GraphModule = { label: "Area", family: "xy", defaults: { fill: 0.5, outline: 2 }, patterns: () => true, build };
+export const xyArea: GraphModule = {
+  label: "Area",
+  family: "xy",
+  defaults: { fill: 0.5, outline: 2 },
+  patterns: () => true,
+  build,
+};

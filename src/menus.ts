@@ -23,20 +23,28 @@ const ABOUT = {
   version,
   shortVersion: "", // empty: no "(1.0.0)" after the version
   credits: "Scientific data analysis, simplified.",
-  copyright: "© 2026 mickaphd\nFree and open source (GPL-3.0). No warranty.",
+  copyright: "© 2026 mickaphd\nFree and open source. No warranty.",
 };
 
-/** Opens projects (native.openProjects); one that is gone is reported, and `forget` drops it. */
+/** Says a project file is gone (moved or deleted since). */
+export const sayGone = (path: string) =>
+  alert("Couldn't Open Project", `“${fileName(path)}” couldn't be found. It may have been moved or deleted.`, "error");
+
+/** Opens projects (native.openProjects); one that is gone is said, and `forget` drops it. */
 export function openProjectsOrSay(paths: string[], forget: (path: string) => void = () => {}) {
   openProjects(paths).catch((gone: unknown) => {
-    void alert("Couldn't Open Project", `“${fileName(String(gone))}” couldn't be found. It may have been moved or deleted.`, "error");
+    void sayGone(String(gone));
     forget(String(gone));
   });
 }
 
 /** File ▸ New Project, Open…, Open Recent: how every File menu starts. `forgetRecent`
  *  drops a recent project that is gone. */
-export function projectItems(recents: string[], forgetRecent: (path: string) => void, clearRecents: () => void): MenuItems {
+export function projectItems(
+  recents: string[],
+  forgetRecent: (path: string) => void,
+  clearRecents: () => void,
+): MenuItems {
   const recentItems = recents.length
     ? [
         ...recents.map((path) => ({
@@ -78,6 +86,7 @@ export function setMenuBar(menus: MenuItems) {
     [
       { text: "Helix Website", action: () => openLink("website") },
       { text: "Helix on GitHub", action: () => openLink("github") },
+      { text: "Buy Me a Coffee", action: () => openLink("coffee") },
       separator,
       { text: "Sample Project", action: () => void openSample() },
     ],

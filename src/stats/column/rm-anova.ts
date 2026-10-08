@@ -5,7 +5,7 @@
 // with Tukey or Bonferroni comparisons of every pair of groups, based on the
 // ANOVA's own residual mean square.
 import type { AnovaParams } from "../types";
-import { buildComparisons, groupsSetup, pairedGroups, pairIndices, pRow, type ColumnTestSpec } from "./base";
+import { groupsSetup, matchedRowsNote, pairedGroups, pairIndices, posthocOf, pRow, type ColumnTestSpec } from "./base";
 
 export const rmAnovaSpec: ColumnTestSpec<AnovaParams> = {
   testType: "rm-anova",
@@ -37,16 +37,8 @@ export const rmAnovaSpec: ColumnTestSpec<AnovaParams> = {
     pRow("P value", v.p),
     { label: "R squared (eta squared)", value: v.eta2 },
   ],
-  comparisons: (v, groups, params) =>
-    params?.posthoc && params.posthoc !== "none" ? buildComparisons(groups, (i, j) => v[`p_${i}_${j}`]) : undefined,
-  comparisonsLabel: (params) =>
-    params?.posthoc === "tukey"
-      ? "Tukey's multiple comparisons test"
-      : params?.posthoc === "bonferroni"
-        ? "Bonferroni-corrected multiple comparisons"
-        : undefined,
-  notes:
-    "Compares means across matched groups, blocking on subject; assumes normal distributions. " +
-    "Requires complete rows (every subject measured in every group).",
+  posthoc: posthocOf,
+  notes: (_params, _groups, columns) =>
+    `Compares means across matched groups, blocking on subject; assumes normal distributions. ${matchedRowsNote(columns)}`,
   subtitle: () => "Repeated-measures one-way ANOVA",
 };

@@ -8,26 +8,28 @@ import { projectItems, separator as sep, setMenuBar } from "./menus";
 import { useProjectStore } from "./store/use-project-store";
 import { useLayout } from "./store/use-layout";
 import { removeWithConfirm, type DocumentActions } from "./store/use-document";
-import type { GraphType } from "./store/types";
+import { NODE_NAMES, type GraphType } from "./store/types";
 import { TABLE_TYPE_OPTIONS } from "./views/tables";
 import { ANALYSIS_OPTIONS_BY_TABLE } from "./views/analyses";
 import { GRAPH_OPTIONS_BY_TABLE } from "./views/graphs";
-import { useOpenAnalysisPicker, useStartAnalysis } from "./views/analyses/use-analysis-launcher";
-import { useOpenGraphPicker } from "./views/graphs/use-graph-launcher";
+import { useStartAnalysis } from "./views/analyses/use-analysis-launcher";
 
 const THEME_KEY = "helix.theme";
+
+/** The appearance chosen in View ▸ Appearance, which every window shares. */
+function savedTheme(): Theme {
+  try {
+    const theme = localStorage.getItem(THEME_KEY);
+    return theme === "light" || theme === "dark" ? theme : "system";
+  } catch {
+    return "system";
+  }
+}
 
 /** Text-editing commands go to a focused text field natively, everything else to the
  *  table grid (whose idle input, marked `data-grid-idle`, doesn't count as a text field).
  *  Undo and Redo go to the field being typed in, else to the project (the store). */
-export type EditCommand =
-  | "delete"
-  | "select-all"
-  | "fill-down"
-  | "exclude"
-  | "find"
-  | "find-next"
-  | "find-previous";
+export type EditCommand = "delete" | "select-all" | "fill-down" | "exclude" | "find" | "find-next" | "find-previous";
 const TEXT_COMMANDS: EditCommand[] = ["delete", "select-all"];
 
 /** Where the keyboard is: a text field, the data grid, or elsewhere. */
@@ -47,21 +49,23 @@ function edit(command: EditCommand) {
 
 export function useAppMenu(doc: DocumentActions) {
   const store = useProjectStore();
-  const openAnalysisPicker = useOpenAnalysisPicker();
   const startAnalysis = useStartAnalysis();
-  const openGraphPicker = useOpenGraphPicker();
-  const { sidebar, inspector, setLayout } = useLayout();
-  const [theme, setThemeState] = React.useState<Theme>(() => (localStorage.getItem(THEME_KEY) as Theme) ?? "system");
+  const { sidebar, inspector, inspectorHere, setLayout } = useLayout();
+  const [theme, setThemeState] = React.useState(savedTheme);
 
   // Menu actions run long after the menu was built: read everything through this ref.
-  const latest = React.useRef({ store, doc, openAnalysisPicker, startAnalysis, openGraphPicker });
+  const latest = React.useRef({ store, doc, startAnalysis });
   React.useEffect(() => {
-    latest.current = { store, doc, openAnalysisPicker, startAnalysis, openGraphPicker };
+    latest.current = { store, doc, startAnalysis };
   });
 
   React.useEffect(() => {
     setTheme(theme);
-    localStorage.setItem(THEME_KEY, theme);
+    try {
+      localStorage.setItem(THEME_KEY, theme);
+    } catch {
+      // Not kept: the next launch follows the system.
+    }
   }, [theme]);
 
   // Only the window in front sets the menu; it reads the theme again, which another window may have changed.
@@ -70,7 +74,7 @@ export function useAppMenu(doc: DocumentActions) {
     () =>
       onFocusChange((focus) => {
         setFocused(focus);
-        if (focus) setThemeState((localStorage.getItem(THEME_KEY) as Theme) ?? "system");
+        if (focus) setThemeState(savedTheme());
       }),
     [],
   );
@@ -90,8 +94,6 @@ export function useAppMenu(doc: DocumentActions) {
   }, []);
   const tableType = activeTableId ? nodes[activeTableId]?.tableType : undefined;
   const hasTable = activeTableId !== null;
-  // Graphs and grouped tables have an inspector.
-  const hasInspector = activeNode?.type === "graph" || (activeNode?.type === "table" && tableType === "grouped");
 
   React.useEffect(() => {
     if (!isNative || !focused) return;
@@ -163,8 +165,8 @@ export function useAppMenu(doc: DocumentActions) {
         text: "Table",
         items: [
           {
-            text: "New Data Table",
-            accelerator: "CmdOrCtrl+Shift+T",
+            text: "New Table…",
+            accelerator: "CmdOrCtrl+Alt+T",
             action: () => latest.current.store.openSelector({ kind: "new-table" }),
           },
           sep,
@@ -174,7 +176,8 @@ export function useAppMenu(doc: DocumentActions) {
           })),
           sep,
           {
-            text: "Delete Selection…",
+            // What it deletes, named as the sidebar's menu names it.
+            text: `Delete ${activeNode ? NODE_NAMES[activeNode.type] : "Table"}…`,
             accelerator: "CmdOrCtrl+Backspace",
             enabled: activeNodeId !== null,
             action: () => {
@@ -192,10 +195,10 @@ export function useAppMenu(doc: DocumentActions) {
         text: "Analysis",
         items: [
           {
-            text: "New Analysis",
-            accelerator: "CmdOrCtrl+Shift+A",
+            text: "New Analysis…",
+            accelerator: "CmdOrCtrl+Alt+A",
             enabled: hasTable,
-            action: run((l, id) => l.openAnalysisPicker(id)),
+            action: run((l, id) => l.store.openSelector({ kind: "new-analysis", tableId: id })),
           },
           sep,
           ...(tableType ? ANALYSIS_OPTIONS_BY_TABLE[tableType] : []).map((o) => ({
@@ -208,10 +211,10 @@ export function useAppMenu(doc: DocumentActions) {
         text: "Graph",
         items: [
           {
-            text: "New Graph",
-            accelerator: "CmdOrCtrl+Alt+G", // ⇧⌘G is Find Previous
+            text: "New Graph…",
+            accelerator: "CmdOrCtrl+Alt+G",
             enabled: hasTable,
-            action: run((l, id) => l.openGraphPicker(id)),
+            action: run((l, id) => l.store.openSelector({ kind: "new-graph", tableId: id })),
           },
           sep,
           ...(tableType ? GRAPH_OPTIONS_BY_TABLE[tableType] : []).map((o) => ({
@@ -230,8 +233,8 @@ export function useAppMenu(doc: DocumentActions) {
           },
           {
             text: inspector ? "Hide Inspector" : "Show Inspector",
-            accelerator: "Alt+Cmd+I",
-            enabled: hasInspector,
+            accelerator: "CmdOrCtrl+Alt+I",
+            enabled: inspectorHere,
             action: () => setLayout({ inspector: !inspector }),
           },
           sep,
@@ -249,7 +252,8 @@ export function useAppMenu(doc: DocumentActions) {
     tableType,
     hasTable,
     activeNodeId !== null,
-    hasInspector,
+    activeNode?.type,
+    inspectorHere,
     isDirty,
     doc.recents,
     theme,

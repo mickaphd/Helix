@@ -252,7 +252,7 @@
     "n": 7
    }
   ],
-  "notes": "Assumes the paired differences are sampled from a normal distribution. Two-tailed P value. Compares “Control” and “Low”, the first two columns with data; not included: “High”, “Sparse”."
+  "notes": "Assumes the paired differences are sampled from a normal distribution. Two-tailed P value. Uses complete rows only (every subject measured in every group). 1 row left out for missing data. Compares “Control” and “Low”, the first two columns with data; not included: “High”, “Sparse”."
  },
  "compare-two-groups column {\"paired\":true,\"gaussian\":true,\"equalVariance\":false,\"ratio\":true,\"tails\":\"two-sided\"}": {
   "testType": "compare-two-groups",
@@ -302,7 +302,7 @@
     "n": 7
    }
   ],
-  "notes": "Compares the ratio between pairs (log-transformed) instead of the difference — for data where a proportional change is more meaningful. Assumes the ratios are log-normally distributed. Two-tailed P value. Compares “Control” and “Low”, the first two columns with data; not included: “High”, “Sparse”."
+  "notes": "Compares the ratio between pairs (log-transformed) instead of the difference — for data where a proportional change is more meaningful. Assumes the ratios are log-normally distributed. Two-tailed P value. Uses complete rows only (every subject measured in every group). 1 row left out for missing data. Compares “Control” and “Low”, the first two columns with data; not included: “High”, “Sparse”."
  },
  "compare-two-groups column {\"paired\":false,\"gaussian\":false,\"equalVariance\":false,\"ratio\":false,\"tails\":\"two-sided\"}": {
   "testType": "compare-two-groups",
@@ -352,7 +352,7 @@
     "n": 7
    }
   ],
-  "notes": "Non-parametric: no normality assumption. Uses a normal approximation when ties are present. Two-tailed P value. Compares “Control” and “Low”, the first two columns with data; not included: “High”, “Sparse”."
+  "notes": "Non-parametric: no normality assumption. Two-tailed P value. Compares “Control” and “Low”, the first two columns with data; not included: “High”, “Sparse”."
  },
  "compare-two-groups column {\"paired\":true,\"gaussian\":false,\"equalVariance\":false,\"ratio\":false,\"tails\":\"greater\"}": {
   "testType": "compare-two-groups",
@@ -364,7 +364,7 @@
    },
    {
     "label": "P value",
-    "value": 0.8979579111,
+    "value": 0.8828125,
     "p": true
    },
    {
@@ -373,7 +373,7 @@
    },
    {
     "label": "Hodges-Lehmann difference",
-    "value": -2.75625
+    "value": -2.55
    }
   ],
   "groups": [
@@ -394,7 +394,7 @@
     "n": 7
    }
   ],
-  "notes": "Non-parametric: no normality assumption on the paired differences. One-tailed P value. Compares “Control” and “Low”, the first two columns with data; not included: “High”, “Sparse”."
+  "notes": "Non-parametric: no normality assumption on the paired differences. One-tailed P value. Uses complete rows only (every subject measured in every group). 1 row left out for missing data. Compares “Control” and “Low”, the first two columns with data; not included: “High”, “Sparse”."
  },
  "one-sample-t column {\"hypotheticalValue\":12,\"tails\":\"two-sided\",\"gaussian\":true}": {
   "testType": "one-sample-t",
@@ -586,7 +586,7 @@
    },
    {
     "label": "Sparse — P value",
-    "value": 0.1814492077,
+    "value": 0.25,
     "p": true
    },
    {
@@ -1043,7 +1043,7 @@
     "n": 2
    }
   ],
-  "notes": "Compares means across matched groups, blocking on subject; assumes normal distributions. Requires complete rows (every subject measured in every group)."
+  "notes": "Compares means across matched groups, blocking on subject; assumes normal distributions. Uses complete rows only (every subject measured in every group). 6 rows left out for missing data."
  },
  "rm-anova column {\"posthoc\":\"tukey\"}": {
   "testType": "rm-anova",
@@ -1105,7 +1105,7 @@
     "n": 2
    }
   ],
-  "notes": "Compares means across matched groups, blocking on subject; assumes normal distributions. Requires complete rows (every subject measured in every group).",
+  "notes": "Compares means across matched groups, blocking on subject; assumes normal distributions. Uses complete rows only (every subject measured in every group). 6 rows left out for missing data.",
   "comparisons": [
    {
     "group1": "Control",
@@ -1206,7 +1206,7 @@
     "n": 2
    }
   ],
-  "notes": "Compares means across matched groups, blocking on subject; assumes normal distributions. Requires complete rows (every subject measured in every group).",
+  "notes": "Compares means across matched groups, blocking on subject; assumes normal distributions. Uses complete rows only (every subject measured in every group). 6 rows left out for missing data.",
   "comparisons": [
    {
     "group1": "Control",
@@ -1299,7 +1299,7 @@
     "n": 2
    }
   ],
-  "notes": "Non-parametric alternative to repeated-measures ANOVA for ≥3 matched groups; no normality assumption. 6 rows excluded because of missing data (only rows with every group measured are included).",
+  "notes": "Non-parametric alternative to repeated-measures ANOVA for ≥3 matched groups; no normality assumption. Uses complete rows only (every subject measured in every group). 6 rows left out for missing data.",
   "comparisons": [
    {
     "group1": "Control",
@@ -1501,7 +1501,7 @@
     "robustMean": 10.66814242
    }
   ],
-  "notes": "Flagged as outliers (FDR-adjusted P < Q): Control row 8 (value 30, adj. P = 0.0000). Use Exclude from Analysis (⌘E) on those cells to remove them from other tests/graphs. Method: each column fit independently to a robust mean (Huber M-estimator, scale from the median absolute deviation), residuals tested via a two-tailed t distribution and FDR-corrected (Benjamini-Hochberg) within that column. This mirrors the published Motulsky & Brown (2006) ROUT algorithm's logic, not GraphPad's certified implementation."
+  "notes": "Flagged as outliers (FDR-adjusted P < Q): Control row 8 (value 30, adj. P = 0.0000). Use Edit ▸ Exclude / Include (⌘E) on those cells to leave them out of other tests and graphs. Method: each column fit independently to a robust mean (Huber M-estimator, scale from the median absolute deviation), residuals tested via a two-tailed t distribution and FDR-corrected (Benjamini-Hochberg) within that column. This mirrors the published Motulsky & Brown (2006) ROUT algorithm's logic, not GraphPad's certified implementation."
  },
  "outliers column {\"q\":5}": {
   "testType": "outliers",
@@ -1592,7 +1592,7 @@
     "robustMean": 10.66814242
    }
   ],
-  "notes": "Flagged as outliers (FDR-adjusted P < Q): Control row 8 (value 30, adj. P = 0.0000). Use Exclude from Analysis (⌘E) on those cells to remove them from other tests/graphs. Method: each column fit independently to a robust mean (Huber M-estimator, scale from the median absolute deviation), residuals tested via a two-tailed t distribution and FDR-corrected (Benjamini-Hochberg) within that column. This mirrors the published Motulsky & Brown (2006) ROUT algorithm's logic, not GraphPad's certified implementation."
+  "notes": "Flagged as outliers (FDR-adjusted P < Q): Control row 8 (value 30, adj. P = 0.0000). Use Edit ▸ Exclude / Include (⌘E) on those cells to leave them out of other tests and graphs. Method: each column fit independently to a robust mean (Huber M-estimator, scale from the median absolute deviation), residuals tested via a two-tailed t distribution and FDR-corrected (Benjamini-Hochberg) within that column. This mirrors the published Motulsky & Brown (2006) ROUT algorithm's logic, not GraphPad's certified implementation."
  },
  "correlation xy {\"method\":\"pearson\",\"mode\":\"x-vs-every-y\"}": {
   "testType": "correlation",
@@ -4109,10 +4109,460 @@
   "notes": "Contingency table 2×2, N = 40. Fisher's exact test (2×2). Odds ratio 95% CI: 1.457 to 35.74 for the table as entered (rows × columns)."
  },
  "linear-regression xyNoX {\"forceOrigin\":false}": {
-  "error": "This test needs at least 2 columns containing numeric data."
+  "error": "“X”, the X column, is empty. Type the X values (times, doses…) in it."
  },
  "correlation xyNoX {\"method\":\"pearson\",\"mode\":\"x-vs-every-y\"}": {
-  "error": "Correlation needs an X column and at least one Y column with numeric data."
+  "error": "“X”, the X column, is empty. Type the X values (times, doses…) in it."
+ },
+ "descriptive-statistics column {\"sets\":[\"Sparse\",\"Low\"]}": {
+  "testType": "descriptive-statistics",
+  "stats": [],
+  "groups": [
+   {
+    "name": "Sparse",
+    "mean": 10.625,
+    "sd": 1.25,
+    "sem": 0.625,
+    "median": 10.75,
+    "n": 4,
+    "ciLow": 8.635971059,
+    "ciHigh": 12.61402894,
+    "min": 9,
+    "max": 12,
+    "range": 3
+   },
+   {
+    "name": "Low",
+    "mean": 14.84285714,
+    "sd": 0.8443086775,
+    "sem": 0.3191186843,
+    "median": 14.9,
+    "n": 7,
+    "ciLow": 14.06200185,
+    "ciHigh": 15.62371243,
+    "min": 13.8,
+    "max": 16.2,
+    "range": 2.4
+   }
+  ],
+  "notes": "Per-column summary. Range is Max − Min. 95% CI is the t-based confidence interval of the mean; columns with fewer than 2 values have no SD, SEM, or CI."
+ },
+ "compare-two-groups column {\"paired\":false,\"gaussian\":true,\"equalVariance\":false,\"ratio\":false,\"tails\":\"two-sided\",\"sets\":[\"High\",\"Control\"]}": {
+  "testType": "compare-two-groups",
+  "subtitle": "Welch's t test",
+  "stats": [
+   {
+    "label": "t",
+    "value": 2.299356864
+   },
+   {
+    "label": "df",
+    "value": 7.534273688
+   },
+   {
+    "label": "P value",
+    "value": 0.05247078178,
+    "p": true
+   },
+   {
+    "label": "Mean difference",
+    "value": 5.279166667
+   },
+   {
+    "label": "95% CI lower",
+    "value": -0.07277239614
+   },
+   {
+    "label": "95% CI upper",
+    "value": 10.63110573
+   },
+   {
+    "label": "R squared",
+    "value": 0.4123634518
+   },
+   {
+    "label": "F (variance ratio)",
+    "value": 0.02890410497
+   },
+   {
+    "label": "F DFn",
+    "value": 5
+   },
+   {
+    "label": "F DFd",
+    "value": 7
+   },
+   {
+    "label": "F test P value",
+    "value": 0.001219448872,
+    "p": true
+   }
+  ],
+  "groups": [
+   {
+    "name": "High",
+    "mean": 19.61666667,
+    "sd": 1.083358974,
+    "sem": 0.4422794491,
+    "median": 19.65,
+    "n": 6
+   },
+   {
+    "name": "Control",
+    "mean": 14.3375,
+    "sd": 6.372247305,
+    "sem": 2.25292964,
+    "median": 12.3,
+    "n": 8
+   }
+  ],
+  "notes": "Assumes normal distributions but allows unequal variances (Welch–Satterthwaite df). Two-tailed P value."
+ },
+ "compare-two-groups column {\"paired\":true,\"gaussian\":true,\"equalVariance\":false,\"ratio\":false,\"tails\":\"two-sided\",\"sets\":[\"Control\",\"Sparse\"]}": {
+  "testType": "compare-two-groups",
+  "subtitle": "Paired t test",
+  "stats": [
+   {
+    "label": "t",
+    "value": 1.789150134
+   },
+   {
+    "label": "df",
+    "value": 3
+   },
+   {
+    "label": "P value",
+    "value": 0.1715350349,
+    "p": true
+   },
+   {
+    "label": "Mean of differences",
+    "value": 1.375
+   },
+   {
+    "label": "95% CI lower",
+    "value": -1.070777795
+   },
+   {
+    "label": "95% CI upper",
+    "value": 3.820777795
+   },
+   {
+    "label": "R squared",
+    "value": 0.5162116041
+   }
+  ],
+  "groups": [
+   {
+    "name": "Control",
+    "mean": 12,
+    "sd": 0.9486832981,
+    "sem": 0.474341649,
+    "median": 11.95,
+    "n": 4
+   },
+   {
+    "name": "Sparse",
+    "mean": 10.625,
+    "sd": 1.25,
+    "sem": 0.625,
+    "median": 10.75,
+    "n": 4
+   }
+  ],
+  "notes": "Assumes the paired differences are sampled from a normal distribution. Two-tailed P value. Uses complete rows only (every subject measured in every group). 4 rows left out for missing data."
+ },
+ "anova column {\"posthoc\":\"tukey\",\"sets\":[\"Control\",\"Low\",\"High\"]}": {
+  "testType": "anova",
+  "stats": [
+   {
+    "label": "F",
+    "value": 3.361774527
+   },
+   {
+    "label": "DFn",
+    "value": 2
+   },
+   {
+    "label": "DFd",
+    "value": 18
+   },
+   {
+    "label": "P value",
+    "value": 0.05747185605,
+    "p": true
+   },
+   {
+    "label": "R squared (eta squared)",
+    "value": 0.2719491866
+   }
+  ],
+  "groups": [
+   {
+    "name": "Control",
+    "mean": 14.3375,
+    "sd": 6.372247305,
+    "sem": 2.25292964,
+    "median": 12.3,
+    "n": 8
+   },
+   {
+    "name": "Low",
+    "mean": 14.84285714,
+    "sd": 0.8443086775,
+    "sem": 0.3191186843,
+    "median": 14.9,
+    "n": 7
+   },
+   {
+    "name": "High",
+    "mean": 19.61666667,
+    "sd": 1.083358974,
+    "sem": 0.4422794491,
+    "median": 19.65,
+    "n": 6
+   }
+  ],
+  "notes": "Compares means across groups; assumes normal distributions with equal variances.",
+  "comparisons": [
+   {
+    "group1": "Control",
+    "group2": "Low",
+    "diff": -0.5053571429,
+    "p": 0.9684294961
+   },
+   {
+    "group1": "Control",
+    "group2": "High",
+    "diff": -5.279166667,
+    "p": 0.06515141922
+   },
+   {
+    "group1": "Low",
+    "group2": "High",
+    "diff": -4.773809524,
+    "p": 0.1134113119
+   }
+  ],
+  "comparisonsLabel": "Tukey's multiple comparisons test"
+ },
+ "two-way-anova grouped {\"design\":\"ordinary\",\"posthoc\":\"tukey\",\"posthocTarget\":\"groups\",\"sets\":[\"A\",\"C\"]}": {
+  "testType": "two-way-anova",
+  "subtitle": "Ordinary two-way ANOVA",
+  "stats": [
+   {
+    "label": "Group F",
+    "value": 88.28725038
+   },
+   {
+    "label": "Group DFn",
+    "value": 1
+   },
+   {
+    "label": "Group P value",
+    "value": 1.421595837e-8,
+    "p": true
+   },
+   {
+    "label": "Row F",
+    "value": 39.90734207
+   },
+   {
+    "label": "Row DFn",
+    "value": 4
+   },
+   {
+    "label": "Row P value",
+    "value": 5.393263284e-9,
+    "p": true
+   },
+   {
+    "label": "Interaction F",
+    "value": 8.610971102
+   },
+   {
+    "label": "Interaction DFn",
+    "value": 4
+   },
+   {
+    "label": "Interaction P value",
+    "value": 0.0003852726511,
+    "p": true
+   },
+   {
+    "label": "DFd (residual)",
+    "value": 19
+   }
+  ],
+  "groups": [
+   {
+    "name": "A",
+    "mean": 15.6,
+    "sd": 3.775863194,
+    "sem": 0.9749236844,
+    "median": 15,
+    "n": 15
+   },
+   {
+    "name": "C",
+    "mean": 12,
+    "sd": 1.664100589,
+    "sem": 0.44474959,
+    "median": 12,
+    "n": 14
+   }
+  ],
+  "notes": "Compares group and row-position effects, plus their interaction; assumes normal distributions with equal variances (Type III sums of squares).",
+  "comparisons": [
+   {
+    "group1": "A (Day 1)",
+    "group2": "C (Day 1)",
+    "diff": 1,
+    "p": 0.9679567584
+   },
+   {
+    "group1": "A (Day 2)",
+    "group2": "C (Day 2)",
+    "diff": 2,
+    "p": 0.5476708989
+   },
+   {
+    "group1": "A (Day 3)",
+    "group2": "C (Day 3)",
+    "diff": 3,
+    "p": 0.05402630731
+   },
+   {
+    "group1": "A (Day 4)",
+    "group2": "C (Day 4)",
+    "diff": 5,
+    "p": 0.000395105095
+   },
+   {
+    "group1": "A (Day 5)",
+    "group2": "C (Day 5)",
+    "diff": 7.333333333,
+    "p": 0.000002040964307
+   }
+  ],
+  "comparisonsLabel": "Tukey's multiple comparisons (groups within each row)"
+ },
+ "multiple-t-tests grouped {\"paired\":false,\"gaussian\":true,\"pooledSd\":false,\"correction\":\"holm\",\"sets\":[\"C\",\"A\"]}": {
+  "testType": "multiple-t-tests",
+  "subtitle": "Multiple t tests",
+  "stats": [
+   {
+    "label": "Rows compared",
+    "value": 5
+   },
+   {
+    "label": "Significant rows (P < 0.05)",
+    "value": 2
+   }
+  ],
+  "groups": [
+   {
+    "name": "C",
+    "mean": 12,
+    "sd": 1.664100589,
+    "sem": 0.44474959,
+    "median": 12,
+    "n": 14
+   },
+   {
+    "name": "A",
+    "mean": 15.6,
+    "sd": 3.775863194,
+    "sem": 0.9749236844,
+    "median": 15,
+    "n": 15
+   }
+  ],
+  "notes": "Welch's t test (no equal-SD assumption) at each row, Holm-corrected across rows.",
+  "comparisons": [
+   {
+    "group1": "Day 1",
+    "group2": "",
+    "diff": -1,
+    "p": 0.4963770762
+   },
+   {
+    "group1": "Day 2",
+    "group2": "",
+    "diff": -2,
+    "p": 0.4963770762
+   },
+   {
+    "group1": "Day 3",
+    "group2": "",
+    "diff": -3,
+    "p": 0.06393492339
+   },
+   {
+    "group1": "Day 4",
+    "group2": "",
+    "diff": -5,
+    "p": 0.01440893044
+   },
+   {
+    "group1": "Day 5",
+    "group2": "",
+    "diff": -7.333333333,
+    "p": 0.006233451284
+   }
+  ],
+  "comparisonsLabel": "Per-row comparisons (C vs. A)"
+ },
+ "correlation-matrix multiple {\"method\":\"pearson\",\"sets\":[\"Age\",\"Weight\"]}": {
+  "testType": "correlation-matrix",
+  "subtitle": "Pearson correlation matrix",
+  "stats": [],
+  "groups": [
+   {
+    "name": "Age",
+    "mean": 39.9,
+    "sd": 9.837004964,
+    "sem": 3.110734104,
+    "median": 39.5,
+    "n": 10
+   },
+   {
+    "name": "Weight",
+    "mean": 76.3,
+    "sd": 12.00971829,
+    "sem": 3.797806384,
+    "median": 73.5,
+    "n": 10
+   }
+  ],
+  "notes": "Pearson correlation between every pair of variables, computed on pairwise-complete rows; assumes linear relationships.",
+  "matrix": {
+   "variables": [
+    "Age",
+    "Weight"
+   ],
+   "r": [
+    [
+     1,
+     0.984051902
+    ],
+    [
+     0.984051902,
+     1
+    ]
+   ],
+   "p": [
+    [
+     null,
+     2.77637326e-7
+    ],
+    [
+     2.77637326e-7,
+     null
+    ]
+   ],
+   "label": "Correlation matrix (r)"
+  }
  },
  "graph individual column": {
   "data": [

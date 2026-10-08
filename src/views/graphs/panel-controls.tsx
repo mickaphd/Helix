@@ -1,8 +1,8 @@
 // The compact controls of a graph's Format panel: one labelled row each.
 import * as React from "react";
-import { CaretUpDownIcon, MinusIcon, PlusIcon } from "@phosphor-icons/react";
-import { Button, Input, Segmented, Select, Switch, cn } from "../../ui/controls";
-import { Row } from "../../components/common/inspector";
+import { CaretUpDownIcon, PaletteIcon } from "@phosphor-icons/react";
+import { Input, Segmented, Select, Switch, cn } from "../../ui/controls";
+import { Row, Stepper } from "../../components/common/inspector";
 import { colorName, paletteNamed, type Palette } from "../../lib/palettes";
 import { TINT, visibleOutline } from "./plot-helpers";
 import {
@@ -17,35 +17,24 @@ import {
   SHAPE_PATHS,
 } from "./style-menus";
 import {
+  clamp,
+  GRAPH_LIMITS,
   SAME_AS_FILL,
   type FillPattern,
   type GraphOptions,
   type GraphPalette,
+  type Limits,
   type LineDash,
   type PointShape,
   type SeriesStyle,
 } from "../../store/types";
 
-const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
-
 export type SetOptions = (patch: Partial<GraphOptions>) => void;
 
-export function TextRow({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
+export function TextRow({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <Row label={label}>
-      <Input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="None"
-      />
+      <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder="None" />
     </Row>
   );
 }
@@ -101,19 +90,8 @@ function ShapeIcon({ shape, color }: { shape: PointShape; color: string }) {
   );
 }
 
-/** A painter's palette filled with `color`: Phosphor's Palette, its outline only. */
-function ColorIcon({ color }: { color: string }) {
-  return (
-    <svg viewBox="0 0 256 256" className="size-5 shrink-0">
-      <path
-        d="M200.77,53.89A103.27,103.27,0,0,0,128,24h-1.07A104,104,0,0,0,24,128c0,43,26.58,79.06,69.36,94.17A32,32,0,0,0,136,192a16,16,0,0,1,16-16h46.21a31.81,31.81,0,0,0,31.2-24.88,104.43,104.43,0,0,0,2.59-24A103.28,103.28,0,0,0,200.77,53.89Z"
-        fill={color}
-        stroke="rgba(0,0,0,0.25)"
-        strokeWidth={12}
-      />
-    </svg>
-  );
-}
+/** A series' color: the Series section's own icon (Phosphor's Palette), drawn in it. */
+const ColorIcon = ({ color }: { color: string }) => <PaletteIcon className="size-5 shrink-0" color={color} />;
 
 /** A line with its dashes, drawn as in the menus. */
 function LineIcon({ dash, color }: { dash: LineDash; color: string }) {
@@ -273,40 +251,41 @@ export function ColorRow({
   );
 }
 
-/** A thickness in pixels, by half pixels up to 6, from 0 (none) when it can be none:
- *  outlines, lines, error bars, axes. */
+/** A thickness in pixels, by half pixels within its `limits` (GRAPH_LIMITS: from 0, none,
+ *  for outlines): outlines, lines, error bars, axes. */
 export function ThicknessRow({
   label,
   value,
-  none,
+  limits,
   onChange,
 }: {
   label: string;
   value: number;
-  none?: boolean;
+  limits: Limits;
   onChange: (v: number) => void;
 }) {
-  return <Stepper label={label} value={value} min={none ? 0 : 0.5} max={6} step={0.5} onChange={onChange} />;
+  return <Stepper label={label} value={value} min={limits.min} max={limits.max} step={0.5} onChange={onChange} />;
 }
 
-/** A share in steps of 10 %, up to `max` (1 = 100 %): how opaque a fill is, how wide a gap. */
+/** A share in steps of 10 %, within its `limits` (1 = 100 %): how opaque a fill is, how
+ *  wide a gap. */
 export function PercentRow({
   label,
   value,
-  max = 1,
+  limits,
   onChange,
 }: {
   label: string;
   value: number;
-  max?: number;
+  limits: Limits;
   onChange: (v: number) => void;
 }) {
   return (
     <Stepper
       label={`${label} (%)`}
       value={Math.round(value * 100)}
-      min={0}
-      max={max * 100}
+      min={limits.min * 100}
+      max={limits.max * 100}
       step={10}
       onChange={(v) => onChange(v / 100)}
     />
@@ -318,19 +297,21 @@ export function PercentRow({
 export function OutlineRows({
   palette,
   width,
+  limits,
   color,
   onWidth,
   onColor,
 }: {
   palette: GraphPalette;
   width: number;
+  limits: Limits;
   color: string | undefined;
   onWidth: (width: number) => void;
   onColor: (color: string, width?: number) => void;
 }) {
   return (
     <>
-      <ThicknessRow label="Outline" value={width} none onChange={onWidth} />
+      <ThicknessRow label="Outline" value={width} limits={limits} onChange={onWidth} />
       <ColorRow
         label="Outline color"
         palette={palette}
@@ -364,35 +345,30 @@ function PickRow({ label, icon, onClick }: { label: string; icon: React.ReactNod
 
 /** The shape of every point. */
 export const ShapeRow = ({ value, onChange }: { value: PointShape; onChange: (shape: PointShape) => void }) => (
-  <PickRow label="Shape" icon={<ShapeIcon shape={value} color="currentColor" />} onClick={() => void chooseShape(value, onChange)} />
+  <PickRow
+    label="Shape"
+    icon={<ShapeIcon shape={value} color="currentColor" />}
+    onClick={() => void chooseShape(value, onChange)}
+  />
 );
 
 /** The dashes of every line. */
 export const DashRow = ({ value, onChange }: { value: LineDash; onChange: (dash: LineDash) => void }) => (
-  <PickRow label="Dash" icon={<LineIcon dash={value} color="currentColor" />} onClick={() => void chooseDash(value, onChange)} />
+  <PickRow
+    label="Dash"
+    icon={<LineIcon dash={value} color="currentColor" />}
+    onClick={() => void chooseDash(value, onChange)}
+  />
 );
 
-/** Round Plotly's computed range/step to a sane display precision. */
-const roundDisplay = (n: number) => Math.round(n * 1000) / 1000;
-
-/** A number field, blank for Auto (showing the automatic value). It applies when left
- *  or on Return, so the graph doesn't redraw for each digit typed. */
-export function NumRow({
-  label,
-  value,
-  autoValue,
-  onChange,
-}: {
-  label: string;
-  value?: number;
-  autoValue?: number;
-  onChange: (v?: number) => void;
-}) {
-  const shown = String(value ?? (autoValue != null ? roundDisplay(autoValue) : ""));
+/** A number field, blank (reading "Auto") when Helix chooses it: any number typed applies,
+ *  when the field is left or on Return, so the graph doesn't redraw for each digit typed. */
+export function NumRow({ label, value, onChange }: { label: string; value?: number; onChange: (v?: number) => void }) {
+  const shown = value === undefined ? "" : String(value);
   return (
     <Row label={label}>
       <Input
-        // A new key when the value changes elsewhere (Reset, a new Auto range) shows it.
+        // A new key when the value changes elsewhere (Reset, Undo) shows it.
         key={shown}
         type="number"
         defaultValue={shown}
@@ -445,50 +421,6 @@ export function Toggle({
   );
 }
 
-/** A minimalist −/value/+ stepper (native +/- buttons) for a bounded numeric option.
- *  `step` may be fractional, so results are rounded to avoid float drift (0.5 + 0.5 …). */
-export function Stepper({
-  label,
-  value,
-  min,
-  max,
-  step,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  onChange: (v: number) => void;
-}) {
-  const round = (n: number) => Math.round(n / step) * step;
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-small text-secondary">{label}</span>
-      <div className="flex items-center gap-1">
-        <Button
-          size="icon"
-          disabled={value <= min}
-          onClick={() => onChange(clamp(round(value - step), min, max))}
-          aria-label={`Decrease ${label.toLowerCase()}`}
-        >
-          <MinusIcon className="size-3.5" />
-        </Button>
-        <span className="w-9 text-center text-small tabular-nums">{value}</span>
-        <Button
-          size="icon"
-          disabled={value >= max}
-          onClick={() => onChange(clamp(round(value + step), min, max))}
-          aria-label={`Increase ${label.toLowerCase()}`}
-        >
-          <PlusIcon className="size-3.5" />
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 /** A labelled column-picker Select. `allowNone` adds a "None" option (→ undefined). */
 export function ColumnSelectRow({
   label,
@@ -520,15 +452,13 @@ export function ColumnSelectRow({
 export function SizeRow({
   width,
   height,
-  limits,
   onChange,
 }: {
   width: number;
   height: number;
-  limits: { minWidth: number; maxWidth: number; minHeight: number; maxHeight: number };
   onChange: (size: { width: number; height: number }) => void;
 }) {
-  const field = (key: "width" | "height", value: number, min: number, max: number) => (
+  const field = (key: "width" | "height", value: number) => (
     <Input
       // A new key when the size changes elsewhere (dragging an axis) shows the new value.
       key={value}
@@ -538,7 +468,7 @@ export function SizeRow({
       onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
       onBlur={(e) => {
         const typed = e.currentTarget.valueAsNumber;
-        const next = Number.isFinite(typed) ? clamp(Math.round(typed), min, max) : value;
+        const next = Number.isFinite(typed) ? clamp(Math.round(typed), GRAPH_LIMITS[key]) : value;
         e.currentTarget.value = String(next);
         if (next !== value) onChange({ width, height, [key]: next });
       }}
@@ -547,9 +477,9 @@ export function SizeRow({
   return (
     <Row label="Size (px)">
       <div className="flex items-center gap-1.5">
-        {field("width", width, limits.minWidth, limits.maxWidth)}
+        {field("width", width)}
         <span className="text-small text-secondary">×</span>
-        {field("height", height, limits.minHeight, limits.maxHeight)}
+        {field("height", height)}
       </div>
     </Row>
   );

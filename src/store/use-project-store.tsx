@@ -1,6 +1,14 @@
 import * as React from "react";
 
-import type { NodeType, ProjectNode, TableData, TableType, GraphType, GraphOptions } from "./types";
+import {
+  NODE_NAMES,
+  type NodeType,
+  type ProjectNode,
+  type TableData,
+  type TableType,
+  type GraphType,
+  type GraphOptions,
+} from "./types";
 import type { AnalysisParams, AnalysisPickerValue, AnalysisType } from "../stats/types";
 import { TABLES } from "../views/tables";
 import { GRAPHS, newGraphOptions } from "../views/graphs";
@@ -72,6 +80,8 @@ type Action =
       childOrder: Record<string, string[]>;
       activeNodeId: string | null;
       filePath: string | null;
+      /** Changed as it was read (repaired, or from an older Helix): to be saved. */
+      edited?: boolean;
     }
   | { type: "markSaved"; filePath: string; savedRevision: number };
 
@@ -129,26 +139,22 @@ function arraysEqual(a: string[], b: string[]): boolean {
 function applyAction(state: ProjectState, action: Action): ProjectState {
   switch (action.type) {
     case "create": {
-      const nodes = { ...state.nodes, [action.node.id]: action.node };
-      let { rootOrder, childOrder } = state;
-      if (action.node.parentId === null) {
-        rootOrder = [...state.rootOrder, action.node.id];
-        childOrder = { ...state.childOrder, [action.node.id]: [] }; // new table starts empty
-      } else {
-        const pid = action.node.parentId;
-        childOrder = {
-          ...state.childOrder,
-          [pid]: [...(state.childOrder[pid] ?? []), action.node.id],
-        };
-      }
-      return {
-        ...state,
-        nodes,
-        rootOrder,
-        childOrder,
-        activeNodeId: action.node.id,
-        isDirty: true,
-      };
+      const pid = action.node.parentId;
+      if (pid !== null && state.nodes[pid]?.type !== "table") return state;
+      // Named among the names taken now: a table "Table N" (the smallest free N), an
+      // analysis or a graph what it is, with " 2" when a sibling has the name.
+      const taken = (pid === null ? state.rootOrder : (state.childOrder[pid] ?? [])).map(
+        (id) => state.nodes[id]?.name ?? "",
+      );
+      const name = pid === null ? nextName(action.node.name, taken) : uniqueName(action.node.name, taken);
+      const node = { ...action.node, name };
+      const nodes = { ...state.nodes, [node.id]: node };
+      const rootOrder = pid === null ? [...state.rootOrder, node.id] : state.rootOrder;
+      const childOrder =
+        pid === null
+          ? { ...state.childOrder, [node.id]: [] } // a new table starts empty
+          : { ...state.childOrder, [pid]: [...(state.childOrder[pid] ?? []), node.id] };
+      return { ...state, nodes, rootOrder, childOrder, activeNodeId: node.id, isDirty: true };
     }
     case "setActive":
       return { ...state, activeNodeId: action.id };
@@ -176,9 +182,7 @@ function applyAction(state: ProjectState, action: Action): ProjectState {
       // If the active node was removed, fall back to a surviving table rather
       // than dropping to the empty state while other tables still exist.
       const activeNodeId =
-        state.activeNodeId && remove.has(state.activeNodeId)
-          ? (rootOrder[0] ?? null)
-          : state.activeNodeId;
+        state.activeNodeId && remove.has(state.activeNodeId) ? (rootOrder[0] ?? null) : state.activeNodeId;
       return { ...state, nodes, rootOrder, childOrder, activeNodeId, isDirty: true };
     }
     case "updateTable": {
@@ -190,7 +194,8 @@ function applyAction(state: ProjectState, action: Action): ProjectState {
       const columnsChanged = action.data.columns.join("\n") !== node.data?.columns.join("\n");
       if (action.move || columnsChanged) {
         for (const child of Object.values(state.nodes)) {
-          if (child.parentId === action.id) nodes[child.id] = followTable(child, action.move ?? {}, action.data.columns);
+          if (child.parentId === action.id)
+            nodes[child.id] = followTable(child, action.move ?? {}, action.data.columns);
         }
       }
       return { ...state, nodes, isDirty: true };
@@ -247,7 +252,7 @@ function applyAction(state: ProjectState, action: Action): ProjectState {
         activeNodeId: action.activeNodeId,
         selector: null,
         filePath: action.filePath,
-        isDirty: false,
+        isDirty: action.edited ?? false,
         revision: state.revision, // bumped by the reducer wrapper (load is a MUTATING action)
         past: [],
         future: [],
@@ -281,7 +286,7 @@ const MUTATING = new Set<Action["type"]>([...UNDOABLE, "undo", "redo", "load"]);
 function changeName(action: Action): string {
   switch (action.type) {
     case "create":
-      return `New ${action.node.type === "table" ? "Table" : action.node.type === "analysis" ? "Analysis" : "Graph"}`;
+      return `New ${NODE_NAMES[action.node.type]}`;
     case "rename":
       return "Rename";
     case "remove":
@@ -317,28 +322,14 @@ export function reducer(state: ProjectState, action: Action): ProjectState {
   };
 }
 
-interface ProjectContextValue {
-  nodes: Record<string, ProjectNode>;
-  rootOrder: string[];
-  childOrder: Record<string, string[]>;
-  activeNodeId: string | null;
-  activeNode: ProjectNode | null;
-  activeTableId: string | null;
-  selector: ProjectState["selector"];
-  filePath: string | null;
-  isDirty: boolean;
-  revision: number;
-  /** What Undo and Redo would take back or replay ("Paste"), if anything. */
-  undoName?: string;
-  redoName?: string;
-  childrenOf: (parentId: string) => ProjectNode[];
-  createTable: (tableType: TableType) => string;
-  createAnalysis: (
-    parentId: string,
-    analysisType: AnalysisType,
-    analysisParams?: AnalysisParams,
-  ) => string | null;
-  createGraph: (parentId: string, graphType: GraphType) => string | null;
+/** What changes the project. These functions never change, so what only acts on the
+ *  project (`useProjectActions`) doesn't redraw with it. */
+interface ProjectActions {
+  /** The project as it is now, for an action to look at (never to draw from). */
+  get: () => ProjectState;
+  createTable: (tableType: TableType) => void;
+  createAnalysis: (parentId: string, analysisType: AnalysisType, analysisParams?: AnalysisParams) => void;
+  createGraph: (parentId: string, graphType: GraphType) => void;
   setActiveNode: (id: string | null) => void;
   renameNode: (id: string, name: string) => void;
   removeNode: (id: string) => void;
@@ -359,112 +350,92 @@ interface ProjectContextValue {
     activeNodeId: string | null;
     /** null: a project not saved anywhere yet (the sample project). */
     filePath: string | null;
+    /** Changed as it was read: it opens edited, so saving keeps it as it is now. */
+    edited?: boolean;
   }) => void;
   markProjectSaved: (filePath: string, savedRevision: number) => void;
 }
 
+interface ProjectContextValue extends ProjectActions {
+  nodes: Record<string, ProjectNode>;
+  activeNodeId: string | null;
+  activeNode: ProjectNode | null;
+  activeTableId: string | null;
+  selector: ProjectState["selector"];
+  filePath: string | null;
+  isDirty: boolean;
+  /** What Undo and Redo would take back or replay ("Paste"), if anything. */
+  undoName?: string;
+  redoName?: string;
+}
+
+/** An item as the sidebar shows it. */
+export type OutlineNode = Pick<ProjectNode, "id" | "type" | "name" | "parentId">;
+/** What the sidebar shows: the tables in order, each with its analyses and graphs. */
+interface Outline {
+  tables: (OutlineNode & { children: OutlineNode[] })[];
+  activeNodeId: string | null;
+}
+
+const outlineNode = ({ id, type, name, parentId }: ProjectNode): OutlineNode => ({ id, type, name, parentId });
+
+/** A table's analyses and graphs, in sidebar order. */
+const childrenOf = ({ nodes, childOrder }: ProjectState, tableId: string) =>
+  (childOrder[tableId] ?? []).flatMap((id) => (nodes[id] ? [nodes[id]] : []));
+
 const ProjectContext = React.createContext<ProjectContextValue | null>(null);
+const ActionsContext = React.createContext<ProjectActions | null>(null);
+const OutlineContext = React.createContext<Outline | null>(null);
 
 export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = React.useReducer(reducer, undefined, makeInitialState);
+  const latest = React.useRef(state);
+  React.useLayoutEffect(() => {
+    latest.current = state;
+  });
 
-  const value = React.useMemo<ProjectContextValue>(() => {
-    const activeNode = state.activeNodeId ? (state.nodes[state.activeNodeId] ?? null) : null;
-    const activeTableId = !activeNode
-      ? null
-      : activeNode.type === "table"
-        ? activeNode.id
-        : activeNode.parentId;
-
-    const tables = state.rootOrder
-      .map((id) => state.nodes[id])
-      .filter((n): n is ProjectNode => Boolean(n));
-
-    // Children grouped by table once per state: the sidebar asks for them per table.
-    const childrenByParent = new Map<string, ProjectNode[]>();
-    for (const n of Object.values(state.nodes)) {
-      if (n.parentId == null) continue;
-      const arr = childrenByParent.get(n.parentId);
-      if (arr) arr.push(n);
-      else childrenByParent.set(n.parentId, [n]);
-    }
-
-    const siblingNames = (parentId: string) => (childrenByParent.get(parentId) ?? []).map((n) => n.name);
-
-    return {
-      nodes: state.nodes,
-      rootOrder: state.rootOrder,
-      childOrder: state.childOrder,
-      activeNodeId: state.activeNodeId,
-      activeNode,
-      activeTableId,
-      selector: state.selector,
-      filePath: state.filePath,
-      isDirty: state.isDirty,
-      revision: state.revision,
-      undoName: state.past.at(-1)?.label,
-      redoName: state.future.at(-1)?.label,
-      childrenOf: (parentId) => {
-        const all = childrenByParent.get(parentId) ?? [];
-        const order = state.childOrder[parentId];
-        if (!order) return all;
-        const byId = new Map(all.map((n) => [n.id, n]));
-        const ordered = order.map((id) => byId.get(id)).filter((n): n is ProjectNode => Boolean(n));
-        // Safety net: any child missing from the order list (shouldn't happen) is appended.
-        const seen = new Set(order);
-        for (const n of all) if (!seen.has(n.id)) ordered.push(n);
-        return ordered;
-      },
-      createTable: (tableType) => {
-        const id = genId("table");
-        const name = nextName(
-          "Table",
-          tables.map((t) => t.name),
-        );
+  const actions = React.useMemo<ProjectActions>(
+    () => ({
+      get: () => latest.current,
+      createTable: (tableType) =>
         dispatch({
           type: "create",
           node: {
-            id,
+            id: genId("table"),
             type: "table",
-            name,
+            name: "Table",
             parentId: null,
             tableType,
             data: TABLES[tableType].defaultData(),
           },
-        });
-        return id;
-      },
+        }),
+      // Named for the test it runs, as in Prism.
       createAnalysis: (parentId, analysisType, analysisParams) => {
-        const parent = state.nodes[parentId];
-        if (!parent || parent.type !== "table") return null;
-        const id = genId("analysis");
-        // Named for the test it runs, as in Prism.
-        const { label, name: exact } = ANALYSES[analysisType];
-        const name = uniqueName(exact?.(analysisParams) ?? label, siblingNames(parentId));
-        dispatch({
-          type: "create",
-          node: { id, type: "analysis", name, parentId, analysisType, analysisParams },
-        });
-        return id;
-      },
-      createGraph: (parentId, graphType) => {
-        const parent = state.nodes[parentId];
-        if (!parent || parent.type !== "table") return null;
-        const id = genId("graph");
-        const name = uniqueName(GRAPHS[graphType].label, siblingNames(parentId));
+        const { label, name } = ANALYSES[analysisType];
         dispatch({
           type: "create",
           node: {
-            id,
+            id: genId("analysis"),
+            type: "analysis",
+            name: name?.(analysisParams) ?? label,
+            parentId,
+            analysisType,
+            analysisParams,
+          },
+        });
+      },
+      createGraph: (parentId, graphType) =>
+        dispatch({
+          type: "create",
+          node: {
+            id: genId("graph"),
             type: "graph",
-            name,
+            name: GRAPHS[graphType].label,
             parentId,
             graphType,
             graphOptions: newGraphOptions(graphType),
           },
-        });
-        return id;
-      },
+        }),
       setActiveNode: (id) => dispatch({ type: "setActive", id }),
       renameNode: (id, name) => dispatch({ type: "rename", id, name }),
       removeNode: (id) => dispatch({ type: "remove", id }),
@@ -477,16 +448,59 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       undo: () => dispatch({ type: "undo" }),
       redo: () => dispatch({ type: "redo" }),
       loadProject: (payload) => dispatch({ type: "load", ...payload }),
-      markProjectSaved: (filePath, savedRevision) =>
-        dispatch({ type: "markSaved", filePath, savedRevision }),
+      markProjectSaved: (filePath, savedRevision) => dispatch({ type: "markSaved", filePath, savedRevision }),
+    }),
+    [],
+  );
+
+  const value = React.useMemo<ProjectContextValue>(() => {
+    const activeNode = state.activeNodeId ? (state.nodes[state.activeNodeId] ?? null) : null;
+    const activeTableId = !activeNode ? null : activeNode.type === "table" ? activeNode.id : activeNode.parentId;
+
+    return {
+      ...actions,
+      nodes: state.nodes,
+      activeNodeId: state.activeNodeId,
+      activeNode,
+      activeTableId,
+      selector: state.selector,
+      filePath: state.filePath,
+      isDirty: state.isDirty,
+      undoName: state.past.at(-1)?.label,
+      redoName: state.future.at(-1)?.label,
     };
-  }, [state]);
+  }, [state, actions]);
 
-  return <ProjectContext.Provider value={value}>{children}</ProjectContext.Provider>;
+  // The outline as text: editing what a table or a graph holds leaves it the same, so
+  // the outline stays the same object and the sidebar doesn't redraw.
+  const outlineText = JSON.stringify(
+    state.rootOrder
+      .filter((id) => state.nodes[id])
+      .map((id) => ({ ...outlineNode(state.nodes[id]), children: childrenOf(state, id).map(outlineNode) })),
+  );
+  const outline = React.useMemo<Outline>(
+    () => ({ tables: JSON.parse(outlineText), activeNodeId: state.activeNodeId }),
+    [outlineText, state.activeNodeId],
+  );
+
+  return (
+    <ActionsContext.Provider value={actions}>
+      <OutlineContext.Provider value={outline}>
+        <ProjectContext.Provider value={value}>{children}</ProjectContext.Provider>
+      </OutlineContext.Provider>
+    </ActionsContext.Provider>
+  );
 }
 
-export function useProjectStore(): ProjectContextValue {
-  const ctx = React.useContext(ProjectContext);
-  if (!ctx) throw new Error("useProjectStore must be used inside <ProjectProvider>");
-  return ctx;
+function useProjectContext<T>(context: React.Context<T | null>): T {
+  const value = React.useContext(context);
+  if (!value) throw new Error("The project's hooks must be used inside <ProjectProvider>");
+  return value;
 }
+
+/** The whole project: redraws with any change to it. */
+export const useProjectStore = () => useProjectContext(ProjectContext);
+/** What changes the project, and a look at it: never redraws. */
+export const useProjectActions = () => useProjectContext(ActionsContext);
+/** The sidebar's outline: redraws when a name, the order or the selection changes. */
+export const useOutline = () => useProjectContext(OutlineContext);

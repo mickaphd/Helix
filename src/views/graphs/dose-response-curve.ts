@@ -42,13 +42,13 @@ function doseResponseCurve(
   return { x, y };
 }
 
-/** "EC50 = 12.3<br>Hill slope = 1.05<br>R²=0.9821" annotation text (Plotly-ready). */
+/** "EC50 = 12.3<br>Hill slope = 1.05<br>R² = 0.9821" annotation text (Plotly-ready). */
 function doseResponseLabel(model: DoseModel, coefficients: RegressionCoefficient[], stats: StatRow[]): string {
   const ec50 = model === "sigmoidal-4pl-logx" ? 10 ** coef(coefficients, "LogEC50") : coef(coefficients, "EC50");
   const hill = coef(coefficients, "HillSlope");
   const r2 = stats.find((s) => s.label === "R squared")?.value;
   const lines = [`EC50 = ${num(ec50)}`, `Hill slope = ${num(hill)}`];
-  if (r2 != null) lines.push(`R²=${num(r2)}`);
+  if (r2 != null) lines.push(`R² = ${num(r2)}`);
   return lines.join("<br>");
 }
 

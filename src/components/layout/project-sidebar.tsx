@@ -1,13 +1,12 @@
 import * as React from "react";
 import { ChartLineIcon, GridNineIcon, PlusCircleIcon, SidebarSimpleIcon, SigmaIcon } from "@phosphor-icons/react";
 import { Button, IconButton } from "../../ui/controls";
-import { PromptDialog } from "../../ui/dialog";
+import { RenameDialog } from "../../ui/dialog";
 import { SidePanel, SidebarItem } from "../../ui/layout";
 import { popupMenu } from "../../native";
-import { useProjectStore, type ProjectNode } from "../../store/use-project-store";
-import { useOpenAnalysisPicker } from "../../views/analyses/use-analysis-launcher";
-import { useOpenGraphPicker } from "../../views/graphs/use-graph-launcher";
+import { useOutline, useProjectActions, type OutlineNode } from "../../store/use-project-store";
 import { removeWithConfirm } from "../../store/use-document";
+import { NODE_NAMES } from "../../store/types";
 import { clampWidth, SIDEBAR_WIDTH, useLayout } from "../../store/use-layout";
 
 /** What's currently being dragged. Tables reorder among tables; children reorder
@@ -17,12 +16,7 @@ type DropTarget = { id: string; position: "before" | "after" };
 type RowDnd = { id: string; onPointerDown: (e: React.PointerEvent) => void };
 
 /** Move `sourceId` to just before/after `targetId` within an ordered id list. */
-function move(
-  order: string[],
-  sourceId: string,
-  targetId: string,
-  position: "before" | "after",
-): string[] {
+function move(order: string[], sourceId: string, targetId: string, position: "before" | "after"): string[] {
   const without = order.filter((id) => id !== sourceId);
   const targetIdx = without.indexOf(targetId);
   if (targetIdx === -1) return order;
@@ -65,36 +59,11 @@ export function SidebarToggle({ className }: { className?: string }) {
 }
 
 export function ProjectSidebar() {
-  const {
-    nodes,
-    rootOrder,
-    childOrder,
-    activeNodeId,
-    childrenOf,
-    setActiveNode,
-    renameNode,
-    removeNode,
-    openSelector,
-    reorderTables,
-    reorderChildren,
-  } = useProjectStore();
-  const openAnalysisPicker = useOpenAnalysisPicker();
-  const openGraphPicker = useOpenGraphPicker();
+  // The outline, not the whole project: editing a table or a graph doesn't redraw the sidebar.
+  const { tables, activeNodeId } = useOutline();
+  const { get, setActiveNode, renameNode, removeNode, openSelector, reorderTables, reorderChildren } =
+    useProjectActions();
   const { sidebar, sidebarWidth, setLayout } = useLayout();
-
-  const tables = rootOrder.map((id) => nodes[id]).filter(Boolean);
-
-  // The drag's window listeners outlive renders: they read the store through this ref.
-  const storeRef = React.useRef({
-    rootOrder,
-    childOrder,
-    childrenOf,
-    reorderTables,
-    reorderChildren,
-  });
-  React.useEffect(() => {
-    storeRef.current = { rootOrder, childOrder, childrenOf, reorderTables, reorderChildren };
-  });
 
   const dragInfo = React.useRef<DragInfo | null>(null);
   const dropTargetRef = React.useRef<DropTarget | null>(null);
@@ -111,9 +80,7 @@ export function ProjectSidebar() {
 
   const setTarget = (next: DropTarget | null) => {
     dropTargetRef.current = next;
-    setDropTarget((prev) =>
-      prev?.id === next?.id && prev?.position === next?.position ? prev : next,
-    );
+    setDropTarget((prev) => (prev?.id === next?.id && prev?.position === next?.position ? prev : next));
   };
 
   function endDrag() {
@@ -136,22 +103,19 @@ export function ProjectSidebar() {
       return;
     }
     const rect = row.getBoundingClientRect();
-    const position: DropTarget["position"] =
-      e.clientY < rect.top + rect.height / 2 ? "before" : "after";
+    const position: DropTarget["position"] = e.clientY < rect.top + rect.height / 2 ? "before" : "after";
     setTarget({ id: target.id, position });
   };
 
   const onPointerUp = () => {
     const src = dragInfo.current;
     const target = dropTargetRef.current;
-    const { rootOrder, childOrder, childrenOf, reorderTables, reorderChildren } = storeRef.current;
     if (src && target) {
-      if (src.kind === "table") {
-        reorderTables(move(rootOrder, src.id, target.id, target.position));
-      } else if (src.parentId) {
-        const order = childOrder[src.parentId] ?? childrenOf(src.parentId).map((c) => c.id);
-        reorderChildren(src.parentId, move(order, src.id, target.id, target.position));
-      }
+      // The drag's window listeners outlive renders: they read the project as it is now.
+      const { rootOrder, childOrder } = get();
+      if (src.kind === "table") reorderTables(move(rootOrder, src.id, target.id, target.position));
+      else if (src.parentId)
+        reorderChildren(src.parentId, move(childOrder[src.parentId] ?? [], src.id, target.id, target.position));
     }
     endDrag();
   };
@@ -178,8 +142,8 @@ export function ProjectSidebar() {
   const rowClass = (id: string): string =>
     [dropClass(dropTarget, id), draggingId === id ? "opacity-40" : ""].filter(Boolean).join(" ");
 
-  // Single rename dialog reused for any table or analysis row.
-  const [renaming, setRenaming] = React.useState<ProjectNode | null>(null);
+  // One rename dialog, for any table, analysis or graph.
+  const [renaming, setRenaming] = React.useState<OutlineNode | null>(null);
 
   // Tables whose analyses and graphs are hidden.
   const [collapsed, setCollapsed] = React.useState<ReadonlySet<string>>(new Set());
@@ -192,8 +156,8 @@ export function ProjectSidebar() {
   // An analysis or graph that comes to show (a new one, one brought back by Undo) is
   // never hidden in its folded table.
   React.useEffect(() => {
-    const table = activeNodeId ? nodes[activeNodeId]?.parentId : null;
-    if (table && collapsed.has(table)) setOpen(table, true);
+    const table = tables.find((t) => t.children.some((c) => c.id === activeNodeId));
+    if (table && collapsed.has(table.id)) setOpen(table.id, true);
   }, [activeNodeId]);
 
   // The keyboard, as in the Finder: ↑↓ move, ←→ fold and unfold (← from an analysis
@@ -206,9 +170,9 @@ export function ProjectSidebar() {
     setTimeout(() => listRef.current?.focus()); // after the view shows
   };
   const onKeyDown = (e: React.KeyboardEvent) => {
-    const node = activeNodeId ? nodes[activeNodeId] : undefined;
+    const node = tables.flatMap((t) => [t, ...t.children]).find((n) => n.id === activeNodeId);
     if (!node || e.metaKey || e.altKey || e.ctrlKey) return;
-    const rows = tables.flatMap((t) => [t.id, ...(collapsed.has(t.id) ? [] : childrenOf(t.id).map((c) => c.id))]);
+    const rows = tables.flatMap((t) => [t.id, ...(collapsed.has(t.id) ? [] : t.children.map((c) => c.id))]);
     const i = rows.indexOf(node.id);
     if (e.key === "ArrowDown") select(rows[Math.min(rows.length - 1, i + 1)]);
     else if (e.key === "ArrowUp") select(rows[Math.max(0, i - 1)]);
@@ -219,19 +183,19 @@ export function ProjectSidebar() {
     e.preventDefault();
   };
 
-  const tableMenu = (table: ProjectNode) =>
+  const tableMenu = (table: OutlineNode) =>
     void popupMenu([
-      { text: "New Analysis", action: () => openAnalysisPicker(table.id) },
-      { text: "New Graph", action: () => openGraphPicker(table.id) },
+      { text: "New Analysis…", action: () => openSelector({ kind: "new-analysis", tableId: table.id }) },
+      { text: "New Graph…", action: () => openSelector({ kind: "new-graph", tableId: table.id }) },
       { item: "Separator" },
-      { text: "Rename", action: () => setRenaming(table) },
-      { text: "Delete Table…", action: () => removeWithConfirm(table, removeNode) },
+      { text: "Rename…", action: () => setRenaming(table) },
+      { text: `Delete ${NODE_NAMES.table}…`, action: () => removeWithConfirm(table, removeNode) },
     ]);
 
-  const childMenu = (child: ProjectNode) =>
+  const childMenu = (child: OutlineNode) =>
     void popupMenu([
-      { text: "Rename", action: () => setRenaming(child) },
-      { text: `Delete ${child.type === "analysis" ? "Analysis" : "Graph"}…`, action: () => removeWithConfirm(child, removeNode) },
+      { text: "Rename…", action: () => setRenaming(child) },
+      { text: `Delete ${NODE_NAMES[child.type]}…`, action: () => removeWithConfirm(child, removeNode) },
     ]);
 
   return (
@@ -243,13 +207,9 @@ export function ProjectSidebar() {
       onResize={(width, open) => setLayout({ sidebar: open, sidebarWidth: clampWidth(width, SIDEBAR_WIDTH) })}
       header={<SidebarToggle />}
       footer={
-        <Button
-          variant="ghost"
-          className="text-secondary"
-          onClick={() => openSelector({ kind: "new-table" })}
-        >
+        <Button variant="ghost" className="text-secondary" onClick={() => openSelector({ kind: "new-table" })}>
           <PlusCircleIcon className="size-4" />
-          New Table
+          New Table…
         </Button>
       }
     >
@@ -269,11 +229,7 @@ export function ProjectSidebar() {
             selected={activeNodeId === table.id}
             open={!collapsed.has(table.id)}
             onToggle={() => setOpen(table.id, collapsed.has(table.id))}
-            // A click shows the table and folds or unfolds its analyses and graphs.
-            onClick={() => {
-              select(table.id);
-              setOpen(table.id, collapsed.has(table.id));
-            }}
+            onClick={() => select(table.id)}
             onContextMenu={(e) => {
               e.preventDefault();
               tableMenu(table);
@@ -281,10 +237,12 @@ export function ProjectSidebar() {
             className={rowClass(table.id)}
             {...rowDnd("table", table.id, null)}
           >
-            {childrenOf(table.id).map((child) => (
+            {table.children.map((child) => (
               <SidebarItem
                 key={child.id}
-                icon={child.type === "analysis" ? <SigmaIcon className="size-4" /> : <ChartLineIcon className="size-4" />}
+                icon={
+                  child.type === "analysis" ? <SigmaIcon className="size-4" /> : <ChartLineIcon className="size-4" />
+                }
                 title={child.name}
                 selected={activeNodeId === child.id}
                 onClick={() => select(child.id)}
@@ -300,9 +258,8 @@ export function ProjectSidebar() {
         ))}
       </div>
 
-      <PromptDialog
+      <RenameDialog
         open={renaming !== null}
-        title="Rename"
         initialValue={renaming?.name ?? ""}
         onConfirm={(name) => renaming && renameNode(renaming.id, name)}
         onClose={() => setRenaming(null)}

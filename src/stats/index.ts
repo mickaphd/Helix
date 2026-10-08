@@ -15,7 +15,7 @@ import type {
   TwoWayAnovaParams,
   XYCorrelationParams,
 } from "./types";
-import { runColumnTest, type ColumnTestSpec } from "./column/base";
+import { missingColumn, runColumnTest, type ColumnTestSpec } from "./column/base";
 import { runDescriptiveStatistics } from "./column/descriptive-statistics";
 import { compareTwoGroupsSpec } from "./column/compare-two-groups";
 import { oneSampleTSpec } from "./column/one-sample-t";
@@ -35,10 +35,10 @@ import { runCorrelationMatrix } from "./multiple/correlation-matrix";
 import { runMultipleRegression } from "./multiple/multiple-regression";
 import { runChiSquare } from "./contingency/chi-square";
 import type { TableData } from "../store/types";
-import { readTable, type Column } from "../lib/dataset";
+import { readTable, setColumns, type Column } from "../lib/dataset";
 
-/** How every test runs: the table's columns, the wizard's params, and the row
- *  titles, which name the rows in grouped-table results. */
+/** How every test runs: the columns of its data sets (`sets`, all by default), the
+ *  wizard's params, and the row titles, which name the rows in grouped-table results. */
 type Runner = (
   columns: Column[],
   params: AnalysisParams | undefined,
@@ -105,7 +105,7 @@ export const ANALYSES: Record<AnalysisType, Analysis> = {
     minColumns: 2,
     run: (c, p) => runMultipleRegression(c, p as MultipleRegressionParams),
   },
-  "chi-square": { label: "Chi-square (contingency)", minColumns: 2, run: (c) => runChiSquare(c) },
+  "chi-square": { label: "Chi-square or Fisher's exact test", minColumns: 2, run: (c) => runChiSquare(c) },
 };
 
 // One result per table version, test and params, shared by everyone who asks:
@@ -113,19 +113,31 @@ export const ANALYSES: Record<AnalysisType, Analysis> = {
 // An edit makes a new TableData, which starts a fresh set of results.
 const results = new WeakMap<TableData, Map<string, Promise<AnalysisOutcome>>>();
 
-export function runAnalysis(testType: AnalysisType, data: TableData, params?: AnalysisParams): Promise<AnalysisOutcome> {
+export function runAnalysis(
+  testType: AnalysisType,
+  data: TableData,
+  params?: AnalysisParams,
+): Promise<AnalysisOutcome> {
   const analysis = Object.hasOwn(ANALYSES, testType) ? ANALYSES[testType] : undefined;
   if (!analysis) return Promise.resolve({ error: `Unknown analysis type: ${String(testType)}` });
+  const table = readTable(data);
+  // A data set or a column the analysis names (a regression's Y…) must still be there.
+  const named = params as { y?: string; dependent?: string; predictors?: string[]; datasets?: string[] } | undefined;
+  const chosen = [named?.y, named?.dependent, ...(named?.predictors ?? []), ...(named?.datasets ?? [])];
+  const gone =
+    params?.sets?.find((name) => !table.sets.some((s) => s.name === name)) ??
+    chosen.find((name) => name !== undefined && !table.columns.some((c) => c.name === name));
+  if (gone) return Promise.resolve({ error: missingColumn(gone) });
   const byTest = results.get(data) ?? new Map<string, Promise<AnalysisOutcome>>();
   results.set(data, byTest);
   const key = `${testType} ${JSON.stringify(params ?? null)}`;
   let result = byTest.get(key);
   if (!result) {
-    const { columns, titles } = readTable(data);
-    result = analysis.run(columns, params, titles).catch((err: unknown) => {
+    const columns = params?.sets ? setColumns(table, params.sets) : table.columns;
+    result = analysis.run(columns, params, table.titles).catch((err: unknown) => {
       // A failure (an R error, R not starting) is shown, not kept: asking again retries.
       byTest.delete(key);
-      return { error: err instanceof Error ? err.message : "The analysis failed to run." };
+      return { error: `Could not run the test: ${err instanceof Error ? err.message : String(err)}` };
     });
     byTest.set(key, result);
   }

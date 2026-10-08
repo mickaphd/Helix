@@ -4,19 +4,37 @@
 // never move. Which sections are open is one
 // app-wide preference, kept across graphs and launches; Statistics starts open.
 import * as React from "react";
-import { ChartBarIcon, CursorClickIcon, ExportIcon, PaintBrushIcon, PaletteIcon, RulerIcon, SigmaIcon, TextTIcon } from "@phosphor-icons/react";
+import {
+  ChartBarIcon,
+  CursorClickIcon,
+  ExportIcon,
+  PaintBrushIcon,
+  PaletteIcon,
+  RulerIcon,
+  SigmaIcon,
+  TextTIcon,
+} from "@phosphor-icons/react";
 import { Button } from "../../ui/controls";
-import { Section } from "../../components/common/inspector";
+import { Section, Stepper } from "../../components/common/inspector";
 import { paletteColor, paletteOf, reversedPalette, savedPalette, withoutColors } from "../../lib/palettes";
-import type { GraphOptions, PointStyle, SeriesStyle } from "../../store/types";
+import { GRAPH_LIMITS, type GraphOptions, type PointStyle, type SeriesStyle } from "../../store/types";
 import { GRAPHS, newGraphOptions } from ".";
 import { EXPORT_FORMATS, RESOLUTIONS, type ExportFormat, type Resolution } from "./graph-export";
-import { GRAPH_SIZE, POINT_SIZE } from "./plot-helpers";
-import { Choice, NumRow, OutlineRows, PercentRow, PaletteRow, SeriesHeader, SeriesRow, SizeRow, Stepper, TextRow, ThicknessRow, Toggle } from "./panel-controls";
+import {
+  Choice,
+  NumRow,
+  OutlineRows,
+  PercentRow,
+  PaletteRow,
+  SeriesHeader,
+  SeriesRow,
+  SizeRow,
+  TextRow,
+  ThicknessRow,
+  Toggle,
+} from "./panel-controls";
 import { dataControls, statisticsControls, styleControls, type SectionContext } from "./format-sections";
 import { VOLCANO_SERIES } from "./volcano";
-
-type Range = { min: number; max: number; step: number } | null;
 
 /** The points selected on the graph: how many, the first one's style (shown), whether
  *  any has its own, and how to set, resize (each from its own size) or reset theirs. */
@@ -32,9 +50,6 @@ interface Selection {
 interface Props extends SectionContext {
   setSeriesStyle: (key: string, style: SeriesStyle) => void;
   selection?: Selection;
-  /** Plotly's own axis ranges, shown while Min/Max/Step are on Auto. */
-  autoX: Range;
-  autoY: Range;
   canExport: boolean;
   onSave: (format: ExportFormat, dpi: Resolution) => void;
   onCopy: (dpi: Resolution) => void;
@@ -42,10 +57,32 @@ interface Props extends SectionContext {
 
 // What the Style section sets, put back by its Reset.
 const STYLE_OPTIONS: (keyof GraphOptions)[] = [
-  "shape", "kind", "xyStyle", "groupLayout", "bars", "showPoints", "fill",
-  "pointShape", "pointSize", "pointOutline", "pointOutlineColor", "pointFill", "outline", "outlineColor", "barGap",
-  "lineWidth", "lineDash", "errorWidth", "errorCaps", "errorColor", "errorDirection",
-  "survivalShowCensors", "pieShowPercent", "heatmapShowValues", "heatmapShowScale", "volcanoLabelCount",
+  "shape",
+  "kind",
+  "xyStyle",
+  "groupLayout",
+  "bars",
+  "showPoints",
+  "fill",
+  "pointShape",
+  "pointSize",
+  "pointOutline",
+  "pointOutlineColor",
+  "pointFill",
+  "outline",
+  "outlineColor",
+  "barGap",
+  "lineWidth",
+  "lineDash",
+  "errorWidth",
+  "errorCaps",
+  "errorColor",
+  "errorDirection",
+  "survivalShowCensors",
+  "pieShowPercent",
+  "heatmapShowValues",
+  "heatmapShowScale",
+  "volcanoLabelCount",
 ];
 
 // This Mac's preferences, never the project's: which sections are open, and the
@@ -83,7 +120,7 @@ function remember(key: string, value: unknown) {
 }
 
 export function FormatPanel(props: Props) {
-  const { graphType, options, set, seriesNames, setSeriesStyle, selection, autoX, autoY } = props;
+  const { graphType, options, set, seriesNames, setSeriesStyle, selection } = props;
   const family = GRAPHS[graphType].family;
   const hasAxes = family !== "pie";
   const [exported, setExported] = React.useState(readExport);
@@ -204,20 +241,29 @@ export function FormatPanel(props: Props) {
           <Stepper
             label="Size"
             value={selection.style.size}
-            min={POINT_SIZE.min}
-            max={POINT_SIZE.max}
+            {...GRAPH_LIMITS.pointSize}
             step={1}
             onChange={(size) => selection.resize(size - selection.style.size)}
           />
-          <PercentRow label="Fill" value={selection.style.fill} onChange={(fill) => selection.set({ fill })} />
+          <PercentRow
+            label="Fill"
+            value={selection.style.fill}
+            limits={GRAPH_LIMITS.pointFill}
+            onChange={(fill) => selection.set({ fill })}
+          />
           <OutlineRows
             palette={palette}
             width={selection.style.outline}
+            limits={GRAPH_LIMITS.pointOutline}
             color={selection.style.outlineColor}
             onWidth={(outline) => selection.set({ outline })}
             onColor={(outlineColor, outline) => selection.set({ outlineColor, ...(outline && { outline }) })}
           />
-          <Toggle label="Show label" checked={selection.style.label} onChange={(label) => selection.set({ label: label || undefined })} />
+          <Toggle
+            label="Show label"
+            checked={selection.style.label}
+            onChange={(label) => selection.set({ label: label || undefined })}
+          />
         </Section>
       )}
 
@@ -232,15 +278,26 @@ export function FormatPanel(props: Props) {
           <>
             <TextRow label="X axis title" value={options.xLabel} onChange={(xLabel) => set({ xLabel })} />
             <TextRow label="Y axis title" value={options.yLabel} onChange={(yLabel) => set({ yLabel })} />
-            <Stepper label="X title spacing" value={options.xTitleGap} min={0} max={40} step={2} onChange={(xTitleGap) => set({ xTitleGap })} />
-            <Stepper label="Y title spacing" value={options.yTitleGap} min={0} max={40} step={2} onChange={(yTitleGap) => set({ yTitleGap })} />
+            <Stepper
+              label="X title spacing"
+              value={options.xTitleGap}
+              {...GRAPH_LIMITS.xTitleGap}
+              step={2}
+              onChange={(xTitleGap) => set({ xTitleGap })}
+            />
+            <Stepper
+              label="Y title spacing"
+              value={options.yTitleGap}
+              {...GRAPH_LIMITS.yTitleGap}
+              step={2}
+              onChange={(yTitleGap) => set({ yTitleGap })}
+            />
           </>
         )}
         <Stepper
           label="Font size"
           value={options.fontSize}
-          min={8}
-          max={28}
+          {...GRAPH_LIMITS.fontSize}
           step={1}
           onChange={(fontSize) => set({ fontSize })}
         />
@@ -259,7 +316,6 @@ export function FormatPanel(props: Props) {
               min={options.yMin}
               max={options.yMax}
               step={options.yStep}
-              auto={autoY}
               onChange={(yMin, yMax, yStep) => set({ yMin, yMax, yStep })}
             />
           )}
@@ -269,16 +325,25 @@ export function FormatPanel(props: Props) {
               min={options.xMin}
               max={options.xMax}
               step={options.xStep}
-              auto={autoX}
               onChange={(xMin, xMax, xStep) => set({ xMin, xMax, xStep })}
             />
           )}
-          <ThicknessRow label="Axis thickness" value={options.axisWidth} onChange={(axisWidth) => set({ axisWidth })} />
+          <ThicknessRow
+            label="Axis thickness"
+            value={options.axisWidth}
+            limits={GRAPH_LIMITS.axisWidth}
+            onChange={(axisWidth) => set({ axisWidth })}
+          />
         </Section>
       )}
 
-      <Section title="Export" icon={<ExportIcon />} {...fold("Export")} action={reset(["width", "height", "background"])}>
-        <SizeRow width={options.width} height={options.height} limits={GRAPH_SIZE} onChange={set} />
+      <Section
+        title="Export"
+        icon={<ExportIcon />}
+        {...fold("Export")}
+        action={reset(["width", "height", "background"])}
+      >
+        <SizeRow width={options.width} height={options.height} onChange={set} />
         <Choice
           label="Background"
           value={options.background}
@@ -288,10 +353,15 @@ export function FormatPanel(props: Props) {
             { value: "transparent", label: "Transparent" },
           ]}
         />
-        <Choice label="Format" value={exported.format} onChange={(format) => chooseExport({ format })} items={EXPORT_FORMATS} />
+        <Choice
+          label="Format"
+          value={exported.format}
+          onChange={(format) => chooseExport({ format })}
+          items={EXPORT_FORMATS}
+        />
         {exported.format !== "svg" && (
           <Choice
-            label="Resolution (dpi)"
+            label="Resolution (DPI)"
             value={exported.dpi}
             onChange={(dpi) => chooseExport({ dpi })}
             items={RESOLUTIONS.map((dpi) => ({ value: dpi, label: dpi }))}
@@ -315,27 +385,25 @@ export function FormatPanel(props: Props) {
   );
 }
 
-/** One axis's Min / Max / Step; a blank field is Auto and shows Plotly's value. */
+/** One axis's Min / Max / Step; a blank field is Auto. */
 function AxisRange({
   axis,
   min,
   max,
   step,
-  auto,
   onChange,
 }: {
   axis: "X" | "Y";
   min?: number;
   max?: number;
   step?: number;
-  auto: Range;
   onChange: (min?: number, max?: number, step?: number) => void;
 }) {
   return (
     <div className="grid grid-cols-3 gap-2">
-      <NumRow label={`${axis} min`} value={min} autoValue={auto?.min} onChange={(v) => onChange(v, max, step)} />
-      <NumRow label={`${axis} max`} value={max} autoValue={auto?.max} onChange={(v) => onChange(min, v, step)} />
-      <NumRow label={`${axis} step`} value={step} autoValue={auto?.step} onChange={(v) => onChange(min, max, v)} />
+      <NumRow label={`${axis} min`} value={min} onChange={(v) => onChange(v, max, step)} />
+      <NumRow label={`${axis} max`} value={max} onChange={(v) => onChange(min, v, step)} />
+      <NumRow label={`${axis} step`} value={step} onChange={(v) => onChange(min, max, v)} />
     </div>
   );
 }

@@ -3,6 +3,8 @@
 // line's dashes, an outline's color, the selected points' style. Each line shows what
 // it picks, drawn here as a picture.
 import {
+  GRAPH_LIMITS,
+  PALETTE_KINDS,
   SAME_AS_FILL,
   type FillPattern,
   type GraphPalette,
@@ -13,7 +15,8 @@ import {
 import { PALETTES, swatchesOf, withOpacity, type Palette } from "../../lib/palettes";
 import { popupMenu, type Picture } from "../../native";
 import { separator } from "../../menus";
-import { POINT_SIZE, TINT, visibleOutline } from "./plot-helpers";
+import { TINT, visibleOutline } from "./plot-helpers";
+import { titleCase } from "../../lib/format";
 
 const HEIGHT = 36; // 18 points on Retina, a menu line's picture height
 // Seen on a light menu and a dark one alike: the chosen item's ring in the accent
@@ -79,6 +82,13 @@ function mark(color: string, shape: PointShape, chosen: boolean): Picture {
     g.stroke(path);
   });
 }
+
+/** A menu line picking color `c`, ringed when it is `current`. */
+const swatch = (c: string, current: string, pick: (color: string) => void) => ({
+  text: "",
+  icon: mark(c, "circle", c.toLowerCase() === current.toLowerCase()),
+  action: () => pick(c),
+});
 
 /** Menu lines picking each shape, drawn in `color`. */
 const shapeItems = (color: string, current: PointShape, pick: (shape: PointShape) => void) =>
@@ -148,22 +158,23 @@ function patterned(color: string, pattern: FillPattern | undefined, chosen: bool
 
 /** A line's dashes, drawn in `color` (every line's: a neutral gray). */
 export const chooseDash = (current: LineDash, pick: (dash: LineDash) => void, color = NEUTRAL) =>
-  popupMenu(DASHES.map((dash) => ({ text: "", icon: dashLine(color, dash, dash === current), action: () => pick(dash) })));
-
-const KINDS = [
-  ["categorical", "Categorical"],
-  ["sequential", "Sequential"],
-  ["diverging", "Diverging"],
-] as const;
+  popupMenu(
+    DASHES.map((dash) => ({ text: "", icon: dashLine(color, dash, dash === current), action: () => pick(dash) })),
+  );
 
 /** The palettes, under their kind (only gradients when `gradients`), then whether the
  *  graph takes the colors from the last. */
-export function choosePalette(current: GraphPalette, gradients: boolean, pick: (palette: Palette) => void, reverse: () => void) {
-  const kinds = KINDS.filter(([kind]) => !gradients || kind !== "categorical");
+export function choosePalette(
+  current: GraphPalette,
+  gradients: boolean,
+  pick: (palette: Palette) => void,
+  reverse: () => void,
+) {
+  const kinds = PALETTE_KINDS.filter((kind) => !gradients || kind !== "categorical");
   return popupMenu([
-    ...kinds.flatMap(([kind, title], i) => [
+    ...kinds.flatMap((kind, i) => [
       ...(i > 0 ? [separator] : []),
-      { text: title, enabled: false },
+      { text: titleCase(kind), enabled: false },
       ...PALETTES.filter((p) => p.kind === kind).map((p) => ({
         text: p.label,
         icon: strip(p, p.name === current.name),
@@ -177,16 +188,14 @@ export function choosePalette(current: GraphPalette, gradients: boolean, pick: (
 
 /** A series' color among the palette's swatches, the current one ringed. */
 export const chooseSwatch = (palette: GraphPalette, current: string, pick: (color: string) => void) =>
-  popupMenu(
-    swatchesOf(palette).map((c) => ({
-      text: "",
-      icon: mark(c, "circle", c.toLowerCase() === current.toLowerCase()),
-      action: () => pick(c),
-    })),
-  );
+  popupMenu(swatchesOf(palette).map((c) => swatch(c, current, pick)));
 
 /** A pattern over a series' fill (or none), drawn in its `color`. */
-export const choosePattern = (color: string, current: FillPattern | undefined, pick: (pattern: FillPattern | undefined) => void) =>
+export const choosePattern = (
+  color: string,
+  current: FillPattern | undefined,
+  pick: (pattern: FillPattern | undefined) => void,
+) =>
   popupMenu(
     [undefined, ...PATTERNS].map((pattern) => ({
       text: "",
@@ -203,41 +212,51 @@ const NEUTRALS = ["#000000", "#808080", "#FFFFFF"];
  *  gray and white, then the palette's swatches. */
 function colorItems(palette: GraphPalette, current: string | undefined, same: string, pick: (color: string) => void) {
   const chosen = current ?? SAME_AS_FILL;
-  const swatch = (c: string) => ({ text: "", icon: mark(c, "circle", c.toLowerCase() === chosen.toLowerCase()), action: () => pick(c) });
+  const item = (c: string) => swatch(c, chosen, pick);
   return [
     { text: same, checked: chosen === SAME_AS_FILL, action: () => pick(SAME_AS_FILL) },
     separator,
-    ...NEUTRALS.map(swatch),
+    ...NEUTRALS.map(item),
     separator,
-    ...swatchesOf(palette).filter((c) => !NEUTRALS.includes(c.toUpperCase())).map(swatch),
+    ...swatchesOf(palette)
+      .filter((c) => !NEUTRALS.includes(c.toUpperCase()))
+      .map(item),
   ];
 }
 
 /** The color of an outline or error bars, from a native menu. */
-export const chooseColor = (palette: GraphPalette, current: string | undefined, same: string, pick: (color: string) => void) =>
-  popupMenu(colorItems(palette, current, same, pick));
+export const chooseColor = (
+  palette: GraphPalette,
+  current: string | undefined,
+  same: string,
+  pick: (color: string) => void,
+) => popupMenu(colorItems(palette, current, same, pick));
 
 /** The selected points' menu, in the Selected points section's order: their color,
  *  shape, size, fill and outline color (as `current`, the first one's), their names
  *  shown or not, and a reset. */
 export function chooseSelectionStyle(
   palette: GraphPalette,
-  current: { color: string; shape: PointShape; size: number; fill: number; outline: number; outlineColor: string; label: boolean },
+  current: {
+    color: string;
+    shape: PointShape;
+    size: number;
+    fill: number;
+    outline: number;
+    outlineColor: string;
+    label: boolean;
+  },
   act: { style: (style: PointStyle) => void; resize: (by: number) => void; reset: () => void },
 ) {
   return popupMenu([
     {
       text: "Color",
-      items: swatchesOf(palette).map((c) => ({
-        text: "",
-        icon: mark(c, "circle", c.toLowerCase() === current.color.toLowerCase()),
-        action: () => act.style({ color: c }),
-      })),
+      items: swatchesOf(palette).map((c) => swatch(c, current.color, (color) => act.style({ color }))),
     },
     { text: "Shape", items: shapeItems(current.color, current.shape, (shape) => act.style({ shape })) },
     // The Size stepper's + and −, as in the Selected points section.
-    { text: "Bigger", enabled: current.size < POINT_SIZE.max, action: () => act.resize(1) },
-    { text: "Smaller", enabled: current.size > POINT_SIZE.min, action: () => act.resize(-1) },
+    { text: "Bigger", enabled: current.size < GRAPH_LIMITS.pointSize.max, action: () => act.resize(1) },
+    { text: "Smaller", enabled: current.size > GRAPH_LIMITS.pointSize.min, action: () => act.resize(-1) },
     // The Fill stepper's values, by 10 %.
     {
       text: "Fill",
@@ -254,7 +273,11 @@ export function chooseSelectionStyle(
         act.style({ outlineColor, ...(outline && { outline }) });
       }),
     },
-    { text: "Show Label", checked: current.label, action: () => act.style({ label: current.label ? undefined : true }) },
+    {
+      text: "Show Label",
+      checked: current.label,
+      action: () => act.style({ label: current.label ? undefined : true }),
+    },
     separator,
     { text: "Reset Style", action: act.reset },
   ]);

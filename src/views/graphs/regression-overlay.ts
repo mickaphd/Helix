@@ -10,7 +10,8 @@ import type { GraphFigure } from ".";
 import { num, pText } from "../../lib/format";
 import { tCrit95, tTwoSidedP } from "../../lib/student-t";
 import { withOpacity } from "../../lib/palettes";
-import { addNote, extent, mean, type Paint } from "./plot-helpers";
+import { addNote, extent, type Paint } from "./plot-helpers";
+import { mean } from "../../lib/summary";
 
 interface LinearFit {
   slope: number;
@@ -76,7 +77,7 @@ function regressionCurve(
   return { x, yFit, yLo, yHi };
 }
 
-/** "Y = 2.927*X − 0.3322<br>R²=0.8734, P=0.0021" annotation text — Plotly-ready
+/** "Y = 2.927*X − 0.3322<br>R² = 0.8734, P = 0.0021" annotation text — Plotly-ready
  *  (line break as `<br>`), formatted the same way as the Analysis panel's equation.
  *  Always uses literal "Y"/"X" rather than the actual column names, for simplicity. */
 function regressionLabel(fit: LinearFit): string {
@@ -84,7 +85,7 @@ function regressionLabel(fit: LinearFit): string {
   const eq = fit.forceOrigin
     ? `Y = ${term}`
     : `Y = ${term} ${fit.intercept < 0 ? "−" : "+"} ${num(Math.abs(fit.intercept))}`;
-  return `${eq}<br>R²=${num(fit.r2)}, ${pText(fit.p)}`;
+  return `${eq}<br>R² = ${num(fit.r2)}, ${pText(fit.p)}`;
 }
 
 /** Draws a linear-regression analysis's fit on an XY scatter (`columns` = X, then

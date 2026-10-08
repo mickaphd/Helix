@@ -6,6 +6,5 @@ export const groupedBars: GraphModule = {
   label: "Interleaved bars",
   family: "grouped",
   patterns: () => true,
-  build: (columns, options, paint, titles) =>
-    buildGroupedBars(columns, options, "group", false, paint, titles),
+  build: (columns, options, paint, titles) => buildGroupedBars(columns, options, "group", false, paint, titles),
 };

@@ -39,7 +39,8 @@ export function buildGroupedBars(
   const rows = rowCountOf(columns);
   const labels = rowLabels(rows, titles);
   const showError = mode !== "stack";
-  const separated = mode === "group" && options.groupLayout === "separated" ? separatedPositions(groups.length, labels) : undefined;
+  const separated =
+    mode === "group" && options.groupLayout === "separated" ? separatedPositions(groups.length, labels) : undefined;
 
   const data = groups.map((g, i) => {
     const { center, error } = perRowStats(g.columns, rows, options.center, showError ? options.error : "none");
@@ -63,7 +64,10 @@ export function buildGroupedBars(
 
   // A row's bars apart by `barGap`, so their outlines never overlap.
   const gap = mode === "group" && !separated ? { bargroupgap: options.barGap } : {};
-  return { data, layout: { ...groupedBarLayout(options, groups.length, { horizontal, separated }), barmode: mode, ...gap } };
+  return {
+    data,
+    layout: { ...groupedBarLayout(options, groups.length, { horizontal, separated }), barmode: mode, ...gap },
+  };
 }
 
 /** Connected/interaction lines: one line per group through its per-row centers
@@ -93,7 +97,15 @@ export function buildGroupedLines(
       connectgaps: false,
       line: paint.line(g.name, i),
       marker: seriesMarker(paint, g.name, i),
-      ...(error ? { error_y: paint.errorBars(g.name, i, error.map((e) => e ?? NaN)) } : {}),
+      ...(error
+        ? {
+            error_y: paint.errorBars(
+              g.name,
+              i,
+              error.map((e) => e ?? NaN),
+            ),
+          }
+        : {}),
       hoverinfo: "x+y",
     };
   });

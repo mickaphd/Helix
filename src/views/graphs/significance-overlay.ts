@@ -9,8 +9,9 @@ import type { GraphOptions, GraphType } from "../../store/types";
 import type { Column } from "../../lib/dataset";
 import type { GraphFigure } from ".";
 import { pStars, pText } from "../../lib/format";
-import { INK, mean, sd, median } from "./plot-helpers";
+import { centers, errors, INK } from "./plot-helpers";
 import { pairKey } from "../../lib/columns";
+import { headline } from "../analyses/analysis-results-view";
 
 /** One pairwise comparison offered to the graph, keyed stably for persistence. */
 export interface SigComparison {
@@ -22,19 +23,19 @@ export interface SigComparison {
 
 /** Pull the drawable pairwise comparisons out of an analysis outcome. Post-hoc
  *  tests (ANOVA/Kruskal-Wallis) expose a `comparisons` table directly; a plain
- *  two-group test has a single P value in `stats`, synthesised here into the one
- *  comparison between the first two numeric columns. Everything else (descriptives,
+ *  two-group test has its own P value (`headline`, beside its F test), the one
+ *  comparison between the two groups it compared. Everything else (descriptives,
  *  one-sample, an ANOVA with no post-hoc) yields nothing to annotate. */
-export function deriveComparisons(outcome: AnalysisOutcome | null, numericNames: string[]): SigComparison[] {
+export function deriveComparisons(outcome: AnalysisOutcome | null): SigComparison[] {
   if (!outcome || "error" in outcome) return [];
   if (outcome.comparisons?.length) {
     return outcome.comparisons
       .filter((c) => c.group2) // per-row tests leave group2 blank — not a 2-column pair
       .map((c) => ({ key: pairKey(c.group1, c.group2), group1: c.group1, group2: c.group2, p: c.p }));
   }
-  if (outcome.testType === "compare-two-groups" && numericNames.length >= 2) {
-    const p = outcome.stats.find((s) => s.p)?.value ?? null;
-    return [{ key: pairKey(numericNames[0], numericNames[1]), group1: numericNames[0], group2: numericNames[1], p }];
+  if (outcome.testType === "compare-two-groups" && outcome.groups.length === 2) {
+    const [group1, group2] = outcome.groups.map((g) => g.name);
+    return [{ key: pairKey(group1, group2), group1, group2, p: headline(outcome.stats) }];
   }
   return [];
 }
@@ -44,18 +45,17 @@ export function deriveComparisons(outcome: AnalysisOutcome | null, numericNames:
  *  ± error, so its top is center+error; the point/box families also draw every raw
  *  value, so their top includes the data max. Aligned to `columns` order. */
 function columnTops(
-  columns: { values: number[] }[],
-  graphType: GraphType | undefined,
+  columns: Column[],
+  graphType: GraphType,
   center: GraphOptions["center"],
   error: GraphOptions["error"],
 ): number[] {
-  return columns.map((c) => {
-    const v = c.values;
-    if (v.length === 0) return 0;
-    const ctr = center === "median" ? median(v) : mean(v);
-    const err = error === "none" ? 0 : error === "sem" ? sd(v) / Math.sqrt(v.length) : sd(v);
-    const errTop = ctr + err;
-    return graphType === "mean-error" ? errTop : v.reduce((a, b) => Math.max(a, b), errTop);
+  const middle = centers(columns, center);
+  const err = errors(columns, error);
+  return columns.map((c, i) => {
+    if (c.values.length === 0) return 0;
+    const errTop = middle[i] + (err?.[i] ?? 0);
+    return graphType === "mean-error" ? errTop : c.values.reduce((a, b) => Math.max(a, b), errTop);
   });
 }
 

@@ -4,6 +4,8 @@
 import type { AnalysisParams, AnalysisType } from "../stats/types";
 
 export type NodeType = "table" | "analysis" | "graph";
+/** What an item is, as menus name it ("Delete Graph…"). */
+export const NODE_NAMES: Record<NodeType, string> = { table: "Table", analysis: "Analysis", graph: "Graph" };
 export type TableType = "column" | "xy" | "grouped" | "multiple" | "contingency";
 // Every graph type; views/graphs/index.ts says what each draws and for which tables.
 export type GraphType =
@@ -25,6 +27,57 @@ export type GraphType =
   | "survival"
   | "volcano";
 
+/** The choices of a graph's options, one list each: the types come from them, and a
+ *  file's value outside them is read as the option's default. */
+export const GRAPH_CHOICES = {
+  center: ["mean", "median"],
+  error: ["none", "sd", "sem"],
+  shape: ["bar", "point", "line"],
+  kind: ["box", "violin"],
+  xyStyle: ["points", "line", "points+line"],
+  pieValue: ["sum", "mean"],
+  groupLayout: ["interleaved", "separated"],
+  sigDisplay: ["stars", "pvalue"],
+  doseModel: ["sigmoidal-4pl-logx", "sigmoidal-4pl-x"],
+  survivalMode: ["codes", "counts"],
+  volcanoEffect: ["log2ratio", "difference"],
+  volcanoSignificance: ["pvalue", "fdr"],
+  pointShape: ["circle", "square", "diamond", "triangle-up", "triangle-down"],
+  lineDash: ["solid", "dash", "dot", "dashdot"],
+  errorDirection: ["both", "above"],
+  background: ["white", "transparent"],
+} as const;
+type Choice<K extends keyof typeof GRAPH_CHOICES> = (typeof GRAPH_CHOICES)[K][number];
+
+/** A number's range. */
+export type Limits = { min: number; max: number };
+
+/** `n` brought within `limits`. */
+export const clamp = (n: number, { min, max }: Limits) => Math.min(max, Math.max(min, n));
+
+/** The range of a graph's numbers, for the Format panel's steppers and a file's values
+ *  alike (a point styled on its own too). Its size (px) too: dragging an axis, typing it. */
+export const GRAPH_LIMITS = {
+  width: { min: 150, max: 2400 },
+  height: { min: 120, max: 1800 },
+  fill: { min: 0, max: 1 },
+  pointFill: { min: 0, max: 1 },
+  barGap: { min: 0, max: 0.5 },
+  pointSize: { min: 2, max: 20 },
+  outline: { min: 0, max: 6 },
+  pointOutline: { min: 0, max: 6 },
+  lineWidth: { min: 0.5, max: 6 },
+  errorWidth: { min: 0.5, max: 6 },
+  axisWidth: { min: 0.5, max: 6 },
+  errorCaps: { min: 0, max: 20 },
+  xTitleGap: { min: 0, max: 40 },
+  yTitleGap: { min: 0, max: 40 },
+  fontSize: { min: 8, max: 28 },
+  volcanoLabelCount: { min: 0, max: 50 },
+  volcanoFcThreshold: { min: 0, max: Infinity },
+  volcanoPThreshold: { min: 0, max: Infinity },
+} as const;
+
 /**
  * Display options for a graph node. A superset across the families — each graph
  * module reads only the fields it needs (keeps the store flat + easy to extend).
@@ -33,25 +86,25 @@ export interface GraphOptions {
   // Individual values
   bars: boolean; // draw a faint bar at the mean behind the points
   // Shared (individual + mean-error)
-  center: "mean" | "median";
-  error: "none" | "sd" | "sem";
+  center: Choice<"center">;
+  error: Choice<"error">;
   // Mean/median & error
-  shape: "bar" | "point" | "line";
+  shape: Choice<"shape">;
   // Box & violin
-  kind: "box" | "violin";
+  kind: Choice<"kind">;
   showPoints: boolean; // overlay individual points on box/violin
   // XY scatter: markers only, connecting line only, or both
-  xyStyle: "points" | "line" | "points+line";
+  xyStyle: Choice<"xyStyle">;
   // Pie/donut (axis-less proportion charts): each column is one slice, sized by the
   // column's total (sum) or mean; percentages vs. raw values on the slice labels.
-  pieValue: "sum" | "mean";
+  pieValue: Choice<"pieValue">;
   pieShowPercent: boolean;
   // Grouped bars/scatter (interleaved bars, horizontal bars, interleaved scatter):
   // interleave groups within each row, or give each group its own block of
   // categories (Prism's "Separated" arrangement). Not offered for connected
   // lines (groups must share the same X axis to show interaction) or stacked
   // bars (stacking already combines groups per category).
-  groupLayout: "interleaved" | "separated";
+  groupLayout: Choice<"groupLayout">;
   // Titles
   title: string;
   xLabel: string;
@@ -71,7 +124,7 @@ export interface GraphOptions {
   // `sigDisplay` toggles star marks vs. raw P values.
   sigAnalysisId?: string;
   sigPairs?: string[];
-  sigDisplay: "stars" | "pvalue";
+  sigDisplay: Choice<"sigDisplay">;
   // Linear-regression overlay (XY scatter only): draw a sibling "Linear regression"
   // analysis's OLS fit line + 95% confidence band, computed directly from the plotted
   // x/y pairs (see regression-overlay.ts) — no WebR round-trip, since OLS has one
@@ -85,7 +138,7 @@ export interface GraphOptions {
   // sibling analysis node needed, unlike the Linear-regression overlay above.
   // `doseY` omitted defaults to the first Y data column.
   doseY?: string;
-  doseModel: "sigmoidal-4pl-logx" | "sigmoidal-4pl-x";
+  doseModel: Choice<"doseModel">;
   doseShowCurve: boolean;
   doseShowEquation: boolean;
   // Heatmap (Multiple Variables only): each column is a variable, each row a
@@ -98,7 +151,7 @@ export interface GraphOptions {
   // number of survivors remaining in that group at the paired X; plotted directly
   // as percent-of-initial, no censoring concept. Censoring ticks (codes mode only)
   // mark subjects removed from a group without an event.
-  survivalMode: "codes" | "counts";
+  survivalMode: Choice<"survivalMode">;
   survivalShowCensors: boolean;
   // Volcano plot of a Multiple Variables table: it plots columns the user already
   // has. `volcanoX`/`volcanoY`/`volcanoLabel` are column names:
@@ -122,8 +175,8 @@ export interface GraphOptions {
   // t-test p value or its Benjamini-Hochberg FDR adjustment (−log10 via volcanoYIsPValue).
   volcanoGroupA?: string;
   volcanoGroupB?: string;
-  volcanoEffect: "log2ratio" | "difference";
-  volcanoSignificance: "pvalue" | "fdr";
+  volcanoEffect: Choice<"volcanoEffect">;
+  volcanoSignificance: Choice<"volcanoSignificance">;
   // Colors. `palette`: its name and colors, saved with the graph so a figure keeps
   // them whatever becomes of Helix's catalog (lib/palettes.ts). `series`: the series
   // colored by hand, by name (a column, a group, a volcano's "up" and "down"); the
@@ -161,14 +214,14 @@ export interface GraphOptions {
   errorWidth: number;
   errorCaps: number;
   errorColor?: string;
-  errorDirection: "both" | "above";
+  errorDirection: Choice<"errorDirection">;
   // Appearance: thickness of every axis spine + its tick marks (px), and the base
   // font size (px) for tick labels, axis titles, and the chart title.
   axisWidth: number;
   fontSize: number;
   // The sheet behind the graph: white, or none (a PNG or SVG with a transparent background;
   // JPEG has no transparency and stays on white).
-  background: "white" | "transparent";
+  background: Choice<"background">;
   // Prism-style resizable drawing area (px).
   width: number;
   height: number;
@@ -227,7 +280,8 @@ export const DEFAULT_GRAPH_OPTIONS: GraphOptions = {
   height: 460,
 };
 
-export type PaletteKind = "categorical" | "sequential" | "diverging";
+export const PALETTE_KINDS = ["categorical", "sequential", "diverging"] as const;
+export type PaletteKind = (typeof PALETTE_KINDS)[number];
 
 /** A graph's palette as saved: which one, and its colors. */
 export interface GraphPalette {
@@ -239,13 +293,22 @@ export interface GraphPalette {
 }
 
 /** A point's shape (Plotly's symbol of the same name). */
-export type PointShape = "circle" | "square" | "diamond" | "triangle-up" | "triangle-down";
+export type PointShape = Choice<"pointShape">;
 
 /** A line's dashes (Plotly's dash of the same name). */
-export type LineDash = "solid" | "dash" | "dot" | "dashdot";
+export type LineDash = Choice<"lineDash">;
 
 /** What covers a fill: lines one way or the other, both, horizontal, vertical, a grid, dots. */
-export type FillPattern = "diagonal" | "back-diagonal" | "crosshatch" | "horizontal" | "vertical" | "grid" | "dots";
+export const FILL_PATTERNS = [
+  "diagonal",
+  "back-diagonal",
+  "crosshatch",
+  "horizontal",
+  "vertical",
+  "grid",
+  "dots",
+] as const;
+export type FillPattern = (typeof FILL_PATTERNS)[number];
 
 /** How one series is drawn: its color (#RRGGBB), its points' shape, its line's dashes,
  *  and the pattern over its bars, areas or slices. */
@@ -283,6 +346,9 @@ export const SAME_AS_FILL = "fill";
 
 /** Helix 1.0's named colors (see `NAMED_COLORS`), as its files may hold them. */
 export type PaletteColor = "blue" | "red" | "green" | "purple" | "orange" | "black";
+
+/** How many groups and sub-columns a grouped table has: its Groups panel and a file alike. */
+export const GROUPED_LIMITS = { groups: { min: 1, max: 200 }, replicates: { min: 1, max: 20 } };
 
 export interface TableData {
   columns: string[];

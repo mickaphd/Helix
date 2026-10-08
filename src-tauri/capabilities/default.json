@@ -7,7 +7,6 @@
     "core:window:allow-start-dragging",
     "core:window:allow-set-title",
     "core:app:allow-set-app-theme",
-    "core:window:allow-close",
     "core:window:allow-destroy",
     "dialog:default"
   ]

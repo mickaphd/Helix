@@ -7,11 +7,12 @@
 // and a frozen Title column are sticky, so macOS moves them together with the
 // cells, in the same frame.
 import * as React from "react";
-import type { TableData, TableType } from "../../store/types";
+import { clamp, type TableData, type TableType } from "../../store/types";
 import type { TableMove } from "../../store/references";
 import type { EditCommand } from "../../app-menu";
 import { parseCell } from "../../lib/numeric";
 import { seriesKeyOf } from "../../lib/columns";
+import { isGrouped } from "../../lib/dataset";
 import { popupMenu } from "../../native";
 import { XIcon } from "@phosphor-icons/react";
 import { cn, IconButton } from "../../ui/controls";
@@ -21,7 +22,6 @@ import {
   fillRange,
   findCells,
   freshColumnNames,
-  isGrouped,
   parseTSV,
   renameColumn,
   renameGroup,
@@ -42,8 +42,7 @@ const EXTRA_COLS = 20;
 
 // ── Column widths: set by the user, or fit to the header and the first rows ──
 
-const MIN_W = 64;
-const MAX_W = 360;
+const FIT_WIDTH = { min: 64, max: 360 };
 const SAMPLE_ROWS = 300;
 const DRAG_MIN_W = 32;
 const ctx = document.createElement("canvas").getContext("2d")!;
@@ -63,7 +62,7 @@ function textWidth(text: string): number {
 function fitWidth(rows: TableData["rows"], c: number, header: string): number {
   let w = textWidth(header);
   for (const row of rows) if (row[c]) w = Math.max(w, textWidth(row[c]!));
-  return Math.min(MAX_W, Math.max(MIN_W, Math.ceil(w) + 20));
+  return clamp(Math.ceil(w) + 20, FIT_WIDTH);
 }
 
 function columnWidths(data: TableData, headers: string[]): number[] {
@@ -109,10 +108,11 @@ interface GridProps {
   /** `label` names the edit for Undo ("Paste"); `move`: the columns or groups it renamed
    *  and the rows it moved, for the analyses and graphs that name them. */
   update: (next: TableData, label: string, move?: TableMove) => void;
-  configure: () => void;
+  /** Shows a grouped table's Groups panel. */
+  showGroups: () => void;
 }
 
-export function Grid({ data, type, update, configure }: GridProps) {
+export function Grid({ data, type, update, showGroups }: GridProps) {
   const grouped = isGrouped(data);
   const replicates = data.replicates ?? 1;
   const headH = HEAD_H * (grouped ? 2 : 1);
@@ -227,7 +227,12 @@ export function Grid({ data, type, update, configure }: GridProps) {
     const from = g.r0 === g.r1 ? g.r0 - 1 : g.r0;
     if (from < 0) return;
     const source = Array.from({ length: g.c1 - g.c0 + 1 }, (_, i) => data.rows[from]?.[g.c0 + i] ?? null);
-    write(from + 1, g.c0, Array.from({ length: g.r1 - from }, () => source), "Fill Down");
+    write(
+      from + 1,
+      g.c0,
+      Array.from({ length: g.r1 - from }, () => source),
+      "Fill Down",
+    );
   };
 
   const startEdit = (r: number, c: number, value = data.rows[r]?.[c] ?? "", typed = false) => {
@@ -255,7 +260,8 @@ export function Grid({ data, type, update, configure }: GridProps) {
     if (!cancel && ed.kind === "column") {
       update(renameColumn(data, ed.c, value), "Rename Column", { renamed: { [data.columns[ed.c]]: value } });
     }
-    if (!cancel && ed.kind === "group") update(renameGroup(data, ed.key, value), "Rename Group", { renamed: { [ed.key]: value } });
+    if (!cancel && ed.kind === "group")
+      update(renameGroup(data, ed.key, value), "Rename Group", { renamed: { [ed.key]: value } });
     setEditing(null);
     focusGrid();
   };
@@ -270,7 +276,12 @@ export function Grid({ data, type, update, configure }: GridProps) {
   // ── Keyboard, clipboard, edit menu ───────────────────────────────────
 
   const onCellKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    const arrows: Record<string, [number, number]> = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
+    const arrows: Record<string, [number, number]> = {
+      ArrowUp: [-1, 0],
+      ArrowDown: [1, 0],
+      ArrowLeft: [0, -1],
+      ArrowRight: [0, 1],
+    };
     if (editing) {
       if (e.key === "Enter") finishEdit(false, e.shiftKey ? -1 : 1);
       else if (e.key === "Tab") finishEdit(false, 0, e.shiftKey ? -1 : 1);
@@ -322,7 +333,12 @@ export function Grid({ data, type, update, configure }: GridProps) {
     // One value pasted over a selection fills it, as in Excel.
     if (single && (range.r0 !== range.r1 || range.c0 !== range.c1)) {
       const g = fillable(range);
-      write(g.r0, g.c0, Array.from({ length: g.r1 - g.r0 + 1 }, () => Array(g.c1 - g.c0 + 1).fill(block[0][0])), "Paste");
+      write(
+        g.r0,
+        g.c0,
+        Array.from({ length: g.r1 - g.r0 + 1 }, () => Array(g.c1 - g.c0 + 1).fill(block[0][0])),
+        "Paste",
+      );
     } else {
       write(range.r0, range.c0, block, "Paste");
       setSel({
@@ -339,7 +355,7 @@ export function Grid({ data, type, update, configure }: GridProps) {
       const isFind = cmd.startsWith("find");
       if (editing && !isFind) return;
       if (isFind) finishEdit(false);
-      if (cmd === "find") (query === null ? openFind() : closeFind());
+      if (cmd === "find") query === null ? openFind() : closeFind();
       else if (cmd === "find-next") findStep(1);
       else if (cmd === "find-previous") findStep(-1);
       else if (cmd === "select-all") setSel({ anchor: { r: 0, c: 0 }, focus: { r: lastRow, c: lastCol } });
@@ -372,9 +388,7 @@ export function Grid({ data, type, update, configure }: GridProps) {
     const after = (m: Point) => m.r > active.r || (m.r === active.r && m.c > active.c);
     const before = (m: Point) => m.r < active.r || (m.r === active.r && m.c < active.c);
     const m =
-      dir === 1
-        ? (matches.find(after) ?? matches[0])
-        : (matches.findLast(before) ?? matches[matches.length - 1]);
+      dir === 1 ? (matches.find(after) ?? matches[0]) : (matches.findLast(before) ?? matches[matches.length - 1]);
     setSel({ anchor: m, focus: m });
     reveal(m);
   };
@@ -438,14 +452,15 @@ export function Grid({ data, type, update, configure }: GridProps) {
     // Right-clicking outside the selection selects what was clicked first.
     const p = cellAt(e);
     let g = range;
-    const hit = zone === "cell" ? inRange(g, p.r, p.c) : zone === "row" ? p.r >= g.r0 && p.r <= g.r1 : p.c >= g.c0 && p.c <= g.c1;
+    const hit =
+      zone === "cell" ? inRange(g, p.r, p.c) : zone === "row" ? p.r >= g.r0 && p.r <= g.r1 : p.c >= g.c0 && p.c <= g.c1;
     if (!hit) {
       const anchor = zone === "row" ? { r: p.r, c: 0 } : zone === "column" ? { r: 0, c: p.c } : p;
       const focus = zone === "row" ? { r: p.r, c: lastCol } : zone === "column" ? { r: lastRow, c: p.c } : p;
       setSel({ anchor, focus });
       g = toRange({ anchor, focus });
     }
-    void popupMenu(gridMenu({ data, type, zone, range: g, update, rename: startRename, configure }));
+    void popupMenu(gridMenu({ data, type, zone, range: g, update, rename: startRename, showGroups }));
   };
 
   /** Drag a header's right edge to resize its column; double-click it to fit the content. */
@@ -542,23 +557,9 @@ export function Grid({ data, type, update, configure }: GridProps) {
     </div>
   );
 
-  const cell = (r: number, c: number) => {
-    const value = data.rows[r]?.[c];
-    return (
-      <div
-        key={`${r}:${c}`}
-        className={cn(
-          "absolute truncate border-r border-b border-separator px-1.5 leading-[24px]",
-          value && parseCell(value) !== null && "text-right tabular-nums",
-          excluded.has(`${r},${c}`) && "text-excluded italic after:content-['*']",
-          query && value?.toLowerCase().includes(query.toLowerCase()) && "bg-yellow-300/50",
-        )}
-        style={box(c, r * ROW_H, ROW_H)}
-      >
-        {value}
-      </div>
-    );
-  };
+  const cells = (from: number, to: number, origin: number) => (
+    <Cells data={data} excluded={excluded} query={query} xs={xs} r0={r0} r1={r1} c0={from} c1={to} origin={origin} />
+  );
 
   const cellEvents = {
     onPointerDown: onCellDown,
@@ -629,7 +630,9 @@ export function Grid({ data, type, update, configure }: GridProps) {
             <div
               className="sticky left-0 z-10 shrink-0 border-r border-b border-separator bg-surface"
               style={{ width: GUTTER_W }}
-              onPointerDown={(e) => dragSelect(e, { r: 0, c: 0 }, () => ({ r: lastRow, c: lastCol }), { r: lastRow, c: lastCol })}
+              onPointerDown={(e) =>
+                dragSelect(e, { r: 0, c: 0 }, () => ({ r: lastRow, c: lastCol }), { r: lastRow, c: lastCol })
+              }
             />
             {frozen && (
               <div className={cn("sticky z-10 shrink-0", PANE_EDGE)} style={{ left: GUTTER_W, width: widths[0] }}>
@@ -663,7 +666,9 @@ export function Grid({ data, type, update, configure }: GridProps) {
                   );
                 })}
               {mainCols.map(headerCell)}
-              {editing?.kind === "column" && !inFrozen(editing.c) && headerEditor(editing.value, box(editing.c, 0, headH))}
+              {editing?.kind === "column" &&
+                !inFrozen(editing.c) &&
+                headerEditor(editing.value, box(editing.c, 0, headH))}
             </div>
           </div>
 
@@ -691,12 +696,12 @@ export function Grid({ data, type, update, configure }: GridProps) {
                 style={{ left: GUTTER_W, width: widths[0], height: tableH }}
                 {...cellEvents}
               >
-                {rows.map((r) => cell(r, 0))}
+                {cells(0, 0, 0)}
                 {overlays(true)}
               </div>
             )}
             <div className="relative shrink-0" style={{ width: mainW, height: tableH }} {...cellEvents}>
-              {rows.map((r) => mainCols.map((c) => cell(r, c)))}
+              {cells(Math.max(c0, first), c1, first)}
               {overlays(false)}
             </div>
           </div>
@@ -729,4 +734,51 @@ export function Grid({ data, type, update, configure }: GridProps) {
       )}
     </div>
   );
+}
+
+/** The cells of rows r0–r1 and columns c0–c1, laid out from column `origin`'s left edge.
+ *  Apart from the grid, so moving the selection or typing in a cell redraws none of them. */
+function Cells({
+  data,
+  excluded,
+  query,
+  xs,
+  r0,
+  r1,
+  c0,
+  c1,
+  origin,
+}: {
+  data: TableData;
+  excluded: Set<string>;
+  query: string | null;
+  xs: number[];
+  r0: number;
+  r1: number;
+  c0: number;
+  c1: number;
+  origin: number;
+}) {
+  const found = query?.toLowerCase();
+  const cells: React.ReactNode[] = [];
+  for (let r = r0; r <= r1; r++) {
+    for (let c = c0; c <= c1; c++) {
+      const value = data.rows[r]?.[c];
+      cells.push(
+        <div
+          key={`${r}:${c}`}
+          className={cn(
+            "absolute truncate border-r border-b border-separator px-1.5 leading-[24px]",
+            value && parseCell(value) !== null && "text-right tabular-nums",
+            excluded.has(`${r},${c}`) && "text-excluded italic after:content-['*']",
+            found && value?.toLowerCase().includes(found) && "bg-yellow-300/50",
+          )}
+          style={{ left: xs[c] - xs[origin], top: r * ROW_H, width: xs[c + 1] - xs[c], height: ROW_H }}
+        >
+          {value}
+        </div>,
+      );
+    }
+  }
+  return cells;
 }

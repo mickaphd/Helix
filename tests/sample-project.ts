@@ -1,14 +1,16 @@
 /// <reference types="node" />
-// A sample project that exercises everything Helix offers: every table type,
-// every analysis and every graph, with realistic (made-up, reproducible) data —
-// including a 10,000-gene table for the volcano. `npm run sample` writes it to
-// `samples/Helix Sample.hlx`; `npm test` checks that every analysis in it runs.
+// The sample project: a made-up preclinical study, every table type, most graphs and
+// analyses, and what a graph can be made to show (palettes, patterns, dashes, points
+// styled one by one, a volcano naming its top genes), on realistic data drawn from a
+// fixed seed. `npm run sample` writes it to `samples/Helix Sample.hlx`; `npm test`
+// checks that every analysis in it runs and every graph draws.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { serializeProjectFile, type ProjectFilePayload } from "../src/lib/project-file";
 import type { GraphOptions, GraphType, ProjectNode, TableData, TableType } from "../src/store/types";
 import { newGraphOptions } from "../src/views/graphs";
 import { paletteNamed, savedPalette, reversedPalette } from "../src/lib/palettes";
+import { pairKey, pointKeyOf } from "../src/lib/columns";
 import type { AnalysisParams, AnalysisType } from "../src/stats/types";
 
 // ── Reproducible random data ─────────────────────────────────────────────
@@ -38,12 +40,25 @@ function table(id: string, name: string, tableType: TableType, data: TableData) 
   rootOrder.push(id);
   childOrder[id] = [];
 }
-function analysis(table: string, id: string, name: string, analysisType: AnalysisType, analysisParams?: AnalysisParams) {
+function analysis(
+  table: string,
+  id: string,
+  name: string,
+  analysisType: AnalysisType,
+  analysisParams?: AnalysisParams,
+) {
   nodes[id] = { id, type: "analysis", name, parentId: table, analysisType, analysisParams };
   childOrder[table].push(id);
 }
 function graph(table: string, id: string, name: string, graphType: GraphType, options: Partial<GraphOptions> = {}) {
-  nodes[id] = { id, type: "graph", name, parentId: table, graphType, graphOptions: { ...newGraphOptions(graphType), ...options } };
+  nodes[id] = {
+    id,
+    type: "graph",
+    name,
+    parentId: table,
+    graphType,
+    graphOptions: { ...newGraphOptions(graphType), ...options },
+  };
   childOrder[table].push(id);
 }
 /** The options of a graph taking another palette than its type's. */
@@ -53,153 +68,6 @@ function rows(columns: (string | null)[][], titles: (string | null)[] = []): (st
   const height = Math.max(...columns.map((c) => c.length));
   return range(height).map((r) => [titles[r] ?? null, ...columns.map((c) => c[r] ?? null)]);
 }
-
-// ── Column tables ────────────────────────────────────────────────────────
-
-{
-  const groups = ["Control", "Drug A 10 mg", "Drug A 50 mg", "Drug B"];
-  const means = [520, 430, 310, 470];
-  const columns: (string | null)[][] = groups.map((_, g) => range(12).map(() => fixed(normal(means[g], 55), 1)));
-  columns[0][11] = "1480.0"; // an outlier, excluded below
-  columns[3][10] = null; // a missing value
-  columns[3][11] = null;
-  table("t-tumor", "Tumor volume (mm³)", "column", {
-    columns: ["Title", ...groups],
-    rows: rows(columns),
-    excluded: ["11,1"],
-  });
-  analysis("t-tumor", "a-tumor-desc", "Descriptive statistics", "descriptive-statistics");
-  analysis("t-tumor", "a-tumor-student", "Unpaired t test", "compare-two-groups", {
-    paired: false, gaussian: true, equalVariance: true, ratio: false, tails: "two-sided",
-  });
-  analysis("t-tumor", "a-tumor-t", "Welch's t test", "compare-two-groups", {
-    paired: false, gaussian: true, equalVariance: false, ratio: false, tails: "two-sided",
-  });
-  analysis("t-tumor", "a-tumor-mw", "Mann-Whitney", "compare-two-groups", {
-    paired: false, gaussian: false, equalVariance: false, ratio: false, tails: "two-sided",
-  });
-  analysis("t-tumor", "a-tumor-anova", "One-way ANOVA + Tukey", "anova", { posthoc: "tukey" });
-  analysis("t-tumor", "a-tumor-bonf", "One-way ANOVA + Bonferroni", "anova", { posthoc: "bonferroni" });
-  analysis("t-tumor", "a-tumor-kw", "Kruskal-Wallis + Dunn", "kruskal-wallis", { posthoc: "dunn" });
-  analysis("t-tumor", "a-tumor-one", "Compare to 500 mm³", "one-sample-t", { hypotheticalValue: 500, tails: "two-sided", gaussian: true });
-  analysis("t-tumor", "a-tumor-wil", "Wilcoxon vs 500 mm³", "one-sample-t", { hypotheticalValue: 500, tails: "less", gaussian: false });
-  analysis("t-tumor", "a-tumor-rout", "Outliers (ROUT, Q = 1%)", "outliers", { q: 1 });
-  graph("t-tumor", "g-tumor-dots", "Scatter dot plot + stars", "individual", {
-    center: "mean", error: "sd", sigAnalysisId: "a-tumor-anova",
-    sigPairs: ["Control\u0000Drug A 50 mg", "Control\u0000Drug A 10 mg", "Drug A 50 mg\u0000Drug B"],
-    yLabel: "Tumor volume (mm³)", title: "Tumor volume at day 21", series: { "Drug B": { color: "#CC79A7" } },
-    points: { "Drug A 50 mg#2": { color: "#D55E00", size: 11, shape: "diamond", label: true, labelOffset: { x: 45, y: -30 } }, "Control#0": { fill: 0.2 } },
-  });
-  graph("t-tumor", "g-tumor-box", "Box plot + P values", "box-violin", {
-    kind: "box", showPoints: true, sigAnalysisId: "a-tumor-kw", sigDisplay: "pvalue",
-    sigPairs: ["Control\u0000Drug A 50 mg", "Drug A 10 mg\u0000Drug A 50 mg"], yLabel: "Tumor volume (mm³)",
-  });
-  graph("t-tumor", "g-tumor-violin", "Violin plot", "box-violin", { kind: "violin", showPoints: true, yLabel: "Tumor volume (mm³)" });
-  graph("t-tumor", "g-tumor-bars", "Mean ± SEM bars", "mean-error", { shape: "bar", error: "sem", yLabel: "mm³", ...palette("tol-bright") });
-  graph("t-tumor", "g-tumor-pie", "Pie (totals)", "pie");
-  graph("t-tumor", "g-tumor-donut", "Donut (means, transparent)", "donut", { pieValue: "mean", background: "transparent" });
-}
-
-{
-  const times = ["Baseline", "Week 4", "Week 8", "Week 12"];
-  const subjects = range(10).map((i) => `Subject ${i + 1}`);
-  const base = subjects.map(() => normal(140, 12));
-  const columns = times.map((_, t) => base.map((b) => fixed(b - t * 4.5 + normal(0, 4), 1)));
-  table("t-bp", "Blood pressure (paired)", "column", { columns: ["Title", ...times], rows: rows(columns, subjects) });
-  analysis("t-bp", "a-bp-paired", "Paired t test (Baseline vs Week 4)", "compare-two-groups", {
-    paired: true, gaussian: true, equalVariance: true, ratio: false, tails: "two-sided",
-  });
-  analysis("t-bp", "a-bp-ratio", "Ratio paired t test", "compare-two-groups", {
-    paired: true, gaussian: true, equalVariance: true, ratio: true, tails: "two-sided",
-  });
-  analysis("t-bp", "a-bp-wsr", "Wilcoxon matched pairs", "compare-two-groups", {
-    paired: true, gaussian: false, equalVariance: true, ratio: false, tails: "two-sided",
-  });
-  analysis("t-bp", "a-bp-rm", "Repeated-measures ANOVA + Tukey", "rm-anova", { posthoc: "tukey" });
-  analysis("t-bp", "a-bp-fr", "Friedman + Dunn", "friedman", { posthoc: "dunn" });
-  graph("t-bp", "g-bp-line", "Mean ± SD over time", "mean-error", { shape: "line", error: "sd", yLabel: "Systolic BP (mmHg)" });
-  graph("t-bp", "g-bp-dots", "Individual values", "individual", { bars: true, center: "median", error: "none", ...palette("helix") });
-}
-
-// ── XY tables ────────────────────────────────────────────────────────────
-
-{
-  const x = range(11).map((i) => i);
-  const series: (string | null)[][] = [2.1, 1.9, 2.3].map((slope) => x.map((xi) => fixed(0.5 + slope * xi + normal(0, 0.6), 2)));
-  series[1][4] = null;
-  table("t-cal", "Calibration curve", "xy", {
-    columns: ["Title", "Concentration (µM)", "Replicate 1", "Replicate 2", "Replicate 3"],
-    rows: rows([x.map(String), ...series]),
-  });
-  analysis("t-cal", "a-cal-lin", "Linear regression", "linear-regression", { y: "Replicate 1", forceOrigin: false });
-  analysis("t-cal", "a-cal-lin0", "Linear regression (through origin)", "linear-regression", { y: "Replicate 2", forceOrigin: true });
-  analysis("t-cal", "a-cal-cor", "Correlation (X vs every Y)", "correlation", { method: "pearson", mode: "x-vs-every-y" });
-  analysis("t-cal", "a-cal-sp", "Spearman (two data sets)", "correlation", { method: "spearman", mode: "two-datasets", datasets: ["Replicate 1", "Replicate 3"] });
-  analysis("t-cal", "a-cal-mat", "Correlation matrix of the Y's", "correlation", { method: "pearson", mode: "matrix" });
-  analysis("t-cal", "a-cal-auc", "Area under the curve", "area-under-curve", { baseline: 0 });
-  analysis("t-cal", "a-cal-quad", "Quadratic fit", "nonlinear-regression", { y: "Replicate 3", model: "quadratic" });
-  graph("t-cal", "g-cal-fit", "Scatter + regression line", "xy-scatter", {
-    regAnalysisId: "a-cal-lin", xyStyle: "points", xLabel: "Concentration (µM)", yLabel: "Signal",
-  });
-  graph("t-cal", "g-cal-lines", "Points and lines", "xy-scatter", { xyStyle: "points+line", xLabel: "Concentration (µM)", yLabel: "Signal" });
-  graph("t-cal", "g-cal-bar", "XY bars", "xy-bar");
-  graph("t-cal", "g-cal-area", "Area", "xy-area");
-}
-
-{
-  const logDose = range(11).map((i) => -9 + i * 0.5);
-  const curve = (x: number, bottom: number, top: number, ec50: number, hill: number) =>
-    bottom + (top - bottom) / (1 + 10 ** ((ec50 - x) * hill));
-  const a = logDose.map((x) => fixed(curve(x, 3, 97, -6.5, 1.1) + normal(0, 2.5), 1));
-  const b = logDose.map((x) => fixed(curve(x, 5, 88, -5.6, 0.9) + normal(0, 2.5), 1));
-  table("t-dose", "Dose response", "xy", {
-    columns: ["Title", "log[Agonist] (M)", "Compound A", "Compound B"],
-    rows: rows([logDose.map((x) => fixed(x, 1)), a, b]),
-  });
-  analysis("t-dose", "a-dose-4pl", "4PL fit (Compound A)", "nonlinear-regression", { y: "Compound A", model: "sigmoidal-4pl-logx" });
-  analysis("t-dose", "a-dose-4plb", "4PL fit (Compound B)", "nonlinear-regression", { y: "Compound B", model: "sigmoidal-4pl-logx" });
-  graph("t-dose", "g-dose", "Dose-response curve (A)", "dose-response", {
-    doseY: "Compound A", doseModel: "sigmoidal-4pl-logx", xLabel: "log[Agonist] (M)", yLabel: "Response (%)", title: "Compound A",
-  });
-  graph("t-dose", "g-dose-b", "Dose-response curve (B)", "dose-response", {
-    doseY: "Compound B", doseModel: "sigmoidal-4pl-logx", xLabel: "log[Agonist] (M)", yLabel: "Response (%)", title: "Compound B",
-  });
-}
-
-{
-  const conc = [0.5, 1, 2, 4, 8, 16, 32, 64, 128];
-  const binding = (bmax: number, kd: number) => conc.map((x) => fixed(Math.max(0, (bmax * x) / (kd + x) + normal(0, bmax * 0.03)), 1));
-  table("t-bind", "Receptor binding", "xy", {
-    columns: ["Title", "Ligand (nM)", "Wild type", "Mutant"],
-    rows: rows([conc.map(String), binding(1200, 6), binding(700, 18)]),
-  });
-  analysis("t-bind", "a-bind-wt", "One-site binding (wild type)", "nonlinear-regression", { y: "Wild type", model: "hyperbola" });
-  analysis("t-bind", "a-bind-mut", "One-site binding (mutant)", "nonlinear-regression", { y: "Mutant", model: "hyperbola" });
-  graph("t-bind", "g-bind", "Saturation curves", "xy-scatter", {
-    xyStyle: "points+line", xLabel: "Ligand (nM)", yLabel: "Specific binding (fmol/mg)",
-  });
-}
-
-{
-  // One row per mouse: the day it died (1) or left the study alive (0, censored).
-  const arms = ["Placebo", "Drug A", "Drug A + B"];
-  const raw = arms.flatMap((_, g) =>
-    range(25).map(() => {
-      const time = Math.round(-Math.log(1 - random()) * [25, 50, 110][g]) + 1;
-      return { group: g, time: Math.min(time, 90), event: time >= 90 || random() < 0.15 ? 0 : 1 };
-    }),
-  );
-  table("t-surv", "Survival", "xy", {
-    columns: ["Title", "Days", ...arms],
-    rows: raw.map((s) => [null, String(s.time), ...arms.map((_, g) => (s.group === g ? String(s.event) : null))]),
-  });
-  graph("t-surv", "g-surv", "Kaplan-Meier curves", "survival", {
-    survivalMode: "codes", xLabel: "Days", yLabel: "Percent survival", title: "Survival after treatment",
-  });
-}
-
-// ── Grouped tables ───────────────────────────────────────────────────────
-
 /** A grouped table: `values[g][r][k]` is replicate k of group g at row r. */
 function groupedData(groups: string[], titles: string[], values: (string | null)[][][]): TableData {
   const replicates = values[0][0].length;
@@ -207,100 +75,376 @@ function groupedData(groups: string[], titles: string[], values: (string | null)
   const body = titles.map((title, r) => [title, ...groups.flatMap((_, g) => values[g][r])]);
   return { columns, rows: body, groups: groups.length, replicates };
 }
+const unpaired = (gaussian: boolean, equalVariance: boolean) =>
+  ({ paired: false, gaussian, equalVariance, ratio: false, tails: "two-sided" }) as const;
+
+// The story: HLX-101, a made-up compound tested against pancreatic cancer, from mice
+// to cells to patients. Every number is invented, drawn from a fixed seed.
+const VEHICLE = "Vehicle";
+const LOW = "HLX-101 10 mg/kg";
+const HIGH = "HLX-101 30 mg/kg";
+
+// ── Column tables ────────────────────────────────────────────────────────
 
 {
-  const groups = ["Vehicle", "LPS", "LPS + Drug"];
-  const titles = ["0 h", "2 h", "6 h", "12 h", "24 h"];
-  const shape = [
-    [20, 22, 21, 20, 19],
-    [20, 180, 420, 260, 90],
-    [20, 110, 210, 130, 50],
-  ];
-  const values: (string | null)[][][] = shape.map((means) => means.map((m) => range(4).map(() => fixed(Math.max(1, normal(m, m * 0.12)), 1))));
-  values[2][3][1] = null;
-  table("t-cyto", "IL-6 (pg/mL)", "grouped", groupedData(groups, titles, values));
-  analysis("t-cyto", "a-cyto-2w", "Two-way ANOVA + Tukey (groups per row)", "two-way-anova", { design: "ordinary", posthoc: "tukey", posthocTarget: "groups" });
-  analysis("t-cyto", "a-cyto-2wb", "Two-way ANOVA + Bonferroni (rows per group)", "two-way-anova", { design: "ordinary", posthoc: "bonferroni", posthocTarget: "rows" });
-  analysis("t-cyto", "a-cyto-rm", "Two-way RM ANOVA", "two-way-anova", { design: "repeated-measures", posthoc: "none", posthocTarget: "groups" });
-  analysis("t-cyto", "a-cyto-srh", "Scheirer-Ray-Hare", "two-way-anova", { design: "nonparametric", posthoc: "none", posthocTarget: "groups" });
-  graph("t-cyto", "g-cyto-bars", "Interleaved bars", "grouped-bars", { yLabel: "IL-6 (pg/mL)", ...palette("tableau-10") });
-  graph("t-cyto", "g-cyto-sep", "Separated bars", "grouped-bars", { groupLayout: "separated" });
-  graph("t-cyto", "g-cyto-dots", "Interleaved scatter", "grouped-scatter");
-  graph("t-cyto", "g-cyto-lines", "Time course", "grouped-lines", {
-    xLabel: "Time", yLabel: "IL-6 (pg/mL)", lineWidth: 3, errorCaps: 10, ...palette("tol-muted"),
-    series: { "LPS + Drug": { dash: "dash" } },
+  const groups = [VEHICLE, LOW, HIGH, "Gemcitabine"];
+  const means = [1180, 820, 460, 690];
+  const columns = means.map((m) => range(10).map(() => fixed(normal(m, m * 0.15), 0)));
+  columns[0][6] = "2950"; // Mouse 7: an outlier, which ROUT finds
+  columns[1][3] = "86"; // a caliper error, excluded
+  table("t-tumor", "Tumor volume, day 21 (mm³)", "column", {
+    columns: ["Title", ...groups],
+    rows: rows(
+      columns,
+      range(10).map((i) => `Mouse ${i + 1}`),
+    ),
+    excluded: ["3,2"],
   });
-  graph("t-cyto", "g-cyto-stack", "Stacked bars", "grouped-stacked", palette("viridis"));
-  graph("t-cyto", "g-cyto-h", "Horizontal bars", "grouped-hbars", { center: "median", ...palette("grayscale") });
+  analysis("t-tumor", "a-tumor-desc", "Descriptive statistics", "descriptive-statistics");
+  analysis("t-tumor", "a-tumor-anova", "One-way ANOVA + Tukey", "anova", { posthoc: "tukey" });
+  analysis("t-tumor", "a-tumor-kw", "Kruskal-Wallis + Dunn", "kruskal-wallis", { posthoc: "dunn" });
+  analysis("t-tumor", "a-tumor-welch", "Welch's t test (vehicle vs. 30 mg/kg)", "compare-two-groups", {
+    ...unpaired(true, false),
+    sets: [VEHICLE, HIGH],
+  });
+  analysis("t-tumor", "a-tumor-rout", "Outliers (ROUT, Q = 1%)", "outliers", { q: 1 });
+  graph("t-tumor", "g-tumor-dots", "Scatter dot plot", "individual", {
+    title: "Tumor volume at day 21",
+    yLabel: "Tumor volume (mm³)",
+    sigAnalysisId: "a-tumor-anova",
+    sigPairs: [pairKey(VEHICLE, LOW), pairKey(VEHICLE, HIGH), pairKey(VEHICLE, "Gemcitabine")],
+    // Mouse 7, the outlier, stands out with its name.
+    points: { [pointKeyOf(VEHICLE, 6)]: { size: 12, shape: "diamond", outlineColor: "#000000", label: true } },
+  });
+  graph("t-tumor", "g-tumor-box", "Box plot", "box-violin", {
+    kind: "box",
+    showPoints: true,
+    yLabel: "Tumor volume (mm³)",
+    sigAnalysisId: "a-tumor-kw",
+    sigDisplay: "pvalue",
+    sigPairs: [pairKey(VEHICLE, HIGH)],
+    outlineColor: "#000000",
+    ...palette("tol-muted"),
+  });
+  graph("t-tumor", "g-tumor-bars", "Mean ± SEM", "mean-error", {
+    yLabel: "Tumor volume (mm³)",
+    error: "sem",
+    errorDirection: "above",
+    errorColor: "#000000",
+    outlineColor: "#000000",
+    ...palette("tableau-10"),
+    series: { [LOW]: { pattern: "diagonal" }, [HIGH]: { pattern: "crosshatch" } },
+  });
 }
 
 {
-  const genes = ["GAPDH", "ACTB", "IL6", "TNF", "CXCL8", "IL1B", "CCL2", "PTGS2", "NFKBIA", "SOCS3", "HMOX1", "MKI67", "CDKN1A", "BAX", "BCL2", "VEGFA", "HIF1A", "MYC", "FOS", "JUN"];
-  const fold = genes.map((_, i) => (i < 2 ? 1 : i < 12 ? 2 ** normal(1.6, 0.6) : 2 ** normal(0, 0.3)));
-  const values = [1, 0].map((treated) =>
-    genes.map((_, r) => range(3).map(() => fixed(Math.max(0.05, normal(treated ? fold[r] : 1, 0.15)), 3))),
-  );
-  table("t-qpcr", "qPCR panel (fold change)", "grouped", groupedData(["Stimulated", "Control"], genes, values));
-  analysis("t-qpcr", "a-qpcr-mt", "Multiple t tests (Welch, Holm)", "multiple-t-tests", { paired: false, gaussian: true, pooledSd: false, correction: "holm" });
-  analysis("t-qpcr", "a-qpcr-mtp", "Multiple t tests (pooled SD, FDR)", "multiple-t-tests", { paired: false, gaussian: true, pooledSd: true, correction: "fdr" });
-  analysis("t-qpcr", "a-qpcr-mw", "Multiple Mann-Whitney", "multiple-t-tests", { paired: false, gaussian: false, pooledSd: false, correction: "none" });
-  graph("t-qpcr", "g-qpcr", "Fold change per gene", "grouped-bars", {
-    yLabel: "Fold change", fill: 0.6, outlineColor: "#000000", errorColor: "#000000", errorDirection: "above",
+  const times = ["Baseline", "Week 4", "Week 8"];
+  const patients = range(12).map((i) => `Patient ${String(i + 1).padStart(2, "0")}`);
+  const baseline = patients.map(() => normal(38, 9));
+  const columns = [1, 0.74, 0.52].map((f) => baseline.map((b) => fixed(Math.max(2, b * f + normal(0, 3)), 1)));
+  table("t-ki67", "Ki-67 index, paired biopsies (%)", "column", {
+    columns: ["Title", ...times],
+    rows: rows(columns, patients),
+  });
+  analysis("t-ki67", "a-ki67-paired", "Paired t test (baseline vs. week 4)", "compare-two-groups", {
+    paired: true,
+    gaussian: true,
+    equalVariance: true,
+    ratio: false,
+    tails: "two-sided",
+    sets: ["Baseline", "Week 4"],
+  });
+  analysis("t-ki67", "a-ki67-rm", "Repeated-measures ANOVA + Tukey", "rm-anova", { posthoc: "tukey" });
+  analysis("t-ki67", "a-ki67-fr", "Friedman + Dunn", "friedman", { posthoc: "dunn" });
+  analysis("t-ki67", "a-ki67-one", "Week 8 vs. the 20% threshold", "one-sample-t", {
+    hypotheticalValue: 20,
+    tails: "two-sided",
+    gaussian: true,
+    sets: ["Week 8"],
+  });
+  graph("t-ki67", "g-ki67-line", "Mean ± SD over time", "mean-error", {
+    shape: "line",
+    error: "sd",
+    lineDash: "dash",
+    pointShape: "square",
+    yLabel: "Ki-67 positive cells (%)",
+    ...palette("tol-bright"),
   });
 }
 
 {
-  const known = ["TP53", "MYC", "EGFR", "KRAS", "BRCA1", "IL6", "TNF", "CXCL8", "VEGFA", "CDKN1A", "MDM2", "GADD45A", "SESN1", "FAS", "BBC3", "PMAIP1", "TP53I3", "RRM2B", "ZMAT3", "TNFRSF10B"];
-  const titles = range(10000).map((i) => known[i] ?? `GENE${String(i + 1).padStart(5, "0")}`);
-  const values: (string | null)[][][] = [[], []];
-  for (let r = 0; r < titles.length; r++) {
-    const expression = Math.exp(normal(5, 1.6));
-    // ~8% of genes change: the known ones first, then scattered others.
-    const changed = r < known.length || random() < 0.08;
-    const logFold = changed ? (random() < 0.6 ? 1 : -1) * Math.abs(normal(1.8, 0.8)) : normal(0, 0.12);
-    const level = (g: number) => expression * (g === 1 ? 2 ** logFold : 1);
-    for (const g of [0, 1]) values[g].push(range(4).map(() => fixed(Math.max(0.01, level(g) * (1 + normal(0, 0.1))), 2)));
+  const subtypes = ["Ductal adenocarcinoma", "Neuroendocrine", "Adenosquamous", "Acinar cell", "Other"];
+  table("t-cohort", "Cohort by tumor subtype", "column", {
+    columns: ["Title", ...subtypes],
+    rows: [["Patients", "112", "14", "9", "6", "5"]],
+  });
+  graph("t-cohort", "g-cohort", "Donut", "donut", { title: "146 patients", ...palette("tol-bright") });
+}
+
+// ── XY tables ────────────────────────────────────────────────────────────
+
+{
+  const days = [0, 3, 7, 10, 14, 17, 21, 24, 28];
+  const growth = (rate: number) => days.map((d) => fixed(110 * Math.exp(rate * d) * (1 + normal(0, 0.05)), 0));
+  table("t-growth", "Tumor growth (mm³)", "xy", {
+    columns: ["Title", "Day", VEHICLE, LOW, HIGH],
+    rows: rows([days.map(String), growth(0.088), growth(0.071), growth(0.05)]),
+  });
+  analysis("t-growth", "a-growth-auc", "Area under the curve", "area-under-curve", { baseline: 0 });
+  graph("t-growth", "g-growth-lines", "Growth curves", "xy-scatter", {
+    xyStyle: "points+line",
+    xLabel: "Days after the first dose",
+    yLabel: "Mean tumor volume (mm³)",
+    series: { [LOW]: { dash: "dash", shape: "square" }, [HIGH]: { dash: "dot", shape: "triangle-up" } },
+    legend: { x: 0.04, y: 0.98 },
+  });
+  graph("t-growth", "g-growth-area", "Area", "xy-area", {
+    xLabel: "Days after the first dose",
+    yLabel: "Mean tumor volume (mm³)",
+    ...palette("tol-muted"),
+  });
+}
+
+{
+  const logDose = range(11).map((i) => -9 + i * 0.5);
+  // Viability falls from 100% to its floor as the dose rises.
+  const viability = (ec50: number, hill: number, floor: number) =>
+    logDose.map((x) => fixed(floor + (100 - floor) / (1 + 10 ** ((x - ec50) * hill)) + normal(0, 2.5), 1));
+  const lines = ["PANC-1", "MIA PaCa-2", "BxPC-3"];
+  table("t-viab", "Cell viability (%)", "xy", {
+    columns: ["Title", "log[HLX-101] (M)", ...lines],
+    rows: rows([
+      logDose.map((x) => fixed(x, 1)),
+      viability(-6.1, 1.2, 6),
+      viability(-6.8, 1.1, 4),
+      viability(-5.4, 0.9, 12),
+    ]),
+  });
+  for (const [i, line] of lines.entries()) {
+    analysis("t-viab", `a-viab-${i}`, `4PL fit (${line})`, "nonlinear-regression", {
+      y: line,
+      model: "sigmoidal-4pl-logx",
+    });
   }
-  table("t-rnaseq", "RNA-seq, 10,000 genes", "grouped", groupedData(["Control", "Treated"], titles, values));
-  graph("t-rnaseq", "g-rnaseq-volcano", "Volcano plot (Helix computes the DEGs)", "volcano", {
-    volcanoGroupA: "Control", volcanoGroupB: "Treated", volcanoEffect: "log2ratio", volcanoSignificance: "fdr",
-    volcanoPThreshold: 1.3, volcanoLabelCount: 15, title: "Treated vs Control",
-    // Genes styled one by one: MYC stands out, a gene that doesn't change shows its name.
-    points: { "#1": { color: "#000000", size: 9, shape: "diamond" }, "#4999": { color: "#009E73", size: 9, label: true } },
+  graph("t-viab", "g-viab", "Dose-response curve", "dose-response", {
+    doseY: "MIA PaCa-2",
+    doseModel: "sigmoidal-4pl-logx",
+    title: "MIA PaCa-2",
+    xLabel: "log[HLX-101] (M)",
+    yLabel: "Cell viability (%)",
+    note: { x: 10, y: 250 }, // its EC50, moved where the curve isn't
+  });
+}
+
+{
+  // One row per mouse: the day it died (1) or left the study alive (0, censored).
+  const arms = [VEHICLE, "HLX-101", "HLX-101 + Gemcitabine"];
+  const mice = arms.flatMap((_, g) =>
+    range(20).map(() => {
+      const day = Math.round(-Math.log(1 - random()) * [22, 40, 75][g]) + 1;
+      return { group: g, day: Math.min(day, 60), event: day >= 60 || random() < 0.12 ? 0 : 1 };
+    }),
+  );
+  table("t-surv", "Overall survival", "xy", {
+    columns: ["Title", "Days", ...arms],
+    rows: mice.map((m) => [null, String(m.day), ...arms.map((_, g) => (m.group === g ? String(m.event) : null))]),
+  });
+  graph("t-surv", "g-surv", "Kaplan-Meier curves", "survival", {
+    title: "Overall survival",
+    xLabel: "Days after the first dose",
+  });
+}
+
+{
+  const standards = [0, 7.8, 15.6, 31.3, 62.5, 125, 250, 500];
+  const od = () => standards.map((x) => fixed(0.05 + 0.0036 * x + normal(0, 0.03), 3));
+  table("t-elisa", "CA 19-9 standard curve (ELISA)", "xy", {
+    columns: ["Title", "CA 19-9 (U/mL)", "OD 450 (rep 1)", "OD 450 (rep 2)"],
+    rows: rows([standards.map(String), od(), od()]),
+  });
+  analysis("t-elisa", "a-elisa-lin", "Linear regression", "linear-regression", {
+    y: "OD 450 (rep 1)",
+    forceOrigin: false,
+  });
+  analysis("t-elisa", "a-elisa-cor", "Pearson correlation", "correlation", { method: "pearson", mode: "x-vs-every-y" });
+  graph("t-elisa", "g-elisa", "Standard curve", "xy-scatter", {
+    regAnalysisId: "a-elisa-lin",
+    xLabel: "CA 19-9 (U/mL)",
+    yLabel: "Optical density (450 nm)",
+    ...palette("tol-bright"),
+    note: { x: 20, y: 10 },
+  });
+}
+
+// ── Grouped tables ───────────────────────────────────────────────────────
+
+{
+  const groups = [VEHICLE, "HLX-101", "HLX-101 + Gem"];
+  const days = ["Day 0", "Day 3", "Day 7", "Day 14"];
+  const means = [
+    [12, 14, 13, 15],
+    [12, 48, 95, 60],
+    [12, 35, 70, 40],
+  ];
+  const values = means.map((row) => row.map((m) => range(3).map(() => fixed(Math.max(1, normal(m, m * 0.12)), 1))));
+  table("t-il6", "IL-6 in plasma (pg/mL)", "grouped", groupedData(groups, days, values));
+  analysis("t-il6", "a-il6-2w", "Two-way ANOVA + Tukey", "two-way-anova", {
+    design: "ordinary",
+    posthoc: "tukey",
+    posthocTarget: "groups",
+  });
+  analysis("t-il6", "a-il6-rm", "Two-way RM ANOVA", "two-way-anova", {
+    design: "repeated-measures",
+    posthoc: "none",
+    posthocTarget: "groups",
+  });
+  analysis("t-il6", "a-il6-mt", "Multiple t tests (vehicle vs. HLX-101)", "multiple-t-tests", {
+    paired: false,
+    gaussian: true,
+    pooledSd: false,
+    correction: "holm",
+    sets: [VEHICLE, "HLX-101"],
+  });
+  graph("t-il6", "g-il6-bars", "Interleaved bars", "grouped-bars", {
+    yLabel: "IL-6 (pg/mL)",
+    barGap: 0.15,
+    outlineColor: "#000000",
+    errorDirection: "above",
+    ...palette("tableau-10"),
+    series: { "HLX-101 + Gem": { pattern: "diagonal" } },
+  });
+  graph("t-il6", "g-il6-lines", "Time course", "grouped-lines", {
+    yLabel: "IL-6 (pg/mL)",
+    ...palette("tol-bright"),
+    series: { "HLX-101 + Gem": { dash: "dash", shape: "square" } },
+  });
+  graph("t-il6", "g-il6-dots", "Interleaved scatter", "grouped-scatter", {
+    yLabel: "IL-6 (pg/mL)",
+    pointSize: 8,
+    series: { "HLX-101": { shape: "square" }, "HLX-101 + Gem": { shape: "triangle-up" } },
+  });
+}
+
+{
+  const cells = ["CD8 T", "CD4 T", "Treg", "NK", "Macrophage"];
+  // Each cell type's share, under vehicle then HLX-101.
+  const shares = [
+    [12, 24],
+    [25, 27],
+    [9, 5],
+    [6, 10],
+    [48, 34],
+  ];
+  // Each mouse's cells add up to 100%.
+  const mice = [0, 1].map((arm) =>
+    range(4).map(() => {
+      const raw = shares.map((byArm) => Math.max(0.5, normal(byArm[arm], byArm[arm] * 0.1)));
+      const total = raw.reduce((a, b) => a + b, 0);
+      return raw.map((v) => (v * 100) / total);
+    }),
+  );
+  const values = cells.map((_, c) => [0, 1].map((arm) => mice[arm].map((mouse) => fixed(mouse[c], 1))));
+  table("t-immune", "Immune infiltrate (% of CD45⁺)", "grouped", groupedData(cells, [VEHICLE, "HLX-101"], values));
+  analysis("t-immune", "a-immune-2w", "Two-way ANOVA + Bonferroni (per cell type)", "two-way-anova", {
+    design: "ordinary",
+    posthoc: "bonferroni",
+    posthocTarget: "rows",
+  });
+  graph("t-immune", "g-immune-stack", "Composition", "grouped-stacked", {
+    yLabel: "% of CD45⁺ cells",
+    ...palette("tol-muted"),
+  });
+  graph("t-immune", "g-immune-h", "Horizontal bars", "grouped-hbars", {
+    yLabel: "% of CD45⁺ cells",
+    ...palette("tol-muted"),
+  });
+}
+
+// The genes HLX-101 changes most: up (cell-cycle arrest, apoptosis), then down (proliferation).
+const TOP_GENES = ["CDKN1A", "GADD45A", "BAX", "PMAIP1", "TP53I3", "MYC", "CCND1", "E2F1", "MKI67", "TOP2A"];
+
+{
+  const titles = range(10000).map((i) => TOP_GENES[i] ?? `GENE${String(i + 1).padStart(5, "0")}`);
+  const values: string[][][] = [[], []];
+  for (const r of titles.keys()) {
+    const top = r < TOP_GENES.length;
+    // Normalized counts, from tens to thousands: never so few that replicates tie.
+    const level = Math.max(30, Math.exp(top ? normal(7.5, 0.3) : normal(6.5, 1.1)));
+    // ~8% of the other genes change too, less.
+    const logFold = top
+      ? (r < 5 ? 1 : -1) * (4 + random() * 0.8)
+      : random() < 0.08
+        ? (random() < 0.55 ? 1 : -1) * Math.abs(normal(1.5, 0.6))
+        : normal(0, 0.12);
+    const noise = top ? 0.03 : 0.1;
+    for (const g of [0, 1]) {
+      const mean = level * (g === 1 ? 2 ** logFold : 1);
+      values[g].push(range(4).map(() => String(Math.max(1, Math.round(mean * (1 + normal(0, noise)))))));
+    }
+  }
+  table("t-rnaseq", "RNA-seq, HLX-101 vs. vehicle", "grouped", groupedData([VEHICLE, "HLX-101"], titles, values));
+  graph("t-rnaseq", "g-rnaseq", "Volcano plot", "volcano", {
+    title: "HLX-101 vs. vehicle",
+    volcanoGroupA: VEHICLE,
+    volcanoGroupB: "HLX-101",
+    volcanoSignificance: "fdr",
+    volcanoLabelCount: 0,
+    // The top genes stand out, with their names.
+    points: Object.fromEntries(
+      TOP_GENES.map((_, r) => [`#${r}`, { size: 11, outline: 1, outlineColor: "#000000", label: true }]),
+    ),
   });
 }
 
 // ── Multiple Variables tables ────────────────────────────────────────────
 
 {
-  const patients = range(60).map(() => {
-    const age = normal(55, 12);
-    const bmi = normal(26, 4);
-    const glucose = 70 + 0.6 * bmi + 0.2 * age + normal(0, 8);
-    const cholesterol = 150 + 0.8 * age + normal(0, 25);
-    const bp = 90 + 0.5 * age + 1.1 * bmi + 0.05 * cholesterol + normal(0, 8);
-    return [age, bmi, bp, cholesterol, glucose].map((v) => fixed(v, 1));
+  const names = ["Age", "CA 19-9 (U/mL)", "CEA (ng/mL)", "Ki-67 (%)", "Tumor size (mm)"];
+  const patients = range(40).map(() => {
+    const ki67 = Math.max(3, normal(30, 12));
+    const ca199 = Math.exp(normal(4.8 + ki67 / 60, 0.7));
+    const cea = Math.max(0.5, normal(4 + ca199 / 150, 2));
+    const size = 18 + 0.45 * ki67 + 0.012 * ca199 + normal(0, 5);
+    return [fixed(normal(64, 9), 0), fixed(ca199, 0), fixed(cea, 1), fixed(ki67, 1), fixed(size, 1)];
   });
-  const names = ["Age", "BMI", "Systolic BP", "Cholesterol", "Glucose"];
-  table("t-pat", "Patient characteristics", "multiple", {
+  table("t-pat", "Patient biomarkers", "multiple", {
     columns: ["Title", ...names],
     rows: patients.map((p, i) => [`P${String(i + 1).padStart(2, "0")}`, ...p]),
   });
-  analysis("t-pat", "a-pat-cor", "Correlation matrix (Pearson)", "correlation-matrix", { method: "pearson" });
   analysis("t-pat", "a-pat-sp", "Correlation matrix (Spearman)", "correlation-matrix", { method: "spearman" });
-  analysis("t-pat", "a-pat-reg", "Multiple regression (Systolic BP)", "multiple-regression", { dependent: "Systolic BP", predictors: ["Age", "BMI", "Cholesterol"] });
-  graph("t-pat", "g-pat-heat", "Heatmap", "heatmap", { palette: reversedPalette(savedPalette(paletteNamed("coolwarm")!)) });
+  analysis("t-pat", "a-pat-reg", "Multiple regression (tumor size)", "multiple-regression", {
+    dependent: "Tumor size (mm)",
+    predictors: ["CA 19-9 (U/mL)", "CEA (ng/mL)", "Ki-67 (%)"],
+  });
 }
 
 {
-  const rowsDE: (string | null)[][] = [];
-  const results = range(2000).map((i) => {
+  const samples = [1, 2, 3].map((k) => `Vehicle ${k}`).concat([1, 2, 3].map((k) => `HLX-101 ${k}`));
+  const genes = [...TOP_GENES, "CDK1", "PLK1", "AURKA", "BIRC5", "FAS", "BBC3", "SESN1", "MDM2", "TNFRSF10B", "RRM2B"];
+  // Each gene's expression as a z-score across the six samples: up genes rise with HLX-101.
+  const up = (g: number) => (g < 5 || g >= 14 ? 1 : -1);
+  table("t-heat", "Top 20 genes (z-scores)", "multiple", {
+    columns: ["Title", ...samples],
+    rows: genes.map((gene, g) => [
+      gene,
+      ...samples.map((_, s) => fixed((s < 3 ? -1 : 1) * up(g) * normal(1, 0.25), 2)),
+    ]),
+  });
+  graph("t-heat", "g-heat", "Heatmap", "heatmap", {
+    title: "Top 20 genes",
+    palette: reversedPalette(savedPalette(paletteNamed("rdbu")!)), // red for high, as usual
+  });
+}
+
+{
+  const results = range(1000).map((i) => {
     const changed = random() < 0.1;
     const log2FC = changed ? (random() < 0.5 ? -1 : 1) * Math.abs(normal(2, 0.8)) : normal(0, 0.35);
-    const p = changed ? 10 ** -(1.5 + random() * 8) : random();
-    return { gene: `GENE${String(i + 1).padStart(4, "0")}`, log2FC, p };
+    // The larger the change, the smaller its P value, as in real data.
+    const p = changed ? 10 ** -(1.3 + Math.abs(log2FC) * Math.max(0.3, normal(2.2, 0.8))) : random();
+    return { gene: `GENE${String(i + 1).padStart(5, "0")}`, log2FC, p };
   });
-  // Benjamini-Hochberg adjusted P values, as a DE tool would export them.
+  // Benjamini-Hochberg adjusted P values, as DESeq2 exports them.
   const order = range(results.length).sort((a, b) => results[a].p - results[b].p);
   const adjusted: number[] = [];
   let running = 1;
@@ -308,35 +452,48 @@ function groupedData(groups: string[], titles: string[], values: (string | null)
     running = Math.min(running, (results[order[k]].p * order.length) / (k + 1));
     adjusted[order[k]] = running;
   }
-  results.forEach((r, i) => rowsDE.push([null, r.gene, fixed(r.log2FC, 3), r.p.toExponential(3), adjusted[i].toExponential(3)]));
-  table("t-de", "DE results (from another tool)", "multiple", {
-    columns: ["Title", "Gene", "log2 fold change", "P value", "Adjusted P"],
-    rows: rowsDE,
+  table("t-deseq", "DESeq2 results (imported)", "multiple", {
+    columns: ["Title", "Gene", "log2FoldChange", "pvalue", "padj"],
+    rows: results.map((r, i) => [null, r.gene, fixed(r.log2FC, 3), r.p.toExponential(2), adjusted[i].toExponential(2)]),
   });
-  graph("t-de", "g-de-volcano", "Volcano plot (your columns)", "volcano", {
-    volcanoX: "log2 fold change", volcanoY: "Adjusted P", volcanoLabel: "Gene", volcanoLabelCount: 10,
+  graph("t-deseq", "g-deseq", "Volcano plot", "volcano", {
+    volcanoX: "log2FoldChange",
+    volcanoY: "padj",
+    volcanoLabel: "Gene",
+    volcanoLabelCount: 8,
   });
 }
 
 // ── Contingency tables ───────────────────────────────────────────────────
 
-table("t-resp", "Treatment response", "contingency", {
-  columns: ["Title", "Responded", "Did not respond"],
-  rows: [["Drug", "34", "16"], ["Placebo", "18", "32"]],
+table("t-recist", "Objective response (RECIST)", "contingency", {
+  columns: ["Title", "Responder", "Non-responder"],
+  rows: [
+    ["HLX-101", "19", "31"],
+    ["Placebo", "7", "43"],
+  ],
 });
-analysis("t-resp", "a-resp-fisher", "Fisher's exact test", "chi-square");
-graph("t-resp", "g-resp-stack", "Stacked bars", "grouped-stacked", {
-  yLabel: "Patients", ...palette("grayscale"), series: { "Did not respond": { pattern: "diagonal" } },
+analysis("t-recist", "a-recist", "Fisher's exact test", "chi-square");
+graph("t-recist", "g-recist", "Stacked bars", "grouped-stacked", {
+  yLabel: "Patients",
+  ...palette("grayscale"),
+  series: { "Non-responder": { pattern: "diagonal" } },
 });
-graph("t-resp", "g-resp-bars", "Interleaved bars", "grouped-bars");
 
-table("t-blood", "Blood type by region", "contingency", {
-  columns: ["Title", ...["O", "A", "B", "AB"]],
-  rows: [["North", "45", "40", "11", "4"], ["South", "52", "31", "13", "4"], ["East", "38", "35", "20", "7"]],
+table("t-kras", "KRAS mutation by tumor site", "contingency", {
+  columns: ["Title", "G12D", "G12V", "G12R", "Wild type"],
+  rows: [
+    ["Head", "48", "30", "18", "6"],
+    ["Body", "30", "22", "9", "5"],
+    ["Tail", "16", "14", "4", "4"],
+  ],
 });
-analysis("t-blood", "a-blood-chi", "Chi-square test", "chi-square");
-graph("t-blood", "g-blood-bars", "Interleaved bars", "grouped-bars", { xLabel: "Region", yLabel: "People" });
-graph("t-blood", "g-blood-h", "Horizontal bars", "grouped-hbars");
+analysis("t-kras", "a-kras", "Chi-square test", "chi-square");
+graph("t-kras", "g-kras", "Horizontal bars", "grouped-hbars", {
+  xLabel: "Tumor site",
+  yLabel: "Patients",
+  background: "transparent",
+});
 
 // ── Output ───────────────────────────────────────────────────────────────
 
@@ -347,5 +504,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   mkdirSync(folder, { recursive: true });
   writeFileSync(new URL("Helix Sample.hlx", folder), serializeProjectFile(sampleProject));
   const count = (type: string) => Object.values(nodes).filter((n) => n.type === type).length;
-  console.log(`samples/Helix Sample.hlx: ${count("table")} tables, ${count("analysis")} analyses, ${count("graph")} graphs.`);
+  console.log(
+    `samples/Helix Sample.hlx: ${count("table")} tables, ${count("analysis")} analyses, ${count("graph")} graphs.`,
+  );
 }

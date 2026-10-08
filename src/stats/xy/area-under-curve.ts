@@ -3,7 +3,7 @@
 // 0). Pure arithmetic — no R needed.
 import type { AnalysisOutcome, AreaUnderCurveParams, AreaUnderCurveRow, Column } from "../types";
 import { describe } from "../column/base";
-import { pairUp, splitXY } from "../../lib/dataset";
+import { pairUp, splitXY, xyProblem } from "../../lib/dataset";
 
 export async function runAreaUnderCurve(
   columns: Column[],
@@ -11,9 +11,7 @@ export async function runAreaUnderCurve(
 ): Promise<AnalysisOutcome> {
   const baseline = params?.baseline ?? 0;
   const { x: xCol, ys: yCols } = splitXY(columns);
-  if (!xCol || yCols.length < 1) {
-    return { error: "Area under the curve needs an X column and at least one Y column with numeric data." };
-  }
+  if (!xCol || yCols.length < 1) return { error: xyProblem(columns)! };
 
   const areas: AreaUnderCurveRow[] = yCols.map((y) => {
     const { x, y: yy } = pairUp(xCol, y);

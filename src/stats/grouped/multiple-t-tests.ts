@@ -12,14 +12,13 @@ import type { AnalysisOutcome, Column, MultipleTTestsParams } from "../types";
 import { describe, rBool, rVec } from "../column/base";
 import { evalNamedVector } from "../webr";
 import { adjustPValues, groupRows, pairedGroupRows, rowName } from "./base";
+import { mean } from "../../lib/summary";
 
 const CORRECTION_LABEL: Record<MultipleTTestsParams["correction"], string> = {
   holm: "Holm-corrected",
   fdr: "FDR-corrected (Benjamini-Hochberg)",
   none: "uncorrected",
 };
-
-const mean = (vs: number[]) => vs.reduce((a, b) => a + b, 0) / vs.length;
 
 /** Pooled-SD path (parametric only): compute each row's mean/diff and pooled
  *  residual variance in JS, then batch just the `pt()` CDF lookups through R. */
@@ -79,52 +78,50 @@ export async function runMultipleTTests(
     return { error: `Each row needs at least 2 ${params.paired ? "paired " : ""}replicate values in both groups.` };
   }
 
-  try {
-    let rawP: (number | null)[];
-    let diffs: (number | null)[];
-    if (params.gaussian && params.pooledSd) {
-      const outcome = await runPooledSd(testable, rowsA, rowsB, params.paired);
-      if ("error" in outcome) return outcome;
-      rawP = outcome.p;
-      diffs = outcome.diff;
-    } else {
-      const call = (r: number) =>
-        `${params.gaussian ? "t.test" : "wilcox.test"}(${rVec(rowsA[r])},${rVec(rowsB[r])},paired=${rBool(params.paired)})`;
-      // wilcox.test emits ties/exact warnings — wrap the CALL (not the symbol) so
-      // suppressWarnings actually applies (suppressWarnings(wilcox.test)(...) would not).
-      const stmts = testable.map((r) => `t${r}<-${params.gaussian ? call(r) : `suppressWarnings(${call(r)})`}`);
-      const values = testable.flatMap((r) => [
-        `p${r}=t${r}$p.value`,
-        `d${r}=mean(${rVec(rowsA[r])})-mean(${rVec(rowsB[r])})`,
-      ]);
-      const v = await evalNamedVector(`${stmts.join(";")};c(${values.join(",")})`);
-      rawP = testable.map((r) => v[`p${r}`] ?? null);
-      diffs = testable.map((r) => v[`d${r}`] ?? null);
-    }
-
-    const adjP = adjustPValues(rawP, params.correction);
-    const comparisons = testable.map((r, i) => ({ group1: rowName(titles, r), group2: "", diff: diffs[i], p: adjP[i] }));
-    const significant = adjP.filter((p) => p != null && p < 0.05).length;
-    const testLabel = params.gaussian
-      ? params.paired
-        ? `Paired t test${params.pooledSd ? " (pooled SD across rows)" : ""}`
-        : params.pooledSd
-          ? "Unpaired t test (pooled SD across rows)"
-          : "Welch's t test (no equal-SD assumption)"
-      : `${params.paired ? "Wilcoxon signed-rank" : "Mann-Whitney"} test`;
-    return {
-      testType: "multiple-t-tests",
-      subtitle: params.gaussian ? "Multiple t tests" : `Multiple ${params.paired ? "Wilcoxon signed-rank" : "Mann-Whitney"} tests`,
-      stats: [
-        { label: "Rows compared", value: testable.length },
-        { label: "Significant rows (P < 0.05)", value: significant },
-      ],
-      groups: [name1, name2].map((name, i) => describe({ name, values: (i === 0 ? rowsA : rowsB).flat() })),
-      notes: `${testLabel} at each row, ${CORRECTION_LABEL[params.correction]} across rows.`,
-      comparisons,
-      comparisonsLabel: `Per-row comparisons (${name1} vs. ${name2})`,
-    };
-  } catch (err) {
-    return { error: `Could not run the test: ${err instanceof Error ? err.message : String(err)}` };
+  let rawP: (number | null)[];
+  let diffs: (number | null)[];
+  if (params.gaussian && params.pooledSd) {
+    const outcome = await runPooledSd(testable, rowsA, rowsB, params.paired);
+    if ("error" in outcome) return outcome;
+    rawP = outcome.p;
+    diffs = outcome.diff;
+  } else {
+    const call = (r: number) =>
+      `${params.gaussian ? "t.test" : "wilcox.test"}(${rVec(rowsA[r])},${rVec(rowsB[r])},paired=${rBool(params.paired)})`;
+    // wilcox.test emits ties/exact warnings — wrap the CALL (not the symbol) so
+    // suppressWarnings actually applies (suppressWarnings(wilcox.test)(...) would not).
+    const stmts = testable.map((r) => `t${r}<-${params.gaussian ? call(r) : `suppressWarnings(${call(r)})`}`);
+    const values = testable.flatMap((r) => [
+      `p${r}=t${r}$p.value`,
+      `d${r}=mean(${rVec(rowsA[r])})-mean(${rVec(rowsB[r])})`,
+    ]);
+    const v = await evalNamedVector(`${stmts.join(";")};c(${values.join(",")})`);
+    rawP = testable.map((r) => v[`p${r}`] ?? null);
+    diffs = testable.map((r) => v[`d${r}`] ?? null);
   }
+
+  const adjP = adjustPValues(rawP, params.correction);
+  const comparisons = testable.map((r, i) => ({ group1: rowName(titles, r), group2: "", diff: diffs[i], p: adjP[i] }));
+  const significant = adjP.filter((p) => p != null && p < 0.05).length;
+  const testLabel = params.gaussian
+    ? params.paired
+      ? `Paired t test${params.pooledSd ? " (pooled SD across rows)" : ""}`
+      : params.pooledSd
+        ? "Unpaired t test (pooled SD across rows)"
+        : "Welch's t test (no equal-SD assumption)"
+    : `${params.paired ? "Wilcoxon signed-rank" : "Mann-Whitney"} test`;
+  return {
+    testType: "multiple-t-tests",
+    subtitle: params.gaussian
+      ? "Multiple t tests"
+      : `Multiple ${params.paired ? "Wilcoxon signed-rank" : "Mann-Whitney"} tests`,
+    stats: [
+      { label: "Rows compared", value: testable.length },
+      { label: "Significant rows (P < 0.05)", value: significant },
+    ],
+    groups: [name1, name2].map((name, i) => describe({ name, values: (i === 0 ? rowsA : rowsB).flat() })),
+    notes: `${testLabel} at each row, ${CORRECTION_LABEL[params.correction]} across rows.`,
+    comparisons,
+    comparisonsLabel: `Per-row comparisons (${name1} vs. ${name2})`,
+  };
 }

@@ -17,6 +17,7 @@ import type { AnalysisOutcome, Column, ComparisonRow, TwoWayAnovaParams } from "
 import { describe, pairIndices, pRow, rStr, rVec } from "../column/base";
 import { evalNamedVector } from "../webr";
 import { flattenGrouped, flattenRepeated, groupRows, rowName } from "./base";
+import { mean } from "../../lib/summary";
 
 // Group/row/subject labels derive from user column names, so they must be escaped
 // before interpolation — only their distinctness matters to the model, not their text.
@@ -34,7 +35,6 @@ async function runPosthoc(
   const rows = groupRows(columns);
   const names = [...rows.keys()];
   const rowCount = rows.get(names[0])?.length ?? 0;
-  const mean = (vs: number[]) => vs.reduce((a, b) => a + b, 0) / vs.length;
   const cells: { label1: string; label2: string; diff: number; t: number }[] = [];
   if (target === "groups") {
     for (let r = 0; r < rowCount; r++) {
@@ -44,7 +44,12 @@ async function runPosthoc(
         if (vi.length === 0 || vj.length === 0) continue;
         const diff = mean(vi) - mean(vj);
         const t = diff / Math.sqrt(mse * (1 / vi.length + 1 / vj.length));
-        cells.push({ label1: `${names[i]} (${rowName(titles, r)})`, label2: `${names[j]} (${rowName(titles, r)})`, diff, t });
+        cells.push({
+          label1: `${names[i]} (${rowName(titles, r)})`,
+          label2: `${names[j]} (${rowName(titles, r)})`,
+          diff,
+          t,
+        });
       }
     }
   } else {
@@ -91,42 +96,46 @@ async function runRepeatedMeasures(
     `rS=e2$"F value"[1],rDf=e2$Df[1],rP=e2$"Pr(>F)"[1],` +
     `iS=e2$"F value"[2],iDf=e2$Df[2],iP=e2$"Pr(>F)"[2],rDfResid=e2$Df[3],rMse=e2$"Sum Sq"[3]/e2$Df[3])`;
 
-  try {
-    const v = await evalNamedVector(rCode);
-    const effect = (label: string, s: string, df: string, p: string) => [
-      { label: `${label} F`, value: v[s] ?? null },
-      { label: `${label} DFn`, value: v[df] ?? null },
-      pRow(`${label} P value`, v[p] ?? null),
-    ];
-    const stats = [...effect("Group", "gS", "gDf", "gP"), ...effect("Row", "rS", "rDf", "rP"), ...effect("Interaction", "iS", "iDf", "iP")];
-    const groups = [...new Set(group)].map((name) => describe({ name, values: values.filter((_, i) => group[i] === name) }));
-    // Groups (between-subjects) comparisons use the "Error: id" stratum's residual;
-    // rows (within-subject) comparisons use the "Error: id:r" stratum's — an
-    // approximation of Prism's exact RM multiple-comparisons SE, using each effect's
-    // own pooled error term.
-    const mse = params.posthocTarget === "groups" ? v.gMse : v.rMse;
-    const dfResid = params.posthocTarget === "groups" ? v.gDfResid : v.rDfResid;
-    const comparisons =
-      params.posthoc !== "none" ? await runPosthoc(columns, params.posthoc, params.posthocTarget, mse ?? null, dfResid ?? null, titles) : undefined;
-    return {
-      testType: "two-way-anova",
-      subtitle: "Repeated-measures two-way ANOVA",
-      stats,
-      groups,
-      notes:
-        "Matched by row: each replicate column is treated as the same subject across every row within its group." +
-        (dropped > 0
-          ? ` ${dropped} replicate column${dropped === 1 ? "" : "s"} excluded (missing a value in at least one row).`
-          : ""),
-      comparisons,
-      comparisonsLabel: comparisons?.length
-        ? `${params.posthoc === "tukey" ? "Tukey's" : "Bonferroni-corrected"} multiple comparisons ` +
-          (params.posthocTarget === "groups" ? "(groups within each row)" : "(row means within each group)")
-        : undefined,
-    };
-  } catch (err) {
-    return { error: `Could not run the test: ${err instanceof Error ? err.message : String(err)}` };
-  }
+  const v = await evalNamedVector(rCode);
+  const effect = (label: string, s: string, df: string, p: string) => [
+    { label: `${label} F`, value: v[s] ?? null },
+    { label: `${label} DFn`, value: v[df] ?? null },
+    pRow(`${label} P value`, v[p] ?? null),
+  ];
+  const stats = [
+    ...effect("Group", "gS", "gDf", "gP"),
+    ...effect("Row", "rS", "rDf", "rP"),
+    ...effect("Interaction", "iS", "iDf", "iP"),
+  ];
+  const groups = [...new Set(group)].map((name) =>
+    describe({ name, values: values.filter((_, i) => group[i] === name) }),
+  );
+  // Groups (between-subjects) comparisons use the "Error: id" stratum's residual;
+  // rows (within-subject) comparisons use the "Error: id:r" stratum's — an
+  // approximation of Prism's exact RM multiple-comparisons SE, using each effect's
+  // own pooled error term.
+  const mse = params.posthocTarget === "groups" ? v.gMse : v.rMse;
+  const dfResid = params.posthocTarget === "groups" ? v.gDfResid : v.rDfResid;
+  const comparisons =
+    params.posthoc !== "none"
+      ? await runPosthoc(columns, params.posthoc, params.posthocTarget, mse ?? null, dfResid ?? null, titles)
+      : undefined;
+  return {
+    testType: "two-way-anova",
+    subtitle: "Repeated-measures two-way ANOVA",
+    stats,
+    groups,
+    notes:
+      "Matched by row: each replicate column is treated as the same subject across every row within its group." +
+      (dropped > 0
+        ? ` ${dropped} replicate column${dropped === 1 ? "" : "s"} excluded (missing a value in at least one row).`
+        : ""),
+    comparisons,
+    comparisonsLabel: comparisons?.length
+      ? `${params.posthoc === "tukey" ? "Tukey's" : "Bonferroni-corrected"} multiple comparisons ` +
+        (params.posthocTarget === "groups" ? "(groups within each row)" : "(row means within each group)")
+      : undefined,
+  };
 }
 
 export async function runTwoWayAnova(
@@ -157,42 +166,38 @@ export async function runTwoWayAnova(
       `rS=a$"F value"[3],rDf=a$Df[3],rP=a$"Pr(>F)"[3],` +
       `iS=a$"F value"[4],iDf=a$Df[4],iP=a$"Pr(>F)"[4],dfResid=dfr,mse=mse)`;
 
-  try {
-    const v = await evalNamedVector(rCode);
-    const stat = nonparametric ? "H" : "F";
-    const effect = (label: string, s: string, df: string, p: string) => [
-      { label: `${label} ${stat}`, value: v[s] ?? null },
-      { label: `${label} DFn`, value: v[df] ?? null },
-      pRow(`${label} P value`, v[p] ?? null),
-    ];
-    const stats = [
-      ...effect("Group", "gS", "gDf", "gP"),
-      ...effect("Row", "rS", "rDf", "rP"),
-      ...effect("Interaction", "iS", "iDf", "iP"),
-      ...(nonparametric ? [] : [{ label: "DFd (residual)", value: v.dfResid ?? null }]),
-    ];
-    const groups = [...new Set(group)].map((name) =>
-      describe({ name, values: values.filter((_, i) => group[i] === name) }),
-    );
-    const comparisons =
-      !nonparametric && params.posthoc !== "none"
-        ? await runPosthoc(columns, params.posthoc, params.posthocTarget, v.mse, v.dfResid, titles)
-        : undefined;
-    return {
-      testType: "two-way-anova",
-      subtitle: nonparametric ? "Scheirer-Ray-Hare test" : "Ordinary two-way ANOVA",
-      stats,
-      groups,
-      notes: nonparametric
-        ? "Non-parametric two-way analysis (rank-based); no normality assumption."
-        : "Compares group and row-position effects, plus their interaction; assumes normal distributions with equal variances (Type III sums of squares).",
-      comparisons,
-      comparisonsLabel: comparisons?.length
-        ? `${params.posthoc === "tukey" ? "Tukey's" : "Bonferroni-corrected"} multiple comparisons ` +
-          (params.posthocTarget === "groups" ? "(groups within each row)" : "(row means within each group)")
-        : undefined,
-    };
-  } catch (err) {
-    return { error: `Could not run the test: ${err instanceof Error ? err.message : String(err)}` };
-  }
+  const v = await evalNamedVector(rCode);
+  const stat = nonparametric ? "H" : "F";
+  const effect = (label: string, s: string, df: string, p: string) => [
+    { label: `${label} ${stat}`, value: v[s] ?? null },
+    { label: `${label} DFn`, value: v[df] ?? null },
+    pRow(`${label} P value`, v[p] ?? null),
+  ];
+  const stats = [
+    ...effect("Group", "gS", "gDf", "gP"),
+    ...effect("Row", "rS", "rDf", "rP"),
+    ...effect("Interaction", "iS", "iDf", "iP"),
+    ...(nonparametric ? [] : [{ label: "DFd (residual)", value: v.dfResid ?? null }]),
+  ];
+  const groups = [...new Set(group)].map((name) =>
+    describe({ name, values: values.filter((_, i) => group[i] === name) }),
+  );
+  const comparisons =
+    !nonparametric && params.posthoc !== "none"
+      ? await runPosthoc(columns, params.posthoc, params.posthocTarget, v.mse, v.dfResid, titles)
+      : undefined;
+  return {
+    testType: "two-way-anova",
+    subtitle: nonparametric ? "Scheirer-Ray-Hare test" : "Ordinary two-way ANOVA",
+    stats,
+    groups,
+    notes: nonparametric
+      ? "Non-parametric two-way analysis (rank-based); no normality assumption."
+      : "Compares group and row-position effects, plus their interaction; assumes normal distributions with equal variances (Type III sums of squares).",
+    comparisons,
+    comparisonsLabel: comparisons?.length
+      ? `${params.posthoc === "tukey" ? "Tukey's" : "Bonferroni-corrected"} multiple comparisons ` +
+        (params.posthocTarget === "groups" ? "(groups within each row)" : "(row means within each group)")
+      : undefined,
+  };
 }

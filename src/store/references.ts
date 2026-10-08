@@ -1,9 +1,9 @@
-// Analyses and graphs name the columns and groups they use: a regression's Y, a
-// multiple regression's variables, a dose-response curve's data set, a volcano's
-// columns or groups, the comparisons drawn as stars, the series styled by hand, and
-// the points styled one by one (by column and row). When a table edit renames a
-// column or group, or moves rows, its analyses and graphs follow, so they keep
-// working on the same data.
+// Analyses and graphs name the columns and groups they use: the data sets an analysis
+// runs on, a regression's Y, a multiple regression's variables, a dose-response
+// curve's data set, a volcano's columns or groups, the comparisons drawn as stars, the
+// series styled by hand, and the points styled one by one (by column and row). When a
+// table edit renames a column or group, or moves rows, its analyses and graphs follow,
+// so they keep working on the same data.
 import type { AnalysisParams } from "../stats/types";
 import type { GraphOptions, ProjectNode } from "./types";
 import { pairKey, pairOf, parsePointKey, pointKeyOf, seriesKeyOf } from "../lib/columns";
@@ -16,7 +16,7 @@ export interface TableMove {
 }
 
 // The params and options holding names (a name, or a list of names).
-const PARAM_NAMES = ["y", "dependent", "predictors", "datasets"] as const;
+const PARAM_NAMES = ["y", "dependent", "predictors", "datasets", "sets"] as const;
 const OPTION_NAMES = ["doseY", "volcanoX", "volcanoY", "volcanoLabel", "volcanoGroupA", "volcanoGroupB"] as const;
 
 /** `node` following a table edit's `move`; `columns`: the table's columns after it (a

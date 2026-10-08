@@ -11,6 +11,7 @@
 // store/references.ts.)
 import type { TableData, TableType } from "../../store/types";
 import { seriesKeyOf } from "../../lib/columns";
+import { isGrouped } from "../../lib/dataset";
 
 type Cell = string | null;
 
@@ -65,8 +66,6 @@ export function newGroupedTable(groups: number, replicates: number): TableData {
   const keys = Array.from({ length: groups }, (_, g) => columnLetter(g));
   return { columns: ["Title", ...subColumns(keys, replicates)], rows: [], groups, replicates };
 }
-
-export const isGrouped = (data: TableData) => Boolean(data.groups && data.replicates);
 
 // ── Annotation remapping ───────────────────────────────────────────────
 
@@ -149,7 +148,8 @@ export function toggleExcluded(data: TableData, range: Range): TableData {
 /** Where each row goes when `count` rows are inserted before row `at`. */
 export const rowsInserted = (at: number, count: number) => (r: number) => (r >= at ? r + count : r);
 /** Where each row goes when `count` rows are deleted from row `at` (null: deleted). */
-export const rowsDeleted = (at: number, count: number) => (r: number) => (r < at ? r : r >= at + count ? r - count : null);
+export const rowsDeleted = (at: number, count: number) => (r: number) =>
+  r < at ? r : r >= at + count ? r - count : null;
 
 export function insertRows(data: TableData, at: number, count: number): TableData {
   if (at >= data.rows.length) return data; // the grid already shows empty rows there
@@ -180,16 +180,24 @@ export function insertColumns(data: TableData, at: number, count: number, type: 
   return { ...data, columns, rows, excluded: remapExcluded(data, (r, c) => [r, c >= at ? c + count : c]) };
 }
 
+/** The widths of `columns` alone: a column gone takes its width with it. */
+function widthsOf(widths: TableData["widths"], columns: string[]): TableData["widths"] {
+  const kept = widths && Object.entries(widths).filter(([name]) => columns.includes(name));
+  return kept?.length ? Object.fromEntries(kept) : undefined;
+}
+
 /** Deletes `count` columns from column `at` (≥ 1); at least one data column remains. */
 export function deleteColumns(data: TableData, at: number, count: number): TableData {
   const n = Math.min(count, data.columns.length - 2);
   if (n <= 0) return data;
   const keep = (_: unknown, c: number) => c < at || c >= at + n;
+  const columns = data.columns.filter(keep);
   return {
     ...data,
-    columns: data.columns.filter(keep),
+    columns,
     rows: data.rows.map((row) => row.filter(keep)),
     excluded: remapExcluded(data, (r, c) => (c < at ? [r, c] : c >= at + n ? [r, c - n] : null)),
+    widths: widthsOf(data.widths, columns),
   };
 }
 
@@ -242,7 +250,14 @@ export function regroupTable(data: TableData, groups: number, replicates: number
     groups,
     replicates,
     excluded: remapExcluded(data, (r, c) => (to(c) < 0 ? null : [r, to(c)])),
+    widths: widthsOf(data.widths, columns),
   };
+}
+
+/** Whether regrouping to these counts deletes a value (a group or sub-column beyond them holding one). */
+export function regroupLoses(data: TableData, groups: number, replicates: number): boolean {
+  const kept = new Set(regroupTable(data, groups, replicates).columns);
+  return data.columns.some((name, c) => !kept.has(name) && data.rows.some((row) => row[c]));
 }
 
 /** Stored cells whose text contains `query` (any case), row by row. */
@@ -323,7 +338,8 @@ export function parseTSV(text: string): Cell[][] {
     const ch = s[i];
     if (quoted) {
       if (ch !== '"') cell += ch;
-      else if (s[i + 1] === '"') cell += s[++i]; // "" is an escaped quote
+      else if (s[i + 1] === '"')
+        cell += s[++i]; // "" is an escaped quote
       else quoted = false;
     } else if (ch === '"' && cell === "") {
       quoted = true;

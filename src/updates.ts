@@ -1,10 +1,9 @@
-// Whether a newer Helix is out: GitHub's latest release against this version. Checked
-// quietly at launch (at most once a day) and from Helix ▸ Check for Updates…. The
+// Whether a newer Helix is out: the latest release (`latestVersion`) against this version.
+// Checked quietly at launch (at most once a day) and from Helix ▸ Check for Updates…. The
 // user downloads and installs a new version themselves.
 import { alert, appVersion, askToDownload, isNative, openLink } from "./native";
-import { isNewer } from "./lib/version";
+import { isNewer, latestVersion } from "./lib/version";
 
-const LATEST = "https://api.github.com/repos/mickaphd/Helix/releases/latest";
 const CHECKED_KEY = "helix.updatesCheckedAt";
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -12,10 +11,7 @@ const DAY = 24 * 60 * 60 * 1000;
 export async function checkForUpdates(quiet = false) {
   if (!isNative) return;
   try {
-    const response = await fetch(LATEST, { headers: { Accept: "application/vnd.github+json" } });
-    // 404: nothing released yet.
-    const latest = response.status === 404 ? null : response.ok ? (await response.json()).tag_name : undefined;
-    if (latest === undefined) throw new Error(`GitHub answered ${response.status}`);
+    const latest = await latestVersion();
     const current = await appVersion();
     if (typeof latest === "string" && isNewer(latest, current)) {
       if (await askToDownload(latest.replace(/^v/i, ""))) openLink("releases");
@@ -23,7 +19,7 @@ export async function checkForUpdates(quiet = false) {
       await alert("Helix is up to date", `Version ${current} is the latest.`, "info");
     }
   } catch {
-    if (!quiet) await alert("Couldn't check for updates", "Check your internet connection and try again.");
+    if (!quiet) await alert("Couldn't Check for Updates", "Check your internet connection and try again.");
   }
 }
 

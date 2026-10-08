@@ -1,10 +1,11 @@
 // The inspector: the panel on the right of a graph (Format) or a grouped table (Groups),
 // full height like the sidebar, and the building blocks its sections share.
 import * as React from "react";
-import { cn, IconButton } from "../../ui/controls";
-import { CaretRightIcon, SidebarSimpleIcon } from "@phosphor-icons/react";
+import { Button, cn, IconButton } from "../../ui/controls";
+import { CaretRightIcon, MinusIcon, PlusIcon, SidebarSimpleIcon } from "@phosphor-icons/react";
 import { SidePanel, Toolbar } from "../../ui/layout";
 import { clampWidth, INSPECTOR_WIDTH, useLayout } from "../../store/use-layout";
+import { clamp } from "../../store/types";
 
 /** A view with an inspector: its toolbar and content on the left, the inspector on the
  *  right. The inspector's button stays at the window's top right: in the inspector when
@@ -20,7 +21,12 @@ export function WithInspector({
   inspector: React.ReactNode;
   children: React.ReactNode;
 }) {
-  const { inspector: open, inspectorWidth, setLayout } = useLayout();
+  const { inspector: open, inspectorWidth, setLayout, setInspectorHere } = useLayout();
+  // While shown, the window keeps room for the inspector in its layout (`fitWidths`).
+  React.useLayoutEffect(() => {
+    setInspectorHere(true);
+    return () => setInspectorHere(false);
+  }, [setInspectorHere]);
   return (
     <div className="flex h-full">
       <div className="flex min-w-0 flex-1 flex-col">
@@ -104,6 +110,50 @@ export function Row({ label, children }: { label: string; children: React.ReactN
         {label}
       </span>
       {children}
+    </div>
+  );
+}
+
+/** A minimalist −/value/+ stepper (native +/- buttons) for a bounded numeric option.
+ *  `step` may be fractional, so results are rounded to avoid float drift (0.5 + 0.5 …). */
+export function Stepper({
+  label,
+  value,
+  min,
+  max,
+  step,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (v: number) => void;
+}) {
+  const round = (n: number) => Math.round(n / step) * step;
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-small text-secondary">{label}</span>
+      <div className="flex items-center gap-1">
+        <Button
+          size="icon"
+          disabled={value <= min}
+          onClick={() => onChange(clamp(round(value - step), { min, max }))}
+          aria-label={`Decrease ${label.toLowerCase()}`}
+        >
+          <MinusIcon className="size-3.5" />
+        </Button>
+        <span className="w-9 text-center text-small tabular-nums">{value}</span>
+        <Button
+          size="icon"
+          disabled={value >= max}
+          onClick={() => onChange(clamp(round(value + step), { min, max }))}
+          aria-label={`Increase ${label.toLowerCase()}`}
+        >
+          <PlusIcon className="size-3.5" />
+        </Button>
+      </div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-// "Mean / median & error": the center (mean or median) per column shown as bars,
+// "Mean or median and error": the center (mean or median) per column shown as bars,
 // points, or a connected line, with optional SD/SEM error bars. Each column's
 // marker/bar/error whisker is its own trace so it can carry its own series color;
 // the "line" shape's connector between columns is a single gray trace underneath,
@@ -16,7 +16,14 @@ function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFig
   const data: unknown[] = [];
 
   if (options.shape === "line") {
-    data.push({ type: "scatter", mode: "lines", x: idx, y, line: { color: GUIDE, width: options.lineWidth, dash: options.lineDash }, hoverinfo: "skip" });
+    data.push({
+      type: "scatter",
+      mode: "lines",
+      x: idx,
+      y,
+      line: { color: GUIDE, width: options.lineWidth, dash: options.lineDash },
+      hoverinfo: "skip",
+    });
   }
 
   columns.forEach((c, i) => {
@@ -39,12 +46,16 @@ function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFig
 
   return {
     data,
-    layout: baseLayout(options, columns.map((c) => c.name), { zeroBase: options.shape === "bar" }),
+    layout: baseLayout(
+      options,
+      columns.map((c) => c.name),
+      { zeroBase: options.shape === "bar" },
+    ),
   };
 }
 
 export const meanError: GraphModule = {
-  label: "Mean / median & error",
+  label: "Mean or median and error",
   family: "column",
   defaults: { pointSize: 9 },
   points: (options) => options.shape !== "bar",

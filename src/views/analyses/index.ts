@@ -6,13 +6,14 @@ import type { AnalysisPickerValue } from "../../stats/types";
 import type { TableData, TableType } from "../../store/types";
 import type { SelectorOption } from "../../components/common/universal-modal";
 import { groupsOf, readTable } from "../../lib/dataset";
+import { titleCase } from "../../lib/format";
 
-function optionsFor(order: AnalysisPickerValue[]): SelectorOption<AnalysisPickerValue>[] {
-  return order.map((value) => ({
-    value,
-    label: value === "compare-many-groups" ? "Compare more than two groups" : ANALYSES[value].label,
-  }));
-}
+/** A test as the picker, the Analysis menu and its wizard name it. */
+export const analysisLabel = (value: AnalysisPickerValue) =>
+  titleCase(value === "compare-many-groups" ? "Compare more than two groups" : ANALYSES[value].label);
+
+const optionsFor = (order: AnalysisPickerValue[]): SelectorOption<AnalysisPickerValue>[] =>
+  order.map((value) => ({ value, label: analysisLabel(value) }));
 
 /** Test options for the selector + menu, scoped per table type (each table's columns mean
  *  something different — a Column table's columns are independent groups, an XY table's are

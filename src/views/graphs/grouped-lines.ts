@@ -8,5 +8,5 @@ export const groupedLines: GraphModule = {
   family: "grouped",
   points: () => true,
   lines: () => true,
-  build: (columns, options, paint, titles) => buildGroupedLines(columns, options, paint, titles),
+  build: buildGroupedLines,
 };

@@ -37,7 +37,10 @@ export function flattenGrouped(columns: Column[]): { values: number[]; group: st
  *  per-row comparisons (Multiple t tests) run against. */
 export function groupRows(columns: Column[]): Map<string, number[][]> {
   return new Map(
-    groupsOf(columns).map((g) => [g.name, Array.from({ length: rowCount(columns) }, (_, r) => rowValues(g.columns, r))]),
+    groupsOf(columns).map((g) => [
+      g.name,
+      Array.from({ length: rowCount(columns) }, (_, r) => rowValues(g.columns, r)),
+    ]),
   );
 }
 
@@ -74,9 +77,13 @@ export function pairedGroupRows(
  *  the same subject measured at every row within its group. Subjects (replicate
  *  columns) missing any row are dropped entirely — kept-complete-only, mirroring
  *  the Friedman test's auto-drop-incomplete behavior — `dropped` reports how many. */
-export function flattenRepeated(
-  columns: Column[],
-): { values: number[]; group: string[]; row: string[]; subject: string[]; dropped: number } {
+export function flattenRepeated(columns: Column[]): {
+  values: number[];
+  group: string[];
+  row: string[];
+  subject: string[];
+  dropped: number;
+} {
   const rows = rowCount(columns);
   const values: number[] = [];
   const group: string[] = [];

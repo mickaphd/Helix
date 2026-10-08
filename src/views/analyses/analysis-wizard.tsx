@@ -10,7 +10,8 @@ import type { TableData } from "../../store/types";
 import { useProjectStore } from "../../store/use-project-store";
 import { checkNormality } from "./normality-check";
 import { useAnalysisLauncher } from "./use-analysis-launcher";
-import { WIZARDS, type Answer, type Answers, type Question, type Wizard } from "./wizards";
+import { analysisLabel } from ".";
+import { chosenSets, WIZARDS, type Answer, type Answers, type Question, type Wizard } from "./wizards";
 
 const NOT_SURE = { value: "check", label: "Not sure — check for normality first (Shapiro-Wilk)" };
 
@@ -23,6 +24,7 @@ export function AnalysisWizard() {
   if (!data || !wizard) return null;
   return (
     <Steps
+      title={analysisLabel(selector.testType)}
       wizard={wizard}
       data={data}
       onClose={closeSelector}
@@ -42,11 +44,13 @@ function initialAnswer(q: Question, given: Answer | undefined): Answer | null {
 }
 
 function Steps({
+  title,
   wizard,
   data,
   onDone,
   onClose,
 }: {
+  title: string;
   wizard: Wizard;
   data: TableData;
   onDone: (type: AnalysisType, params?: AnalysisParams) => void;
@@ -56,6 +60,12 @@ function Steps({
   const [answers, setAnswers] = React.useState<Answers>({});
   const [step, setStep] = React.useState(0);
   const [checking, setChecking] = React.useState(false);
+  // Each question takes the keyboard (its chosen answer), so ↑↓ and Return go on working.
+  const field = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    const input = (selector: string) => field.current?.querySelector<HTMLInputElement>(selector);
+    (input("input:checked") ?? input("input"))?.focus();
+  }, [step]);
   const asked = (a: Answers) => wizard.questions(a, table).filter((q): q is Question => q !== false);
   const q = asked(answers)[step];
   const [value, setValue] = React.useState<Answer | null>(() => initialAnswer(q, undefined));
@@ -72,7 +82,7 @@ function Steps({
     let answer = value!;
     if (answer === NOT_SURE.value) {
       setChecking(true);
-      const gaussian = await checkNormality(data);
+      const gaussian = await checkNormality(data, chosenSets(answers));
       setChecking(false);
       if (gaussian == null) return;
       answer = gaussian ? "yes" : "no";
@@ -85,13 +95,14 @@ function Steps({
     }
   };
 
-  const ready = value !== null && !(Array.isArray(value) && value.length === 0);
+  const ready = value !== null && !(Array.isArray(value) && value.length < (q.kind === "names" ? (q.min ?? 1) : 1));
 
   return (
     <Dialog
       open
       onClose={checking ? undefined : onClose}
-      title={wizard.title}
+      onReturn={ready && !checking ? () => void next() : undefined}
+      title={title}
       description={checking ? "Running the Shapiro-Wilk normality test…" : q.ask}
       footer={
         !checking && (
@@ -104,7 +115,11 @@ function Steps({
         )
       }
     >
-      {!checking && <AnswerField question={q} value={value} onChange={setValue} />}
+      {!checking && (
+        <div ref={field}>
+          <AnswerField question={q} value={value} onChange={setValue} />
+        </div>
+      )}
     </Dialog>
   );
 }

@@ -6,10 +6,19 @@
 import * as React from "react";
 import { cn } from "../../ui/controls";
 import { WithInspector } from "../../components/common/inspector";
-import { DEFAULT_GRAPH_OPTIONS, SAME_AS_FILL, type GraphOptions, type PointStyle, type ProjectNode, type SeriesStyle } from "../../store/types";
+import {
+  clamp,
+  DEFAULT_GRAPH_OPTIONS,
+  GRAPH_LIMITS,
+  SAME_AS_FILL,
+  type GraphOptions,
+  type PointStyle,
+  type ProjectNode,
+  type SeriesStyle,
+} from "../../store/types";
 import type { LinearRegressionParams } from "../../stats/types";
 import { useProjectStore } from "../../store/use-project-store";
-import { groupsOf, readTable } from "../../lib/dataset";
+import { groupsOf, readTable, xyProblem } from "../../lib/dataset";
 import { paletteOf } from "../../lib/palettes";
 import { computeGroupedDEG } from "../../lib/deg";
 import { useAnalysis } from "../analyses/use-analysis";
@@ -17,30 +26,34 @@ import { GRAPHS, graphSeries, plotColumns } from ".";
 import { addDoseCurve } from "./dose-response-curve";
 import { FormatPanel } from "./format-panel";
 import { copyGraphImage, saveGraphImage } from "./graph-export";
-import { GRAPH_SIZE, INK, MOVABLE, marginsFor, movedText, paintOf, withCaps } from "./plot-helpers";
-import { useOpenAnalysisPicker } from "../analyses/use-analysis-launcher";
+import { INK, MOVABLE, marginsFor, movedText, paintOf, withCaps } from "./plot-helpers";
+import { useStartAnalysis } from "../analyses/use-analysis-launcher";
 import { loadPlotly } from "./plotly";
 import { addRegression } from "./regression-overlay";
 import { addSignificance, deriveComparisons } from "./significance-overlay";
-import { drawnKeys, drawnStyle, keysOf, picked, pointLabels, resizePoints, selectionRing, stylePoints } from "./selection";
+import {
+  drawnKeys,
+  drawnStyle,
+  keysOf,
+  picked,
+  pointLabels,
+  resizePoints,
+  selectionRing,
+  stylePoints,
+} from "./selection";
 import { chooseSelectionStyle } from "./style-menus";
-import { genesNamed } from "./volcano";
+import { genesNamed, volcanoPair } from "./volcano";
+import { titleCase } from "../../lib/format";
 
-const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
+// The view's zoom, 25 % to 400 %, as in Pages; WebGL's resolution, which Plotly takes up to 4.
+const ZOOM = { min: 0.25, max: 4 };
+const GL_RATIO = { min: 1, max: 4 };
 
 type Size = { width: number; height: number };
-type Range = { min: number; max: number; step: number };
 type Margins = { l: number; r: number; t: number; b: number };
 
-/** Snaps Plotly's padded auto range (e.g. 4.832–21.312) outward to round numbers at
- *  the range's own magnitude (4–22), so Auto shows sensible Min/Max values. */
-const niceRange = ([min, max]: number[], step = 0): Range => {
-  const unit = Math.pow(10, Math.floor(Math.log10(Math.abs(max - min) || 1)) - 1);
-  return { min: Math.floor(min / unit) * unit, max: Math.ceil(max / unit) * unit, step };
-};
-
 export function GraphView({ node }: { node: ProjectNode }) {
-  const { nodes, updateGraph } = useProjectStore();
+  const { nodes, updateGraph, openSelector } = useProjectStore();
   const type = node.graphType!;
   const family = GRAPHS[type].family;
   const parent = node.parentId ? nodes[node.parentId] : undefined;
@@ -49,7 +62,9 @@ export function GraphView({ node }: { node: ProjectNode }) {
   const options = { ...DEFAULT_GRAPH_OPTIONS, ...node.graphOptions };
   // A setting chosen again (a choice already on) changes nothing, and leaves no Undo step.
   const set = (patch: Partial<GraphOptions>) => {
-    const same = (Object.keys(patch) as (keyof GraphOptions)[]).every((k) => JSON.stringify(patch[k]) === JSON.stringify(options[k]));
+    const same = (Object.keys(patch) as (keyof GraphOptions)[]).every(
+      (k) => JSON.stringify(patch[k]) === JSON.stringify(options[k]),
+    );
     if (!same) updateGraph(node.id, { ...options, ...patch });
   };
   // A series styled by hand (the Series section's Reset puts them all back).
@@ -67,35 +82,32 @@ export function GraphView({ node }: { node: ProjectNode }) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const plottedRef = React.useRef<HTMLDivElement | null>(null);
   const canvasRef = React.useRef<HTMLDivElement>(null);
-  const openAnalysisPicker = useOpenAnalysisPicker();
+  const startAnalysis = useStartAnalysis();
   // The saved size, and a live preview while dragging an axis.
   const size: Size = { width: options.width, height: options.height };
   const [drag, setDrag] = React.useState<Size | null>(null);
   const [zoom, setZoom] = React.useState(1);
-  // What Plotly actually drew: its auto axis ranges (shown while the panel's
-  // fields are on Auto) and its margins, which grow for long labels and place
-  // the resize grab zones on the real axes.
-  const [autoX, setAutoX] = React.useState<Range | null>(null);
-  const [autoY, setAutoY] = React.useState<Range | null>(null);
+  // The margins Plotly drew, which grow for long labels and place the resize grab
+  // zones on the real axes.
   const [margins, setMargins] = React.useState<Margins | null>(null);
 
   // ── Data ─────────────────────────────────────────────────────────────
 
   const dataset = data ? readTable(data) : null;
   const columns = React.useMemo(() => (dataset ? plotColumns(dataset, type) : []), [dataset, type]);
-  const hasData = columns.some((c) => c.values.length > 0);
+  // An XY graph needs numbers in X and in a Y column, and says which it lacks.
+  const xyLack = family === "xy" && dataset ? xyProblem(dataset.columns) : undefined;
+  const hasData = !xyLack && columns.some((c) => c.values.length > 0);
 
   // A volcano on a grouped table: Helix computes the DEGs between two of its groups
   // (per-row Welch t test + BH FDR) and plots them, read like any other table.
-  const volcanoGroups = family === "volcano" && parent?.tableType === "grouped" && dataset
-    ? groupsOf(dataset.numeric).map((g) => g.name)
-    : undefined;
+  const volcanoGroups =
+    family === "volcano" && parent?.tableType === "grouped" && dataset
+      ? groupsOf(dataset.numeric).map((g) => g.name)
+      : undefined;
   const volcanoColumns = React.useMemo(() => {
     if (!volcanoGroups || !data) return columns;
-    const pick = (name: string | undefined, fallback: string | undefined) =>
-      name && volcanoGroups.includes(name) ? name : fallback;
-    const a = pick(options.volcanoGroupA, volcanoGroups[0]);
-    const b = pick(options.volcanoGroupB, volcanoGroups[1]);
+    const [a, b] = volcanoPair(volcanoGroups, options);
     const deg = a && b && a !== b ? computeGroupedDEG(data, a, b, options.volcanoEffect) : [];
     // One row per table row, so a gene keeps its row's number (its key, see volcano.ts).
     const rows: (string | null)[][] = data.rows.map(() => []);
@@ -108,18 +120,30 @@ export function GraphView({ node }: { node: ProjectNode }) {
 
   // The grouped volcano maps the computed DEG columns onto its axes.
   const buildOptions = volcanoGroups
-    ? { ...options, volcanoLabel: "Gene", volcanoX: "Log2 FC", volcanoY: options.volcanoSignificance === "fdr" ? "FDR" : "P" }
+    ? {
+        ...options,
+        volcanoLabel: "Gene",
+        volcanoX: "Log2 FC",
+        volcanoY: options.volcanoSignificance === "fdr" ? "FDR" : "P",
+      }
     : options;
 
   // The figure's traces as last drawn, without the selection ring.
   const [drawn, setDrawn] = React.useState<unknown[]>([]);
   // Each point made bigger or smaller from the size it is drawn at.
-  const resizeSelected = (keys: ReadonlySet<string>, by: number) => set({ points: resizePoints(options.points, drawn, keys, by) });
+  const resizeSelected = (keys: ReadonlySet<string>, by: number) =>
+    set({ points: resizePoints(options.points, drawn, keys, by) });
   // A point's style as the figure draws it, its outline color as chosen, and its name shown or not.
   const styleOf = (key: string) => {
     const style = drawnStyle(drawn, key);
     const own = options.points?.[key];
-    return style && { ...style, outlineColor: own?.outlineColor ?? options.pointOutlineColor ?? SAME_AS_FILL, label: own?.label ?? false };
+    return (
+      style && {
+        ...style,
+        outlineColor: own?.outlineColor ?? options.pointOutlineColor ?? SAME_AS_FILL,
+        label: own?.label ?? false,
+      }
+    );
   };
   const firstSelected = selected.values().next().value;
   const firstStyle = firstSelected === undefined ? undefined : styleOf(firstSelected);
@@ -186,7 +210,8 @@ export function GraphView({ node }: { node: ProjectNode }) {
   // Escape clears the selection, unless it's for a field being typed in.
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) clearSelection();
+      if (e.key === "Escape" && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement))
+        clearSelection();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -202,20 +227,15 @@ export function GraphView({ node }: { node: ProjectNode }) {
     data,
     sigAnalysis?.analysisParams,
   );
-  const comparisons = React.useMemo(
-    () => deriveComparisons(sigOutcome, columns.map((c) => c.name)),
-    [sigOutcome, columns],
-  );
+  const comparisons = React.useMemo(() => deriveComparisons(sigOutcome), [sigOutcome]);
   const regParams = (options.regAnalysisId ? nodes[options.regAnalysisId]?.analysisParams : undefined) as
-    | LinearRegressionParams
-    | undefined;
+    LinearRegressionParams | undefined;
   // A dose-response graph fits its own curve (no analysis node needed).
   const doseY = options.doseY ?? columns[1]?.name;
-  const doseOutcome = useAnalysis(
-    type === "dose-response" && doseY ? "nonlinear-regression" : undefined,
-    data,
-    { y: doseY, model: options.doseModel },
-  );
+  const doseOutcome = useAnalysis(type === "dose-response" && doseY ? "nonlinear-regression" : undefined, data, {
+    y: doseY,
+    model: options.doseModel,
+  });
   const doseFit = doseOutcome && !("error" in doseOutcome) ? doseOutcome : null;
 
   // ── Drawing ──────────────────────────────────────────────────────────
@@ -231,8 +251,14 @@ export function GraphView({ node }: { node: ProjectNode }) {
       if (!e.ctrlKey) return;
       e.preventDefault();
       const r = sheetRef.current?.getBoundingClientRect();
-      if (r) anchor.current = { x: e.clientX, y: e.clientY, fx: (e.clientX - r.left) / r.width, fy: (e.clientY - r.top) / r.height };
-      setZoom((z) => clamp(z * (1 - e.deltaY * 0.01), 0.25, 4)); // 25 % to 400 %, as in Pages
+      if (r)
+        anchor.current = {
+          x: e.clientX,
+          y: e.clientY,
+          fx: (e.clientX - r.left) / r.width,
+          fy: (e.clientY - r.top) / r.height,
+        };
+      setZoom((z) => clamp(z * (1 - e.deltaY * 0.01), ZOOM));
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
@@ -254,7 +280,7 @@ export function GraphView({ node }: { node: ProjectNode }) {
     const t = setTimeout(() => setSettledZoom(zoom), 200);
     return () => clearTimeout(t);
   }, [zoom]);
-  const glRatio = family === "volcano" ? clamp(Math.ceil(devicePixelRatio * settledZoom * 2) / 2, 1, 4) : 2;
+  const glRatio = family === "volcano" ? clamp(Math.ceil(devicePixelRatio * settledZoom * 2) / 2, GL_RATIO) : 2;
 
   /** Follows the plot's clicks, hovers and dragged-over points (once per drawn element). */
   const listen = (el: PlotElement) => {
@@ -288,7 +314,8 @@ export function GraphView({ node }: { node: ProjectNode }) {
       if (doseFit) addDoseCurve(fig, columns, options, doseFit, paint);
       // The points' names are part of the figure (the volcano places its own, among the
       // genes it names); the selection ring only of the view.
-      const labels = family === "volcano" ? [] : pointLabels(fig.data, options.points, dataset?.titles, options.fontSize);
+      const labels =
+        family === "volcano" ? [] : pointLabels(fig.data, options.points, dataset?.titles, options.fontSize);
       if (labels.length) fig.layout.annotations = [...((fig.layout.annotations as unknown[]) ?? []), ...labels];
       const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent");
       const ring = selectionRing(fig.data, selected, accent);
@@ -306,16 +333,26 @@ export function GraphView({ node }: { node: ProjectNode }) {
       if (!current) return;
       setDrawn(fig.data);
       // A selected point that's no longer drawn (its row deleted…) leaves the selection.
-      if ([...selected].some((key) => !keys.has(key))) setSelected(new Set([...selected].filter((key) => keys.has(key))));
+      if ([...selected].some((key) => !keys.has(key)))
+        setSelected(new Set([...selected].filter((key) => keys.has(key))));
       const resolved = (el as { _fullLayout?: PlotlyLayout })._fullLayout;
-      if (resolved?.xaxis?.range) setAutoX(niceRange(resolved.xaxis.range, resolved.xaxis.dtick));
-      if (resolved?.yaxis?.range) setAutoY(niceRange(resolved.yaxis.range, resolved.yaxis.dtick));
       if (resolved?._size) setMargins(resolved._size);
     });
     return () => {
       current = false;
     };
-  }, [type, hasData, volcanoColumns, node.graphOptions, comparisons, regParams, doseFit, seriesNames.length, selected, glRatio]);
+  }, [
+    type,
+    hasData,
+    volcanoColumns,
+    node.graphOptions,
+    comparisons,
+    regParams,
+    doseFit,
+    seriesNames.length,
+    selected,
+    glRatio,
+  ]);
 
   // Frees Plotly's resources when the chart disappears (no data, or leaving the view).
   React.useEffect(() => {
@@ -341,8 +378,8 @@ export function GraphView({ node }: { node: ProjectNode }) {
     const onMove = (ev: PointerEvent) => {
       // Screen pixels are divided by the view zoom.
       next = {
-        width: axis === "x" ? clamp(start.width + (ev.clientX - start.x) / zoom, GRAPH_SIZE.minWidth, GRAPH_SIZE.maxWidth) : start.width,
-        height: axis === "y" ? clamp(start.height + (start.y - ev.clientY) / zoom, GRAPH_SIZE.minHeight, GRAPH_SIZE.maxHeight) : start.height,
+        width: axis === "x" ? clamp(start.width + (ev.clientX - start.x) / zoom, GRAPH_LIMITS.width) : start.width,
+        height: axis === "y" ? clamp(start.height + (start.y - ev.clientY) / zoom, GRAPH_LIMITS.height) : start.height,
       };
       setDrag(next);
     };
@@ -364,7 +401,7 @@ export function GraphView({ node }: { node: ProjectNode }) {
   return (
     <WithInspector
       title={node.name}
-      tag={GRAPHS[type].label}
+      tag={titleCase(GRAPHS[type].label)}
       inspector={
         <FormatPanel
           graphType={type}
@@ -389,12 +426,16 @@ export function GraphView({ node }: { node: ProjectNode }) {
           onFindGenes={findGenes}
           numericNames={dataset?.numeric.map((c) => c.name) ?? []}
           allNames={dataset?.columns.map((c) => c.name) ?? []}
-          autoX={autoX}
-          autoY={autoY}
           doseError={doseOutcome && "error" in doseOutcome ? doseOutcome.error : null}
-          onNewAnalysis={() => node.parentId && openAnalysisPicker(node.parentId)}
+          onNewAnalysis={(test) => {
+            if (!node.parentId) return;
+            if (test) startAnalysis(node.parentId, test);
+            else openSelector({ kind: "new-analysis", tableId: node.parentId });
+          }}
           canExport={hasData}
-          onSave={(format, dpi) => plottedRef.current && saveGraphImage(plottedRef.current, size, format, dpi, node.name)}
+          onSave={(format, dpi) =>
+            plottedRef.current && saveGraphImage(plottedRef.current, size, format, dpi, node.name)
+          }
           onCopy={(dpi) => plottedRef.current && copyGraphImage(plottedRef.current, size, dpi)}
         />
       }
@@ -406,9 +447,16 @@ export function GraphView({ node }: { node: ProjectNode }) {
             <div className="flex min-h-full w-max min-w-full items-center justify-center p-12">
               {/* The sheet: exactly the exported image, white or checked (transparent). Zoomed, it
                   takes its zoomed size, so the view scrolls to every edge of it. */}
-              <div ref={sheetRef} className="relative shrink-0" style={{ width: box.width * zoom, height: box.height * zoom }}>
+              <div
+                ref={sheetRef}
+                className="relative shrink-0"
+                style={{ width: box.width * zoom, height: box.height * zoom }}
+              >
                 <div
-                  className={cn("absolute top-0 left-0 shadow-sheet", options.background === "transparent" ? "checkerboard" : "bg-white")}
+                  className={cn(
+                    "absolute top-0 left-0 shadow-sheet",
+                    options.background === "transparent" ? "checkerboard" : "bg-white",
+                  )}
                   style={{ ...box, transform: `scale(${zoom})`, transformOrigin: "0 0" }}
                 >
                   {/* The plot, at the committed size; hidden while an axis is dragged. A click
@@ -473,7 +521,9 @@ export function GraphView({ node }: { node: ProjectNode }) {
             </div>
           ) : (
             <div className="flex h-full items-center justify-center">
-              <p className="text-regular text-secondary">Enter numeric data in the source table to draw this graph.</p>
+              <p className="text-regular text-secondary">
+                {xyLack ?? "Enter numeric data in the source table to draw this graph."}
+              </p>
             </div>
           )}
         </div>
@@ -508,7 +558,5 @@ type PlotElement = HTMLDivElement & {
 
 /** The part of Plotly's resolved layout read back after drawing. */
 interface PlotlyLayout {
-  xaxis?: { range?: number[]; dtick?: number };
-  yaxis?: { range?: number[]; dtick?: number };
   _size?: Margins;
 }

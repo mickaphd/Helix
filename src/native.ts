@@ -1,6 +1,6 @@
-// The only module that talks to the native shell (Tauri): dialogs, files, the
-// project windows and what they open, and the R engine. Everything else in the
-// app is plain web code.
+// The only module that talks to the native shell (Tauri): dialogs, files, the R engine,
+// the window, the project windows and what they open, and the menus. Everything else in
+// the app is plain web code.
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
@@ -10,8 +10,8 @@ import { Menu, Submenu, type MenuOptions } from "@tauri-apps/api/menu";
 import { message, save } from "@tauri-apps/plugin-dialog";
 import type { RVector } from "./stats/webr";
 
-/** False when the UI runs in a plain browser (`npm run web`, for development). */
-export const isNative = "__TAURI_INTERNALS__" in window;
+/** False when the UI runs in a plain browser (`npm run web`, for development) or in the tests. */
+export const isNative = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
 const win = () => getCurrentWindow();
 
@@ -53,10 +53,10 @@ export async function askToDownload(version: string): Promise<boolean> {
 }
 
 /** This app's version ("1.0.0"), from its bundle. */
-export const appVersion = () => getVersion();
+export const appVersion = getVersion;
 
 /** `defaultPath` may be a bare file name; the panel then picks the folder. */
-export async function pickSavePath(title: string, defaultPath: string, name: string, ext: string) {
+export function pickSavePath(title: string, defaultPath: string, name: string, ext: string) {
   return save({ title, defaultPath, filters: [{ name, extensions: [ext] }] });
 }
 
@@ -98,13 +98,13 @@ export async function serveR(evaluate: (code: string) => Promise<RVector>) {
  *  its unsaved changes (the dot in the close button), and whether it is blank. */
 export function setDocument(title: string, path: string | null, edited: boolean, blank: boolean) {
   if (!isNative) return;
-  win().setTitle(title);
-  invoke("set_document", { path, edited, blank });
+  void win().setTitle(title);
+  void invoke("set_document", { path, edited, blank });
 }
 
 /** Recent projects (newest first), also listed by macOS in the Dock icon's menu. */
 export function setRecentDocuments(paths: string[]) {
-  if (isNative) invoke("set_recent_documents", { paths });
+  if (isNative) void invoke("set_recent_documents", { paths });
 }
 
 /** Run `canClose` whenever the window is about to close (red button, ⌘W, ⌘Q). A window
@@ -122,8 +122,8 @@ export function onCloseRequested(canClose: () => Promise<boolean>) {
 /** The accent color chosen in System Settings ▸ Appearance (#RRGGBB), or null. */
 export const accentColor = () => (isNative ? invoke<string | null>("accent_color") : Promise.resolve(null));
 
-/** Helix's website, GitHub page or releases, in the default browser. */
-export const openLink = (link: "website" | "github" | "releases") => void invoke("open_link", { link });
+/** Helix's website, GitHub page, releases or Buy Me a Coffee page, in the default browser. */
+export const openLink = (link: "website" | "github" | "releases" | "coffee") => void invoke("open_link", { link });
 
 /** Calls `handler` now and whenever the window enters or leaves full screen. */
 export function onFullscreenChange(handler: (fullscreen: boolean) => void) {
@@ -140,6 +140,13 @@ export function onFocusChange(handler: (focused: boolean) => void) {
   void win().isFocused().then(handler);
   const off = win().onFocusChanged(({ payload }) => handler(payload));
   return () => void off.then((f) => f());
+}
+
+export type Theme = "system" | "light" | "dark";
+
+/** The appearance of every window. */
+export function setTheme(theme: Theme) {
+  if (isNative) void setAppTheme(theme === "system" ? null : theme);
 }
 
 // ── Projects ───────────────────────────────────────────────────────────
@@ -189,6 +196,8 @@ export function onDrop(handler: (paths: string[]) => void) {
   return () => void off.then((f) => f());
 }
 
+// ── Menus ──────────────────────────────────────────────────────────────
+
 export type MenuItems = NonNullable<MenuOptions["items"]>;
 
 // Menus made here live in the shell until closed, even once replaced: each one is
@@ -214,7 +223,8 @@ export async function installMenuBar(menus: MenuItems, windowItems: MenuItems, h
 export type Picture = { rgba: Uint8Array; width: number; height: number };
 type PictureItem = { text: string; icon: Picture; action: () => void };
 type PopupItem = MenuItems[number] | PictureItem | { text: string; items: PopupItem[] };
-const isPicture = (icon: unknown): icon is Picture => typeof icon === "object" && icon !== null && (icon as Picture).rgba instanceof Uint8Array;
+const isPicture = (icon: unknown): icon is Picture =>
+  typeof icon === "object" && icon !== null && (icon as Picture).rgba instanceof Uint8Array;
 
 // macOS leaves 8 points more right of a menu's pictures than left of them (room for key
 // equivalents): in a menu of pictures alone, each gets that much more on its left
@@ -224,7 +234,9 @@ const CENTERING = 16;
 /** `picture` with `by` transparent pixels more on its left. */
 function shifted({ rgba, width, height }: Picture, by: number): Picture {
   const wider = new Uint8Array((width + by) * height * 4);
-  for (let y = 0; y < height; y++) wider.set(rgba.subarray(y * width * 4, (y + 1) * width * 4), (y * (width + by) + by) * 4);
+  for (let y = 0; y < height; y++) {
+    wider.set(rgba.subarray(y * width * 4, (y + 1) * width * 4), (y * (width + by) + by) * 4);
+  }
   return { rgba: wider, width: width + by, height };
 }
 
@@ -236,7 +248,8 @@ export async function popupMenu(items: PopupItem[]) {
   // Each picture becomes an image the menu can show, freed once it has closed; in a menu
   // of pictures alone (as main.rs tells them: no text; separators aside), centered.
   const withImages = async (list: PopupItem[]): Promise<MenuItems> => {
-    const alone = list.every((item) => !("text" in item) || (item.text === "" && "icon" in item && isPicture(item.icon)));
+    const picture = (item: PopupItem) => item.text === "" && "icon" in item && isPicture(item.icon);
+    const alone = list.every((item) => !("text" in item) || picture(item));
     return Promise.all(
       list.map(async (item) => {
         if ("icon" in item && isPicture(item.icon)) {
@@ -245,7 +258,9 @@ export async function popupMenu(items: PopupItem[]) {
           images.push(image);
           return { ...item, icon: image };
         }
-        if ("items" in item && Array.isArray(item.items)) return { ...item, items: await withImages(item.items as PopupItem[]) };
+        if ("items" in item && Array.isArray(item.items)) {
+          return { ...item, items: await withImages(item.items as PopupItem[]) };
+        }
         return item;
       }),
     ) as Promise<MenuItems>;
@@ -254,11 +269,4 @@ export async function popupMenu(items: PopupItem[]) {
   await menu.popup();
   await menu.close();
   for (const image of images) void image.close();
-}
-
-export type Theme = "system" | "light" | "dark";
-
-/** The appearance of every window. */
-export function setTheme(theme: Theme) {
-  if (isNative) void setAppTheme(theme === "system" ? null : theme);
 }

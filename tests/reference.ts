@@ -1,12 +1,11 @@
-// Reference test for the three engines: runs every analysis and draws every graph
-// on fixed tables, then compares the results with `reference.json`. A change in
-// any number shows up as a diff. `npm test` checks; `npm test -- --update` rewrites
-// the reference after an intended change. It also checks that the engines agree
-// where they compute the same thing twice (a graph's regression line and R's).
+// Reference test: runs every analysis (R) and draws every graph (Plotly figures) on
+// fixed tables, then compares the results with `reference.json`. A change in any
+// number shows up as a diff. `npm test` checks; `npm test -- --update` rewrites the
+// reference after an intended change. It also checks that TypeScript and R agree
+// where both compute the same thing, and that the sample project's items all work.
 /// <reference types="node" />
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { startR } from "../src/stats/webr";
 import { runAnalysis } from "../src/stats";
 import type { AnalysisParams, AnalysisType } from "../src/stats/types";
 import type { GraphOptions, GraphType, TableData } from "../src/store/types";
@@ -17,9 +16,8 @@ import { countDataColumns, countDataGroups } from "../src/views/analyses";
 import { fitLinear } from "../src/views/graphs/regression-overlay";
 import { computeGroupedDEG } from "../src/lib/deg";
 import { tCrit95 } from "../src/lib/student-t";
-import { evalNamedVector } from "../src/stats/webr";
+import { evalNamedVector, startR } from "../src/stats/webr";
 import { sampleProject } from "./sample-project";
-
 
 // ── Tables ───────────────────────────────────────────────────────────────
 
@@ -157,10 +155,20 @@ const volcanoTable = table(
   ],
 );
 
-const contingency2 = table(["Title", "Outcome A", "Outcome B"], [["Drug", "15", "5"], ["Placebo", "6", "14"]]);
+const contingency2 = table(
+  ["Title", "Outcome A", "Outcome B"],
+  [
+    ["Drug", "15", "5"],
+    ["Placebo", "6", "14"],
+  ],
+);
 const contingency3 = table(
   ["Title", "Outcome A", "Outcome B", "Outcome C"],
-  [["North", "20", "15", "10"], ["South", "12", "18", "25"], ["East", "14", "16", "15"]],
+  [
+    ["North", "20", "15", "10"],
+    ["South", "12", "18", "25"],
+    ["East", "14", "16", "15"],
+  ],
 );
 
 /** As the app creates them: many columns, only the first ones filled. */
@@ -170,18 +178,56 @@ const wide = (t: TableData, width: number): TableData => ({
 });
 const contingencyWide = wide(contingency2, 13);
 /** An XY table whose X column is still empty. */
-const xyNoX = table(["Title", "X", "Y1", "Y2"], [["", "", "1", "2"], ["", "", "3", "5"], ["", "", "4", "4"], ["", "", "6", "9"]]);
+const xyNoX = table(
+  ["Title", "X", "Y1", "Y2"],
+  [
+    ["", "", "1", "2"],
+    ["", "", "3", "5"],
+    ["", "", "4", "4"],
+    ["", "", "6", "9"],
+  ],
+);
 
 // ── What to run ──────────────────────────────────────────────────────────
 
 const ANALYSES: [string, TableData, AnalysisType, AnalysisParams?][] = [
   ["column", column, "descriptive-statistics"],
-  ["column", column, "compare-two-groups", { paired: false, gaussian: true, equalVariance: false, ratio: false, tails: "two-sided" }],
-  ["column", column, "compare-two-groups", { paired: false, gaussian: true, equalVariance: true, ratio: false, tails: "less" }],
-  ["column", column, "compare-two-groups", { paired: true, gaussian: true, equalVariance: false, ratio: false, tails: "two-sided" }],
-  ["column", column, "compare-two-groups", { paired: true, gaussian: true, equalVariance: false, ratio: true, tails: "two-sided" }],
-  ["column", column, "compare-two-groups", { paired: false, gaussian: false, equalVariance: false, ratio: false, tails: "two-sided" }],
-  ["column", column, "compare-two-groups", { paired: true, gaussian: false, equalVariance: false, ratio: false, tails: "greater" }],
+  [
+    "column",
+    column,
+    "compare-two-groups",
+    { paired: false, gaussian: true, equalVariance: false, ratio: false, tails: "two-sided" },
+  ],
+  [
+    "column",
+    column,
+    "compare-two-groups",
+    { paired: false, gaussian: true, equalVariance: true, ratio: false, tails: "less" },
+  ],
+  [
+    "column",
+    column,
+    "compare-two-groups",
+    { paired: true, gaussian: true, equalVariance: false, ratio: false, tails: "two-sided" },
+  ],
+  [
+    "column",
+    column,
+    "compare-two-groups",
+    { paired: true, gaussian: true, equalVariance: false, ratio: true, tails: "two-sided" },
+  ],
+  [
+    "column",
+    column,
+    "compare-two-groups",
+    { paired: false, gaussian: false, equalVariance: false, ratio: false, tails: "two-sided" },
+  ],
+  [
+    "column",
+    column,
+    "compare-two-groups",
+    { paired: true, gaussian: false, equalVariance: false, ratio: false, tails: "greater" },
+  ],
   ["column", column, "one-sample-t", { hypotheticalValue: 12, tails: "two-sided", gaussian: true }],
   ["column", column, "one-sample-t", { hypotheticalValue: 12, tails: "two-sided", gaussian: false }],
   ["column", column, "anova", { posthoc: "none" }],
@@ -230,6 +276,48 @@ const ANALYSES: [string, TableData, AnalysisType, AnalysisParams?][] = [
   ["contingencyWide", contingencyWide, "chi-square"],
   ["xyNoX", xyNoX, "linear-regression", { forceOrigin: false }],
   ["xyNoX", xyNoX, "correlation", { method: "pearson", mode: "x-vs-every-y" }],
+  // On the data sets chosen, in their order.
+  ["column", column, "descriptive-statistics", { sets: ["Sparse", "Low"] }],
+  [
+    "column",
+    column,
+    "compare-two-groups",
+    {
+      paired: false,
+      gaussian: true,
+      equalVariance: false,
+      ratio: false,
+      tails: "two-sided",
+      sets: ["High", "Control"],
+    },
+  ],
+  [
+    "column",
+    column,
+    "compare-two-groups",
+    {
+      paired: true,
+      gaussian: true,
+      equalVariance: false,
+      ratio: false,
+      tails: "two-sided",
+      sets: ["Control", "Sparse"],
+    },
+  ],
+  ["column", column, "anova", { posthoc: "tukey", sets: ["Control", "Low", "High"] }],
+  [
+    "grouped",
+    grouped,
+    "two-way-anova",
+    { design: "ordinary", posthoc: "tukey", posthocTarget: "groups", sets: ["A", "C"] },
+  ],
+  [
+    "grouped",
+    grouped,
+    "multiple-t-tests",
+    { paired: false, gaussian: true, pooledSd: false, correction: "holm", sets: ["C", "A"] },
+  ],
+  ["multiple", multiple, "correlation-matrix", { method: "pearson", sets: ["Age", "Weight"] }],
 ];
 
 const volcano: Partial<GraphOptions> = { volcanoX: "Log2 FC", volcanoY: "P", volcanoLabel: "Gene" };
@@ -285,7 +373,8 @@ async function run() {
 }
 
 /** Where TypeScript computes what R also computes, both must agree: a graph's
- *  regression line, the volcano's per-row P values, the regression band's t. */
+ *  regression line, the volcano's per-row P values, Tukey after a repeated-measures
+ *  ANOVA, the regression band's t. */
 async function disagreements(): Promise<string[]> {
   const { x, ys } = splitXY(readTable(xy).columns);
   const out: string[] = [];
@@ -296,14 +385,22 @@ async function disagreements(): Promise<string[]> {
       const js = fitLinear(pairs.x, pairs.y, forceOrigin);
       const rSlope = "error" in r ? null : r.stats.find((s) => s.label === "Slope")?.value;
       if (rSlope == null || js == null || Math.abs(rSlope - js.slope) > 1e-9)
-        out.push(`Regression of ${y.name}${forceOrigin ? " through the origin" : ""}: graph slope ${js?.slope}, R slope ${rSlope}`);
+        out.push(
+          `Regression of ${y.name}${forceOrigin ? " through the origin" : ""}: graph slope ${js?.slope}, R slope ${rSlope}`,
+        );
     }
   }
-  const tests = await runAnalysis("multiple-t-tests", twoGroups, { paired: false, gaussian: true, pooledSd: false, correction: "none" });
+  const tests = await runAnalysis("multiple-t-tests", twoGroups, {
+    paired: false,
+    gaussian: true,
+    pooledSd: false,
+    correction: "none",
+  });
   const volcano = computeGroupedDEG(twoGroups, "A", "B", "difference");
   for (const row of volcano) {
     const p = "error" in tests ? null : tests.comparisons?.find((c) => c.group1 === row.label)?.p;
-    if (p == null || Math.abs(p - row.p) > 1e-9) out.push(`Volcano P for ${row.label}: ${row.p}, multiple t tests: ${p}`);
+    if (p == null || Math.abs(p - row.p) > 1e-9)
+      out.push(`Volcano P for ${row.label}: ${row.p}, multiple t tests: ${p}`);
   }
   // Tukey after a repeated-measures ANOVA equals R's TukeyHSD on the same model.
   const rm = await runAnalysis("rm-anova", column, { posthoc: "tukey" });
@@ -317,13 +414,16 @@ async function disagreements(): Promise<string[]> {
     if (p == null || ours == null || Math.abs(p - ours) > 1e-9) out.push(`RM ANOVA Tukey P: ${ours}, TukeyHSD: ${p}`);
   });
   const q = await evalNamedVector("c(a=qt(0.975,3),b=qt(0.975,10),c=qt(0.975,50))");
-  for (const [key, df] of [["a", 3], ["b", 10], ["c", 50]] as const) {
+  for (const [key, df] of [
+    ["a", 3],
+    ["b", 10],
+    ["c", 50],
+  ] as const) {
     if (Math.abs(tCrit95(df) - q[key]!) > 1e-9) out.push(`t critical value, df ${df}: ${tCrit95(df)}, R: ${q[key]}`);
   }
   return out;
 }
 
-const file = new URL("reference.json", import.meta.url);
 /** Every analysis and graph of the sample project must work. */
 async function sampleFailures(): Promise<string[]> {
   const out: string[] = [];
@@ -336,16 +436,24 @@ async function sampleFailures(): Promise<string[]> {
     } else if (node.type === "graph") {
       const type = node.graphType!;
       const paint = paintOf(node.graphOptions!, graphSeries(type, data!, nodes[node.parentId!].tableType!).length);
-      const fig = GRAPHS[type].build(plotColumns(readTable(data!), type), node.graphOptions!, paint, readTable(data!).titles);
+      const fig = GRAPHS[type].build(
+        plotColumns(readTable(data!), type),
+        node.graphOptions!,
+        paint,
+        readTable(data!).titles,
+      );
       if (!fig.data.length) out.push(`Sample graph “${node.name}” draws nothing.`);
     }
   }
   return out;
 }
 
+const file = new URL("reference.json", import.meta.url);
 const actual = await run();
-const disagree = [...(await disagreements()), ...(await sampleFailures())];
+const disagree = await disagreements();
+const broken = await sampleFailures();
 for (const d of disagree) console.log(`✗ Engines disagree. ${d}`);
+for (const b of broken) console.log(`✗ Sample project. ${b}`);
 if (process.argv.includes("--update")) {
   writeFileSync(file, JSON.stringify(actual, null, 1) + "\n");
   console.log(`Reference updated: ${Object.keys(actual).length} results.`);
@@ -353,8 +461,11 @@ if (process.argv.includes("--update")) {
   const expected = JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
   const keys = new Set([...Object.keys(expected), ...Object.keys(actual)]);
   const changed = [...keys].filter((k) => JSON.stringify(expected[k]) !== JSON.stringify(actual[k]));
-  for (const k of changed) console.log(`✗ ${k}\n  was: ${JSON.stringify(expected[k])}\n  now: ${JSON.stringify(actual[k])}`);
-  console.log(changed.length ? `${changed.length} of ${keys.size} results changed.` : `All ${keys.size} results match.`);
-  process.exitCode = changed.length || disagree.length ? 1 : 0;
+  for (const k of changed)
+    console.log(`✗ ${k}\n  was: ${JSON.stringify(expected[k])}\n  now: ${JSON.stringify(actual[k])}`);
+  console.log(
+    changed.length ? `${changed.length} of ${keys.size} results changed.` : `All ${keys.size} results match.`,
+  );
+  process.exitCode = changed.length || disagree.length || broken.length ? 1 : 0;
 }
 process.exit();

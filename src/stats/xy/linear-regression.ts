@@ -2,8 +2,8 @@
 // for an XY table. Optionally forces the line through the origin (intercept = 0);
 // reports 95% confidence intervals for the slope and intercept alongside the fit.
 import type { Column, LinearRegressionParams, StatRow } from "../types";
-import { missingColumn, pRow, rVec, type ColumnTestSpec, type Group } from "../column/base";
-import { pairUp, splitXY } from "../../lib/dataset";
+import { pRow, rVec, type ColumnTestSpec, type Group } from "../column/base";
+import { pairUp, splitXY, xyProblem } from "../../lib/dataset";
 import { num } from "../../lib/format";
 
 const DEFAULTS: LinearRegressionParams = { forceOrigin: false };
@@ -23,8 +23,7 @@ function pickXY(columns: Column[], params: LinearRegressionParams | undefined): 
 export const linearRegressionSpec: ColumnTestSpec<LinearRegressionParams> = {
   testType: "linear-regression",
   minGroups: 2,
-  check: (columns, params) =>
-    params?.y !== undefined && !columns.some((c) => c.name === params.y) ? missingColumn(params.y) : undefined,
+  check: (columns, params) => xyProblem(columns, params?.y),
   parseGroups: pickXY,
   rCode: (groups, params) => {
     const origin = (params ?? DEFAULTS).forceOrigin;

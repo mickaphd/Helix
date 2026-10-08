@@ -22,7 +22,14 @@ function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFig
   });
 
   // An X's bars apart by `barGap`, so their outlines never overlap.
-  return { data, layout: { ...xyLayout(options, xCol.name, ySeries.length, { zeroBase: true }), barmode: "group", bargroupgap: options.barGap } };
+  return {
+    data,
+    layout: {
+      ...xyLayout(options, xCol.name, ySeries.length, { zeroBase: true }),
+      barmode: "group",
+      bargroupgap: options.barGap,
+    },
+  };
 }
 
-export const xyBar: GraphModule = { label: "Column / bar", family: "xy", patterns: () => true, build };
+export const xyBar: GraphModule = { label: "Column or bar", family: "xy", patterns: () => true, build };

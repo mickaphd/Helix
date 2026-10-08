@@ -1,22 +1,24 @@
 // A data table: the grid, and (grouped tables) the Groups panel. Every edit goes to
 // the project store, which keeps the Undo history for the whole project.
-import * as React from "react";
-import type { ProjectNode, TableData } from "../../store/types";
+import { GROUPED_LIMITS, type ProjectNode, type TableData } from "../../store/types";
 import type { TableMove } from "../../store/references";
-import { useProjectStore } from "../../store/use-project-store";
-import { Section, Row, WithInspector } from "../../components/common/inspector";
+import { useProjectActions } from "../../store/use-project-store";
+import { Section, Stepper, WithInspector } from "../../components/common/inspector";
 import { useLayout } from "../../store/use-layout";
-import { Button, Input } from "../../ui/controls";
+import { ColumnsIcon } from "@phosphor-icons/react";
 import { Toolbar } from "../../ui/layout";
 import { Grid } from "./grid";
-import { isGrouped, regroupTable } from "./table-data";
+import { regroupLoses, regroupTable } from "./table-data";
+import { isGrouped } from "../../lib/dataset";
+import { seriesKeyOf } from "../../lib/columns";
+import { confirmDelete } from "../../native";
 import { TABLES } from ".";
 
 // ── View ───────────────────────────────────────────────────────────────
 
 export function TableView({ node }: { node: ProjectNode }) {
   const data = node.data!;
-  const { updateTable } = useProjectStore();
+  const { updateTable } = useProjectActions();
   const update = (next: TableData, label: string, move?: TableMove) => {
     if (next !== data) updateTable(node.id, next, label, move);
   };
@@ -27,7 +29,7 @@ export function TableView({ node }: { node: ProjectNode }) {
       data={data}
       type={node.tableType ?? "column"}
       update={update}
-      configure={() => setLayout({ inspector: true })}
+      showGroups={() => setLayout({ inspector: true })}
     />
   );
 
@@ -47,34 +49,37 @@ export function TableView({ node }: { node: ProjectNode }) {
   );
 }
 
-/** A grouped table's structure: groups and sub-columns per group. */
+/** A grouped table's structure: groups and sub-columns per group, each change at once.
+ *  Taking away a group or sub-column that holds values asks first (Undo brings it back). */
 function GroupsPanel({ data, update }: { data: TableData; update: (next: TableData, label: string) => void }) {
-  const fromData = () => ({ groups: data.groups!, replicates: data.replicates! });
-  const [cfg, setCfg] = React.useState(fromData);
-  React.useEffect(() => setCfg(fromData()), [data]);
-  const count = (label: string, key: "groups" | "replicates", max: number) => (
-    <Row label={label}>
-      <Input
-        type="number"
-        min={1}
-        max={max}
-        value={cfg[key]}
-        onChange={(e) => setCfg({ ...cfg, [key]: e.target.valueAsNumber })}
-      />
-    </Row>
-  );
-  const clamp = (v: number, max: number) => Math.max(1, Math.min(max, Math.floor(v) || 1));
-
+  const groups = data.groups!;
+  const replicates = data.replicates!;
+  const regroup = async (g: number, r: number) => {
+    if (regroupLoses(data, g, r)) {
+      const [what, its] =
+        g < groups
+          ? [`group “${seriesKeyOf(data.columns.at(-1)!)}”`, "Its"]
+          : [`sub-column ${replicates} of each group`, "Their"];
+      if (!(await confirmDelete(`Delete ${what}?`, `${its} values will be deleted too. You can undo this.`))) return;
+    }
+    update(regroupTable(data, g, r), "Change Groups");
+  };
   return (
-    <Section title="Groups">
-      {count("Groups", "groups", 200)}
-      {count("Sub-columns per group", "replicates", 20)}
-      <Button
-        variant="accent"
-        onClick={() => update(regroupTable(data, clamp(cfg.groups, 200), clamp(cfg.replicates, 20)), "Change Groups")}
-      >
-        Apply
-      </Button>
+    <Section title="Groups" icon={<ColumnsIcon />}>
+      <Stepper
+        label="Groups"
+        value={groups}
+        {...GROUPED_LIMITS.groups}
+        step={1}
+        onChange={(g) => void regroup(g, replicates)}
+      />
+      <Stepper
+        label="Sub-columns"
+        value={replicates}
+        {...GROUPED_LIMITS.replicates}
+        step={1}
+        onChange={(r) => void regroup(groups, r)}
+      />
     </Section>
   );
 }

@@ -26,7 +26,19 @@ export interface Dataset {
   columns: Column[];
   /** The data columns holding at least one number. */
   numeric: Column[];
+  /** What an analysis runs on, in table order: each column, or a grouped table's groups
+   *  (holding numbers or not). */
+  sets: DataSet[];
 }
+
+/** A column, or a grouped table's group with its sub-columns. */
+interface DataSet {
+  name: string;
+  columns: Column[];
+}
+
+/** Whether a table is a grouped one (groups × sub-columns). */
+export const isGrouped = (data: TableData) => Boolean(data.groups && data.replicates);
 
 const cache = new WeakMap<TableData, Dataset>();
 
@@ -44,6 +56,7 @@ export function readTable(data: TableData): Dataset {
       titles: data.rows.map((row) => row[0] ?? null),
       columns,
       numeric: columns.filter((c) => c.values.length > 0),
+      sets: isGrouped(data) ? byGroup(columns) : columns.map((c) => ({ name: c.name, columns: [c] })),
     };
     cache.set(data, dataset);
   }
@@ -57,6 +70,22 @@ export function splitXY(columns: Column[]): { x?: Column; ys: Column[] } {
   return { x: x?.values.length ? x : undefined, ys: ys.filter((c) => c.values.length > 0) };
 }
 
+/** Why an XY table can't be analyzed or drawn yet, if it can't: X (its first data column)
+ *  needs numbers, and so does a Y column — `y`, when one is chosen. */
+export function xyProblem(columns: Column[], y?: string): string | undefined {
+  const [x, ...ys] = columns;
+  if (!x?.values.length) {
+    const name = x?.name ?? "X";
+    const text = x?.cells.find((c) => c?.trim());
+    return text
+      ? `“${name}”, the X column, holds text (“${text}”). X values must be numbers.`
+      : `“${name}”, the X column, is empty. Type the X values (times, doses…) in it.`;
+  }
+  const chosen = y === undefined ? ys : ys.filter((c) => c.name === y);
+  if (!chosen.some((c) => c.values.length))
+    return y === undefined ? "No Y column holds numbers yet." : `“${y}” holds no numbers yet.`;
+}
+
 /** The rows where both columns hold a number: how X and Y pair up. */
 export function pairUp(a: Column, b: Column): { x: number[]; y: number[]; rows: number[] } {
   const rows = a.rows.filter((r) => b.byRow[r] != null);
@@ -66,15 +95,23 @@ export function pairUp(a: Column, b: Column): { x: number[]; y: number[]; rows: 
 /** A grouped table's groups ("A" for "A:Y1", "A:Y2"…), in table order, each with
  *  its replicate columns. Groups without a single number are left out: `groups`
  *  on the table says how many exist, not how many hold data. */
-export function groupsOf(columns: Column[]): { name: string; columns: Column[] }[] {
+export function groupsOf(columns: Column[]): DataSet[] {
+  return byGroup(columns).filter((g) => g.columns.some((c) => c.values.length > 0));
+}
+
+/** Columns gathered by group ("A" for "A:Y1", "A:Y2"…), in table order. */
+function byGroup(columns: Column[]): DataSet[] {
   const groups = new Map<string, Column[]>();
   for (const c of columns) {
     const key = seriesKeyOf(c.name);
     groups.set(key, [...(groups.get(key) ?? []), c]);
   }
-  return [...groups]
-    .filter(([, cols]) => cols.some((c) => c.values.length > 0))
-    .map(([name, cols]) => ({ name, columns: cols }));
+  return [...groups].map(([name, cols]) => ({ name, columns: cols }));
+}
+
+/** The columns of the data sets named, in their order. */
+export function setColumns(table: Dataset, names: string[]): Column[] {
+  return names.flatMap((name) => table.sets.find((s) => s.name === name)?.columns ?? []);
 }
 
 /** The series a table's graphs draw, in order: an XY table's Y series, a grouped

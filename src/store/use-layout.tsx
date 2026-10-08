@@ -2,10 +2,11 @@
 // graph or a grouped table), each shown or not, and its width. It belongs to this Mac,
 // not to the project: kept in local storage, never in the .hlx file.
 import * as React from "react";
+import { clamp, type Limits } from "./types";
 
-type Limits = { min: number; max: number; initial: number };
-export const SIDEBAR_WIDTH: Limits = { min: 180, max: 400, initial: 224 };
-export const INSPECTOR_WIDTH: Limits = { min: 220, max: 480, initial: 256 };
+type Width = Limits & { initial: number };
+export const SIDEBAR_WIDTH: Width = { min: 180, max: 400, initial: 224 };
+export const INSPECTOR_WIDTH: Width = { min: 220, max: 480, initial: 256 };
 // The least room left between the panels for the table, analysis or graph.
 const MIN_CONTENT = 360;
 
@@ -24,17 +25,20 @@ const INITIAL: Layout = {
   inspectorWidth: INSPECTOR_WIDTH.initial,
 };
 
-export const clampWidth = (width: number, { min, max }: Limits) => Math.round(Math.min(max, Math.max(min, width)));
+export const clampWidth = (width: number, limits: Limits) => Math.round(clamp(width, limits));
 
 function load(): Layout {
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) ?? "{}");
     return {
       sidebar: typeof saved.sidebar === "boolean" ? saved.sidebar : INITIAL.sidebar,
-      sidebarWidth: typeof saved.sidebarWidth === "number" ? clampWidth(saved.sidebarWidth, SIDEBAR_WIDTH) : INITIAL.sidebarWidth,
+      sidebarWidth:
+        typeof saved.sidebarWidth === "number" ? clampWidth(saved.sidebarWidth, SIDEBAR_WIDTH) : INITIAL.sidebarWidth,
       inspector: typeof saved.inspector === "boolean" ? saved.inspector : INITIAL.inspector,
       inspectorWidth:
-        typeof saved.inspectorWidth === "number" ? clampWidth(saved.inspectorWidth, INSPECTOR_WIDTH) : INITIAL.inspectorWidth,
+        typeof saved.inspectorWidth === "number"
+          ? clampWidth(saved.inspectorWidth, INSPECTOR_WIDTH)
+          : INITIAL.inspectorWidth,
     };
   } catch {
     return INITIAL;
@@ -42,13 +46,25 @@ function load(): Layout {
 }
 
 /** The layout, with the panels' widths as shown (see `fitWidths`). */
-type LayoutValue = Layout & { setLayout: (patch: Partial<Layout>) => void };
+type LayoutValue = Layout & {
+  setLayout: (patch: Partial<Layout>) => void;
+  /** Whether the view shown has an inspector (a graph, a grouped table), as it says
+   *  while it does (`WithInspector`). */
+  inspectorHere: boolean;
+  setInspectorHere: (here: boolean) => void;
+};
 
 const LayoutContext = React.createContext<LayoutValue | null>(null);
 
 /** The panels' widths as shown: in a narrow window they give room back to the content,
- *  the inspector first, down to their minimum. Their chosen widths come back as it widens. */
-function fitWidths({ sidebar, sidebarWidth, inspector, inspectorWidth }: Layout, windowWidth: number) {
+ *  the inspector first, down to their minimum. Their chosen widths come back as it widens.
+ *  `here`: whether the view shown has an inspector (a graph, a grouped table). */
+export function fitWidths(
+  { sidebar, sidebarWidth, inspector, inspectorWidth }: Layout,
+  windowWidth: number,
+  here: boolean,
+) {
+  inspector &&= here;
   let over = (sidebar ? sidebarWidth : 0) + (inspector ? inspectorWidth : 0) + MIN_CONTENT - windowWidth;
   const shrink = (width: number, { min }: Limits) => {
     const cut = Math.max(0, Math.min(over, width - min));
@@ -63,6 +79,7 @@ function fitWidths({ sidebar, sidebarWidth, inspector, inspectorWidth }: Layout,
 export function LayoutProvider({ children }: { children: React.ReactNode }) {
   const [layout, setState] = React.useState(load);
   const [windowWidth, setWindowWidth] = React.useState(window.innerWidth);
+  const [inspectorHere, setInspectorHere] = React.useState(false);
   React.useEffect(() => {
     const onResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener("resize", onResize);
@@ -76,11 +93,14 @@ export function LayoutProvider({ children }: { children: React.ReactNode }) {
     }
   }, [layout]);
   const setLayout = React.useCallback((patch: Partial<Layout>) => setState((l) => ({ ...l, ...patch })), []);
-  return (
-    <LayoutContext.Provider value={{ ...layout, ...fitWidths(layout, windowWidth), setLayout }}>
-      {children}
-    </LayoutContext.Provider>
+  // Resizing the window changes the layout only when the panels have to give room back:
+  // otherwise the value stays the same object, and nothing redraws.
+  const { sidebarWidth, inspectorWidth } = fitWidths(layout, windowWidth, inspectorHere);
+  const value = React.useMemo(
+    () => ({ ...layout, sidebarWidth, inspectorWidth, setLayout, inspectorHere, setInspectorHere }),
+    [layout, sidebarWidth, inspectorWidth, setLayout, inspectorHere],
   );
+  return <LayoutContext.Provider value={value}>{children}</LayoutContext.Provider>;
 }
 
 export function useLayout(): LayoutValue {

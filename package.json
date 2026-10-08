@@ -1,6 +1,6 @@
 {
   "name": "helix",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Scientific data analysis, simplified — an open-source alternative to GraphPad Prism.",
   "private": true,
   "license": "GPL-3.0-or-later",
@@ -12,29 +12,31 @@
     "web": "vite",
     "check": "tsc --noEmit",
     "sample": "node --import tsx tests/sample-project.ts",
-    "test": "node --import tsx tests/checks.ts && node --import tsx tests/reference.ts"
+    "test": "node --import tsx tests/checks.ts && node --import tsx tests/reference.ts",
+    "format": "prettier --write ."
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-dialog": "^2.7.3",
-    "plotly.js-dist-min": "^4.1.1",
-    "react": "^19.1.1",
-    "react-dom": "^19.1.1",
-    "webr": "^0.5.4"
+    "plotly.js-dist-min": "^4.1.2",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "webr": "^0.6.0"
   },
   "devDependencies": {
-    "@rolldown/plugin-babel": "^0.2.1",
-    "@tailwindcss/vite": "^4.2.2",
+    "@rolldown/plugin-babel": "^0.2.4",
+    "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/cli": "^2.11.5",
     "@types/node": "^24.13.6",
-    "@types/react": "^19.1.12",
-    "@types/react-dom": "^19.1.9",
-    "@vitejs/plugin-react": "^6.0.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
     "babel-plugin-react-compiler": "^1.0.0",
-    "tailwindcss": "^4.2.2",
+    "prettier": "^3.9.9",
+    "tailwindcss": "^4.3.3",
     "tsx": "^4.23.15",
     "typescript": "^5.5.3",
-    "vite": "^8.0.2"
+    "vite": "^8.3.3"
   }
 }

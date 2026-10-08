@@ -5,9 +5,8 @@ import * as React from "react";
 import { CaretRightIcon } from "@phosphor-icons/react";
 import { cn } from "./controls";
 
-/** Top bar of a pane: a title, a tag saying what it is (a gray pill), and buttons on
- *  the right.
- *  Dragging it moves the window. Its left inset is `--toolbar-inset`: room for the
+/** Top bar of a pane: a title, a tag saying what it is (a gray pill), and buttons on the
+ *  right. Dragging it moves the window. Its left inset is `--toolbar-inset`: room for the
  *  traffic lights when the sidebar is hidden. */
 export function Toolbar({ title, tag, actions }: { title: string; tag?: string; actions?: React.ReactNode }) {
   return (
@@ -111,7 +110,16 @@ type SidebarItemProps = Omit<React.ComponentProps<"div">, "title"> & {
 /** A sidebar row. With children, it gets a disclosure triangle. The selected row is
  *  gray, and blue while the sidebar has the keyboard (as in the Finder); its list is
  *  the `group` that holds the focus. */
-export function SidebarItem({ icon, title, selected, open = true, onToggle, children, className, ...props }: SidebarItemProps) {
+export function SidebarItem({
+  icon,
+  title,
+  selected,
+  open = true,
+  onToggle,
+  children,
+  className,
+  ...props
+}: SidebarItemProps) {
   const hasChildren = React.Children.count(children) > 0;
   return (
     <>

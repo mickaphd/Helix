@@ -12,6 +12,7 @@ import {
 import type { Column } from "../../lib/dataset";
 import type { GraphFigure } from ".";
 import { paletteColor, paletteOf, withOpacity } from "../../lib/palettes";
+import { mean, median, sd, sem } from "../../lib/summary";
 
 export const INK = "#111827"; // axes + titles only
 export const GUIDE = "#9CA3AF"; // what guides the eye: threshold lines, a name's leader line
@@ -64,7 +65,8 @@ const PATTERN_SHAPES: Record<FillPattern, string> = {
 };
 
 /** The thickness an outline of none (0) takes when given a color, so the color shows. */
-export const visibleOutline = (width: number, color: string) => (width === 0 && color !== SAME_AS_FILL ? 1.5 : undefined);
+export const visibleOutline = (width: number, color: string) =>
+  width === 0 && color !== SAME_AS_FILL ? 1.5 : undefined;
 
 /** An outline's color: `chosen`, or with none (or `SAME_AS_FILL`) that of what it outlines. */
 const outlineOf = (chosen: string | undefined, color: string) => (!chosen || chosen === SAME_AS_FILL ? color : chosen);
@@ -78,17 +80,26 @@ export function paintOf(options: GraphOptions, count: number): Paint {
   const outlineColor = (c: string, own?: string) => outlineOf(own ?? options.pointOutlineColor, c);
   const errorColor = (key: string, index: number) => options.errorColor ?? color(key, index);
   const fill = (key: string, index: number) => withOpacity(color(key, index), options.fill);
-  const edge = (key: string, index: number) => ({ color: outlineOf(options.outlineColor, color(key, index)), width: options.outline });
+  const edge = (key: string, index: number) => ({
+    color: outlineOf(options.outlineColor, color(key, index)),
+    width: options.outline,
+  });
   // Lines in the series' color over a light tint of it (its fill's strength), so they show.
   const pattern = (key: string, index: number) => {
     const name = options.series?.[key]?.pattern;
     const c = color(key, index);
-    return name && { shape: PATTERN_SHAPES[name], fgcolor: c, bgcolor: withOpacity(c, options.fill * TINT), ...PATTERN_LOOK };
+    return (
+      name && { shape: PATTERN_SHAPES[name], fgcolor: c, bgcolor: withOpacity(c, options.fill * TINT), ...PATTERN_LOOK }
+    );
   };
   return {
     color,
     edge,
-    line: (key, index) => ({ color: color(key, index), width: options.lineWidth, dash: options.series?.[key]?.dash ?? options.lineDash }),
+    line: (key, index) => ({
+      color: color(key, index),
+      width: options.lineWidth,
+      dash: options.series?.[key]?.dash ?? options.lineDash,
+    }),
     bars: (key, index) => {
       const over = pattern(key, index);
       return { color: fill(key, index), line: edge(key, index), ...(over && { pattern: over }) };
@@ -164,6 +175,14 @@ interface ErrorTrace {
   error_y?: { array: number[]; color: string; thickness: number };
 }
 
+/** The traces as an exported image draws them: WebGL ones (the volcano's genes, fast on
+ *  screen) as plain shapes, sharp at any resolution and true vectors in an SVG. */
+export function vectorTraces(data: unknown[]): unknown[] {
+  return data.map((trace) =>
+    (trace as { type?: string }).type === "scattergl" ? { ...(trace as object), type: "scatter" } : trace,
+  );
+}
+
 /** The caps of error bars that go one way only: Plotly caps both ends, so those bars
  *  have none, and each such trace gets an invisible twin whose zero-long error bars, at
  *  their tips, are the caps. A bar's twin shares its place (`offsetgroup`). */
@@ -200,8 +219,17 @@ export const extent = (v: number[]): [number, number] => [
   v.reduce((a, b) => Math.max(a, b), -Infinity),
 ];
 
-/** The width a text of `fontSize` takes, roughly (no measuring before drawing). */
-export const textWidth = (text: string, fontSize: number) => text.length * fontSize * 0.6 + 4;
+/** The graphs' font. */
+const FONT = "system-ui, -apple-system, sans-serif";
+// Texts are measured in it before drawing; where there is no page (the tests), estimated.
+const measure = typeof document === "undefined" ? null : document.createElement("canvas").getContext("2d");
+
+/** The width a text of `fontSize` takes in the graphs' font, with a little room. */
+export function textWidth(text: string, fontSize: number): number {
+  if (!measure) return text.length * fontSize * 0.6 + 4;
+  measure.font = `${fontSize}px ${FONT}`;
+  return measure.measureText(text).width + 4;
+}
 
 // The texts that can be moved by hand: those with an arrow (the note's is invisible),
 // so significance labels, which have none, stay on their brackets. Plotly reports where
@@ -246,7 +274,15 @@ export function addNote(fig: GraphFigure, text: string, options: GraphOptions) {
 
 /** A point's name (`key`, see `pointKeyOf`) at `offset` px from it, joined to it by a
  *  thin line once it's moved away from a point `size` px wide. */
-export const pointName = (key: string, x: number, y: number, text: string, offset: Place, size: number, fontSize: number) => ({
+export const pointName = (
+  key: string,
+  x: number,
+  y: number,
+  text: string,
+  offset: Place,
+  size: number,
+  fontSize: number,
+) => ({
   name: key,
   x,
   y,
@@ -263,36 +299,22 @@ export const pointName = (key: string, x: number, y: number, text: string, offse
   font: { color: INK, size: fontSize },
 });
 
-export const mean = (v: number[]) => v.reduce((a, b) => a + b, 0) / v.length;
-export const sd = (v: number[]) => {
-  if (v.length < 2) return 0;
-  const m = mean(v);
-  return Math.sqrt(v.reduce((a, b) => a + (b - m) ** 2, 0) / (v.length - 1));
-};
-export const median = (v: number[]) => {
-  const s = [...v].sort((a, b) => a - b);
-  const mid = Math.floor(s.length / 2);
-  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
-};
-
 /** Center value per column (mean or median). */
 export const centers = (cols: Column[], center: GraphOptions["center"]) =>
   cols.map((c) => (center === "median" ? median(c.values) : mean(c.values)));
 
+/** The error of `v`: its SEM, else its SD. */
+const errorOf = (v: number[], kind: GraphOptions["error"]) => (kind === "sem" ? sem(v) : sd(v));
+
 /** Error magnitude per column (SD or SEM), or null when error is off. */
 export const errors = (cols: Column[], kind: GraphOptions["error"]) =>
-  kind === "none" ? null : cols.map((c) => (kind === "sem" ? sd(c.values) / Math.sqrt(c.values.length) : sd(c.values)));
+  kind === "none" ? null : cols.map((c) => errorOf(c.values, kind));
 
 /** Deterministic jitter in [-0.15, 0.15] so points don't jump on option changes. */
 export const jitter = (col: number, i: number) => {
   const s = Math.sin(col * 131.7 + i * 977.3) * 43758.5453;
   return (s - Math.floor(s) - 0.5) * 0.3;
 };
-
-/** The drawing's size limits (px), for dragging an axis or typing a size. */
-export const GRAPH_SIZE = { minWidth: 150, maxWidth: 2400, minHeight: 120, maxHeight: 1800 };
-/** A point's size in pixels, wherever it is set (Style, Selected points, the right-click menu). */
-export const POINT_SIZE = { min: 2, max: 20 };
 
 /** The least space around the plot area. Every axis has `automargin`, so Plotly widens
  *  it just enough for tick labels, axis titles and legends: the sheet hugs the figure. */
@@ -308,13 +330,21 @@ function chromeLayout(options: GraphOptions): Record<string, unknown> {
     // Static chart (Prism-style): no box-zoom, no pan. Resizing the graph box
     // rescales the whole plot, so the axes/bars resize instead of adding space.
     dragmode: false,
-    font: { color: INK, family: "system-ui, -apple-system, sans-serif", size: options.fontSize },
+    font: { color: INK, family: FONT, size: options.fontSize },
     margin: marginsFor(options),
     // xref: "paper" centers over the plot area (inside the margins), matching where the
     // X-axis title centers — the default "container" ref centers over the whole figure
     // width instead, which drifts off-center since the Y labels widen the left margin.
     ...(options.title
-      ? { title: { text: options.title, font: { size: options.fontSize + 3 }, xref: "paper", x: 0.5, xanchor: "center" } }
+      ? {
+          title: {
+            text: options.title,
+            font: { size: options.fontSize + 3 },
+            xref: "paper",
+            x: 0.5,
+            xanchor: "center",
+          },
+        }
       : {}),
   };
 }
@@ -504,7 +534,7 @@ export function perRowStats(
       continue;
     }
     c.push(center === "median" ? median(v) : mean(v));
-    if (e) e.push(v.length < 2 ? null : error === "sem" ? sd(v) / Math.sqrt(v.length) : sd(v));
+    if (e) e.push(v.length < 2 ? null : errorOf(v, error));
   }
   return { center: c, error: e };
 }
@@ -561,7 +591,12 @@ export function groupedBarLayout(
   // explicit tick placement instead of Plotly's evenly-spaced "category" axis.
   const category = {
     ...(opts.separated
-      ? { tickmode: "array", tickvals: opts.separated.tickvals, ticktext: opts.separated.ticktext, range: opts.separated.range }
+      ? {
+          tickmode: "array",
+          tickvals: opts.separated.tickvals,
+          ticktext: opts.separated.ticktext,
+          range: opts.separated.range,
+        }
       : { type: "category" }),
     ...axisChrome(options),
     ...axisTitle(options.xLabel, options.xTitleGap),

@@ -12,8 +12,8 @@ import type {
   RegressionCoefficient,
   StatRow,
 } from "../types";
-import { describe, missingColumn, rVec } from "../column/base";
-import { pairUp, splitXY } from "../../lib/dataset";
+import { describe, rVec } from "../column/base";
+import { pairUp, splitXY, xyProblem } from "../../lib/dataset";
 import { evalNamedVector } from "../webr";
 
 const MODEL_LABEL: Record<NonlinearModel, string> = {
@@ -94,11 +94,8 @@ export async function runNonlinearRegression(
   if (!model || !Object.hasOwn(MODEL_LABEL, model)) return { error: "Choose a standard curve to fit." };
 
   const { x: xCol, ys: yCols } = splitXY(columns);
-  if (params?.y !== undefined && !columns.some((c) => c.name === params.y)) return { error: missingColumn(params.y) };
   const yCol = params?.y === undefined ? yCols[0] : yCols.find((c) => c.name === params.y);
-  if (!xCol || !yCol) {
-    return { error: "Nonlinear regression needs an X column and at least one Y column with numeric data." };
-  }
+  if (!xCol || !yCol) return { error: xyProblem(columns, params?.y)! };
 
   const complete = pairUp(xCol, yCol);
   const spec = modelSpec(model);
@@ -121,7 +118,9 @@ export async function runNonlinearRegression(
   }
   if (xs.length < nParams + 1) {
     const scope = spec.positiveX ? " with X > 0" : "";
-    return { error: `Not enough complete points${scope} (${xs.length}) to fit this curve; need at least ${nParams + 1}.` };
+    return {
+      error: `Not enough complete points${scope} (${xs.length}) to fit this curve; need at least ${nParams + 1}.`,
+    };
   }
 
   // Positional coefficient extraction (co has one row per term, in fit order).

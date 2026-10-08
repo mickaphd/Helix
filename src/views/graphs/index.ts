@@ -2,10 +2,17 @@
 // and one in GRAPH_OPTIONS_BY_TABLE for the tables that offer it. Each module turns
 // the table's columns (lib/dataset.ts) and options into a Plotly figure.
 
-import { DEFAULT_GRAPH_OPTIONS, type GraphType, type GraphOptions, type TableData, type TableType } from "../../store/types";
+import {
+  DEFAULT_GRAPH_OPTIONS,
+  type GraphType,
+  type GraphOptions,
+  type TableData,
+  type TableType,
+} from "../../store/types";
 import type { SelectorOption } from "../../components/common/universal-modal";
 import { seriesOf, splitXY, type Column, type Dataset } from "../../lib/dataset";
 import { paletteNamed, savedPalette } from "../../lib/palettes";
+import { titleCase } from "../../lib/format";
 import type { Paint } from "./plot-helpers";
 import { individual } from "./individual";
 import { boxViolin } from "./box-violin";
@@ -101,7 +108,7 @@ export function newGraphOptions(type: GraphType): GraphOptions {
 }
 
 const optionsFor = (types: GraphType[]): SelectorOption<GraphType>[] =>
-  types.map((value) => ({ value, label: GRAPHS[value].label }));
+  types.map((value) => ({ value, label: titleCase(GRAPHS[value].label) }));
 
 /** Graph types scoped per table type — a Column table's columns are independent
  *  groups (bars/box/points), an XY table's are X + Y data series (scatter/line/

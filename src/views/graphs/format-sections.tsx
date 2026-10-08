@@ -3,13 +3,21 @@
 // Each returns null when it has nothing for this graph, and the section is left out.
 import * as React from "react";
 import { Button, Checkbox, Input, Select, cn } from "../../ui/controls";
-import { Row } from "../../components/common/inspector";
-import type { AnalysisType } from "../../stats/types";
-import { SAME_AS_FILL, type GraphOptions, type GraphType, type ProjectNode, type TableType } from "../../store/types";
+import { Row, Stepper } from "../../components/common/inspector";
+import type { AnalysisPickerValue, AnalysisType } from "../../stats/types";
+import { analysisLabel } from "../analyses";
+import {
+  GRAPH_LIMITS,
+  SAME_AS_FILL,
+  type GraphOptions,
+  type GraphType,
+  type ProjectNode,
+  type TableType,
+} from "../../store/types";
 import { isSignificant, pStars } from "../../lib/format";
 import { GRAPHS } from ".";
 import type { SigComparison } from "./significance-overlay";
-import { POINT_SIZE } from "./plot-helpers";
+import { volcanoPair } from "./volcano";
 import { paletteOf } from "../../lib/palettes";
 import {
   Choice,
@@ -21,7 +29,6 @@ import {
   OutlineRows,
   PercentRow,
   ShapeRow,
-  Stepper,
   ThicknessRow,
   Toggle,
   type SetOptions,
@@ -41,7 +48,8 @@ export interface SectionContext {
   numericNames: string[];
   allNames: string[];
   doseError: string | null;
-  onNewAnalysis: () => void;
+  /** Starts `test` (its wizard), or with none opens the New Analysis picker. */
+  onNewAnalysis: (test?: AnalysisPickerValue) => void;
   /** Volcano: selects the genes named (comma-separated); returns the names no gene has. */
   onFindGenes: (query: string) => string[];
 }
@@ -61,7 +69,14 @@ const CENTER_ITEMS = [
 ];
 // The graphs that draw a center with error bars; Individual values and Interleaved
 // scatter draw it as a short line, styled with them.
-const WITH_ERROR_BARS = new Set<GraphType>(["individual", "mean-error", "grouped-bars", "grouped-hbars", "grouped-scatter", "grouped-lines"]);
+const WITH_ERROR_BARS = new Set<GraphType>([
+  "individual",
+  "mean-error",
+  "grouped-bars",
+  "grouped-hbars",
+  "grouped-scatter",
+  "grouped-lines",
+]);
 const WITH_CENTER_LINE = new Set<GraphType>(["individual", "grouped-scatter"]);
 
 const ERROR_ITEMS = [
@@ -79,8 +94,7 @@ export function statisticsControls(c: SectionContext): React.ReactNode {
     if (!sources.length) {
       return (
         <NoAnalysis onNewAnalysis={c.onNewAnalysis}>
-          Show significance stars from a t test, or from an ANOVA or Kruskal-Wallis test with
-          multiple comparisons, of this table.
+          Show significance stars from a test of two groups of this table, or of more groups with multiple comparisons.
         </NoAnalysis>
       );
     }
@@ -90,7 +104,7 @@ export function statisticsControls(c: SectionContext): React.ReactNode {
     const sources = c.analyses.filter((a) => a.analysisType === "linear-regression");
     if (!sources.length) {
       return (
-        <NoAnalysis onNewAnalysis={c.onNewAnalysis}>
+        <NoAnalysis test="linear-regression" onNewAnalysis={c.onNewAnalysis}>
           Draw the fitted line of a linear regression of this table.
         </NoAnalysis>
       );
@@ -151,15 +165,46 @@ export function statisticsControls(c: SectionContext): React.ReactNode {
   return null;
 }
 
-/** A graph whose statistics come from an analysis the table doesn't have yet. */
-function NoAnalysis({ onNewAnalysis, children }: { onNewAnalysis: () => void; children: React.ReactNode }) {
+/** A graph whose statistics come from an analysis the table doesn't have yet: `test`
+ *  when only one can give them, else any from the picker. */
+function NoAnalysis({
+  test,
+  onNewAnalysis,
+  children,
+}: {
+  test?: AnalysisPickerValue;
+  onNewAnalysis: (test?: AnalysisPickerValue) => void;
+  children: React.ReactNode;
+}) {
   return (
     <>
       <p className="text-small text-secondary">{children}</p>
-      <Button className="self-start" onClick={onNewAnalysis}>
-        New Analysis…
+      <Button className="self-start" onClick={() => onNewAnalysis(test)}>
+        New {test ? analysisLabel(test) : "Analysis"}…
       </Button>
     </>
+  );
+}
+
+/** The analysis of the table whose result the graph draws, or none. */
+function AnalysisRow({
+  analyses,
+  value,
+  onChange,
+}: {
+  analyses: ProjectNode[];
+  value: string | undefined;
+  onChange: (id: string | undefined) => void;
+}) {
+  return (
+    <Row label="Analysis">
+      <Select
+        value={value ?? ""}
+        onChange={(v) => onChange(v || undefined)}
+        placeholder="None"
+        options={analyses.map((a) => ({ value: a.id, label: a.name }))}
+      />
+    </Row>
   );
 }
 
@@ -181,14 +226,11 @@ function SignificanceControls({
 
   return (
     <>
-      <Row label="Analysis">
-        <Select
-          value={options.sigAnalysisId ?? ""}
-          onChange={(v) => set({ sigAnalysisId: v || undefined, sigPairs: [] })}
-          placeholder="None"
-          options={analyses.map((a) => ({ value: a.id, label: a.name }))}
-        />
-      </Row>
+      <AnalysisRow
+        analyses={analyses}
+        value={options.sigAnalysisId}
+        onChange={(sigAnalysisId) => set({ sigAnalysisId, sigPairs: [] })}
+      />
 
       {options.sigAnalysisId ? (
         <>
@@ -208,10 +250,13 @@ function SignificanceControls({
                   <label key={c.key} className="flex items-center gap-2">
                     <Checkbox checked={selected.includes(c.key)} onChange={(checked) => togglePair(c.key, checked)} />
                     <span className="flex-1 truncate text-small">
-                      {c.group1} vs {c.group2}
+                      {c.group1} vs. {c.group2}
                     </span>
                     <span
-                      className={cn("text-small tabular-nums", isSignificant(c.p) ? "text-support-green" : "text-secondary")}
+                      className={cn(
+                        "text-small tabular-nums",
+                        isSignificant(c.p) ? "text-support-green" : "text-secondary",
+                      )}
                     >
                       {pStars(c.p)}
                     </span>
@@ -221,8 +266,8 @@ function SignificanceControls({
             </Row>
           ) : (
             <p className="text-small text-secondary">
-              This analysis has no pairwise comparisons. Use a two-group test, or an ANOVA /
-              Kruskal-Wallis with multiple comparisons.
+              This analysis has no pairwise comparisons. Use a test of two groups, or of more groups with multiple
+              comparisons.
             </p>
           )}
         </>
@@ -243,14 +288,11 @@ function RegressionControls({
 }) {
   return (
     <>
-      <Row label="Analysis">
-        <Select
-          value={options.regAnalysisId ?? ""}
-          onChange={(v) => set({ regAnalysisId: v || undefined })}
-          placeholder="None"
-          options={analyses.map((a) => ({ value: a.id, label: a.name }))}
-        />
-      </Row>
+      <AnalysisRow
+        analyses={analyses}
+        value={options.regAnalysisId}
+        onChange={(regAnalysisId) => set({ regAnalysisId })}
+      />
       {options.regAnalysisId ? (
         <>
           <Toggle label="Fit line" checked={options.regShowLine} onChange={(regShowLine) => set({ regShowLine })} />
@@ -316,18 +358,19 @@ export function dataControls(c: SectionContext): React.ReactNode {
       );
     case "dose-response":
       return c.seriesNames.length > 1 ? (
-        <Row label="Y data set">
-          <Select
-            value={options.doseY ?? c.seriesNames[0]}
-            onChange={(doseY) => set({ doseY })}
-            options={c.seriesNames.map((name) => ({ value: name, label: name }))}
-          />
-        </Row>
+        <ColumnSelectRow
+          label="Y data set"
+          value={options.doseY ?? c.seriesNames[0]}
+          names={c.seriesNames}
+          onChange={(doseY) => set({ doseY })}
+        />
       ) : null;
     case "volcano":
       return (
         <>
-          {c.volcanoGroups ? <GroupedVolcanoData groups={c.volcanoGroups} options={options} set={set} /> : (
+          {c.volcanoGroups ? (
+            <GroupedVolcanoData groups={c.volcanoGroups} options={options} set={set} />
+          ) : (
             <FlatVolcanoData numericNames={c.numericNames} allNames={c.allNames} options={options} set={set} />
           )}
           <Toggle
@@ -385,9 +428,7 @@ function FlatVolcanoData({
 /** A volcano of a grouped table compares two of its groups row by row (Welch t test
  *  and BH FDR, see lib/deg.ts); gene labels are the row titles. */
 function GroupedVolcanoData({ groups, options, set }: { groups: string[]; options: GraphOptions; set: SetOptions }) {
-  // A saved group that no longer exists (renamed in the table) falls back to the first two.
-  const groupA = groups.includes(options.volcanoGroupA ?? "") ? options.volcanoGroupA : groups[0];
-  const groupB = groups.includes(options.volcanoGroupB ?? "") ? options.volcanoGroupB : groups[1];
+  const [groupA, groupB] = volcanoPair(groups, options);
   return (
     <>
       {groups.length < 2 && (
@@ -468,13 +509,16 @@ export function styleControls(context: SectionContext): React.ReactNode {
 function shapeRows({ options, set }: SectionContext) {
   return (
     <>
-      <PercentRow label="Fill" value={options.fill} onChange={(fill) => set({ fill })} />
+      <PercentRow label="Fill" value={options.fill} limits={GRAPH_LIMITS.fill} onChange={(fill) => set({ fill })} />
       <OutlineRows
         palette={paletteOf(options)}
         width={options.outline}
+        limits={GRAPH_LIMITS.outline}
         color={options.outlineColor}
         onWidth={(outline) => set({ outline })}
-        onColor={(color, outline = options.outline) => set({ outlineColor: color === SAME_AS_FILL ? undefined : color, outline })}
+        onColor={(color, outline = options.outline) =>
+          set({ outlineColor: color === SAME_AS_FILL ? undefined : color, outline })
+        }
       />
     </>
   );
@@ -492,15 +536,20 @@ function pointsGroup({ graphType, options, set }: SectionContext, toggle?: React
           <Stepper
             label="Size"
             value={options.pointSize}
-            min={POINT_SIZE.min}
-            max={POINT_SIZE.max}
+            {...GRAPH_LIMITS.pointSize}
             step={1}
             onChange={(pointSize) => set({ pointSize })}
           />
-          <PercentRow label="Fill" value={options.pointFill} onChange={(pointFill) => set({ pointFill })} />
+          <PercentRow
+            label="Fill"
+            value={options.pointFill}
+            limits={GRAPH_LIMITS.pointFill}
+            onChange={(pointFill) => set({ pointFill })}
+          />
           <OutlineRows
             palette={paletteOf(options)}
             width={options.pointOutline}
+            limits={GRAPH_LIMITS.pointOutline}
             color={options.pointOutlineColor}
             onWidth={(pointOutline) => set({ pointOutline })}
             onColor={(color, pointOutline = options.pointOutline) =>
@@ -518,7 +567,12 @@ function linesGroup({ graphType, options, set }: SectionContext) {
   if (!GRAPHS[graphType].lines?.(options)) return null;
   return (
     <Group title="Lines">
-      <ThicknessRow label="Thickness" value={options.lineWidth} onChange={(lineWidth) => set({ lineWidth })} />
+      <ThicknessRow
+        label="Thickness"
+        value={options.lineWidth}
+        limits={GRAPH_LIMITS.lineWidth}
+        onChange={(lineWidth) => set({ lineWidth })}
+      />
       <DashRow value={options.lineDash} onChange={(lineDash) => set({ lineDash })} />
       {graphType === "survival" && options.survivalMode === "codes" && (
         <Toggle
@@ -539,8 +593,21 @@ function errorsGroup({ graphType, options, set }: SectionContext) {
   if (!bars && !line) return null;
   return (
     <Group title={!bars ? "Center line" : line ? "Center line and error bars" : "Error bars"}>
-      <ThicknessRow label="Thickness" value={options.errorWidth} onChange={(errorWidth) => set({ errorWidth })} />
-      {bars && <Stepper label="Caps" value={options.errorCaps} min={0} max={20} step={1} onChange={(errorCaps) => set({ errorCaps })} />}
+      <ThicknessRow
+        label="Thickness"
+        value={options.errorWidth}
+        limits={GRAPH_LIMITS.errorWidth}
+        onChange={(errorWidth) => set({ errorWidth })}
+      />
+      {bars && (
+        <Stepper
+          label="Caps"
+          value={options.errorCaps}
+          {...GRAPH_LIMITS.errorCaps}
+          step={1}
+          onChange={(errorCaps) => set({ errorCaps })}
+        />
+      )}
       <ColorRow
         label="Color"
         palette={paletteOf(options)}
@@ -573,7 +640,14 @@ function ownStyle(context: SectionContext): React.ReactNode {
     </Group>
   );
   // A row's bars apart, while several stand side by side.
-  const gap = <PercentRow label="Gap" value={options.barGap} max={0.5} onChange={(barGap) => set({ barGap })} />;
+  const gap = (
+    <PercentRow
+      label="Gap"
+      value={options.barGap}
+      limits={GRAPH_LIMITS.barGap}
+      onChange={(barGap) => set({ barGap })}
+    />
+  );
   const points = GRAPHS[graphType].points?.(options) && pointsGroup(context);
   switch (graphType) {
     case "individual":
@@ -615,7 +689,10 @@ function ownStyle(context: SectionContext): React.ReactNode {
             ]}
           />
           {shapes(options.kind === "violin" ? "Violin" : "Box")}
-          {pointsGroup(context, <Toggle label="Show points" checked={options.showPoints} onChange={(showPoints) => set({ showPoints })} />)}
+          {pointsGroup(
+            context,
+            <Toggle label="Show points" checked={options.showPoints} onChange={(showPoints) => set({ showPoints })} />,
+          )}
         </>
       );
     case "xy-scatter":
@@ -668,8 +745,7 @@ function ownStyle(context: SectionContext): React.ReactNode {
               <Stepper
                 label="Labelled genes"
                 value={options.volcanoLabelCount}
-                min={0}
-                max={50}
+                {...GRAPH_LIMITS.volcanoLabelCount}
                 step={5}
                 onChange={(volcanoLabelCount) => set({ volcanoLabelCount })}
               />
@@ -681,13 +757,25 @@ function ownStyle(context: SectionContext): React.ReactNode {
     case "donut":
       return shapes(
         "Slices",
-        <Toggle label="Show percentages" checked={options.pieShowPercent} onChange={(pieShowPercent) => set({ pieShowPercent })} />,
+        <Toggle
+          label="Show percentages"
+          checked={options.pieShowPercent}
+          onChange={(pieShowPercent) => set({ pieShowPercent })}
+        />,
       );
     case "heatmap":
       return (
         <Group title="Cells">
-          <Toggle label="Show values" checked={options.heatmapShowValues} onChange={(heatmapShowValues) => set({ heatmapShowValues })} />
-          <Toggle label="Show color legend" checked={options.heatmapShowScale} onChange={(heatmapShowScale) => set({ heatmapShowScale })} />
+          <Toggle
+            label="Show values"
+            checked={options.heatmapShowValues}
+            onChange={(heatmapShowValues) => set({ heatmapShowValues })}
+          />
+          <Toggle
+            label="Show color legend"
+            checked={options.heatmapShowScale}
+            onChange={(heatmapShowScale) => set({ heatmapShowScale })}
+          />
         </Group>
       );
     default:

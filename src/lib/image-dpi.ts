@@ -1,5 +1,18 @@
-// A raster image's resolution, written into its file.
+// A raster image's resolution: how large an image it allows, and written into its file.
 type Bytes = Uint8Array<ArrayBuffer>;
+
+// Plotly draws a pixel per 1/96 inch: a graph's size, in px, is its printed size.
+export const PX_PER_INCH = 96;
+// The most pixels an exported image may have: the largest graph (2400 × 1800 px) at 300 DPI,
+// about 170 MB to draw. At 600 DPI, that is a graph up to about 1200 × 900 px.
+const MAX_PIXELS = 7500 * 5625;
+
+/** The largest graph, in the proportions of `size`, whose image at `dpi` stays within
+ *  what a Mac draws comfortably: `size` itself when it fits. */
+export function largestAt(size: { width: number; height: number }, dpi: number) {
+  const k = Math.min(1, (Math.sqrt(MAX_PIXELS / (size.width * size.height)) * PX_PER_INCH) / dpi);
+  return { width: Math.floor(size.width * k), height: Math.floor(size.height * k) };
+}
 
 /** The image with its resolution written in, so other apps place it at its printed
  *  size (without it they take 72 DPI): a PNG's pHYs chunk, a JPEG's JFIF header. The
@@ -25,7 +38,7 @@ function pngWithDpi(png: Bytes, dpi: number): Bytes[] {
   // 8 bytes of signature, then IHDR (25), then the other chunks.
   const chunks = [png.subarray(0, 33), phys];
   const length = new DataView(png.buffer, png.byteOffset);
-  for (let at = 33; at < png.length; ) {
+  for (let at = 33; at < png.length;) {
     const end = at + 12 + length.getUint32(at);
     if (!["pHYs", "eXIf"].includes(nameAt(png, at + 4))) chunks.push(png.subarray(at, end));
     at = end;
