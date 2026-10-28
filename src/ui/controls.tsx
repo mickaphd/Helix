@@ -1,6 +1,7 @@
 // Form controls. Thin wrappers over native HTML elements, so they get
 // macOS behavior for free (native <select> popups, keyboard, accessibility).
 import type * as React from "react";
+import { CaretUpDownIcon } from "@phosphor-icons/react";
 
 export const cn = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(" ");
 
@@ -91,14 +92,23 @@ export function Checkbox({ checked, onChange }: { checked: boolean; onChange: (c
 }
 
 /** A checkbox drawn as an on/off switch. */
-export function Switch({ checked, onChange }: { checked: boolean; onChange: (checked: boolean) => void }) {
+export function Switch({
+  checked,
+  disabled,
+  onChange,
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (checked: boolean) => void;
+}) {
   return (
     <input
       type="checkbox"
       role="switch"
       checked={checked}
+      disabled={disabled}
       onChange={(e) => onChange(e.target.checked)}
-      className="relative h-4 w-7 shrink-0 cursor-pointer appearance-none rounded-full bg-separator transition-colors checked:bg-accent before:absolute before:top-0.5 before:left-0.5 before:size-3 before:rounded-full before:bg-white before:shadow before:transition-transform checked:before:translate-x-3"
+      className="relative h-4 w-7 shrink-0 cursor-pointer appearance-none rounded-full bg-separator transition-colors checked:bg-accent disabled:cursor-default disabled:opacity-40 before:absolute before:top-0.5 before:left-0.5 before:size-3 before:rounded-full before:bg-white before:shadow before:transition-transform checked:before:translate-x-3"
     />
   );
 }
@@ -135,7 +145,8 @@ export function RadioList<T extends string>({
   );
 }
 
-/** Native popup menu. `placeholder` adds an empty first entry (value ""). */
+/** Native popup menu, drawn as the panel's other popup buttons (⌃⌄). `placeholder` adds an
+ *  empty first entry (value ""). */
 export function Select<T extends string>({
   value,
   onChange,
@@ -148,14 +159,21 @@ export function Select<T extends string>({
   placeholder?: string;
 }) {
   return (
-    <select className={FIELD} value={value} onChange={(e) => onChange(e.target.value as T)}>
-      {placeholder !== undefined && <option value="">{placeholder}</option>}
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
+    <div className="relative">
+      <select
+        className={cn(FIELD, "appearance-none pr-6")}
+        value={value}
+        onChange={(e) => onChange(e.target.value as T)}
+      >
+        {placeholder !== undefined && <option value="">{placeholder}</option>}
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <CaretUpDownIcon className="pointer-events-none absolute top-1/2 right-2 size-3.5 -translate-y-1/2 text-secondary" />
+    </div>
   );
 }
 

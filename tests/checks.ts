@@ -4,12 +4,13 @@
 // setting and following renamed columns, selected points, exports, analyses on the
 // data asked, Undo, and the app's menus, recents and update check. `npm test` runs them.
 import { deepStrictEqual, ok, strictEqual } from "node:assert/strict";
-import { parseProjectFile, serializeProjectFile, type ProjectFilePayload } from "../src/lib/project-file";
+import { parseProjectFile, readPalette, serializeProjectFile, type ProjectFilePayload } from "../src/lib/project-file";
 import {
   DEFAULT_GRAPH_OPTIONS,
   GRAPH_LIMITS,
   SAME_AS_FILL,
   type GraphOptions,
+  type GraphType,
   type ProjectNode,
   type TableData,
 } from "../src/store/types";
@@ -29,12 +30,15 @@ import { pairKey } from "../src/lib/columns";
 import {
   NAMED_COLORS,
   PALETTES,
+  isHelixPalette,
+  paletteColor,
   paletteNamed,
   paletteOf,
   reversedPalette,
   withOpacity,
   withoutColors,
 } from "../src/lib/palettes";
+import { deletePalette, keepPalette, loadMyPalettes } from "../src/store/my-palettes";
 import { GRAPHS, newGraphOptions, type GraphFigure } from "../src/views/graphs";
 import { readTable, setColumns } from "../src/lib/dataset";
 import { incompleteRows, missingColumn } from "../src/stats/column/base";
@@ -52,6 +56,8 @@ import {
   withoutSelection,
 } from "../src/views/graphs/selection";
 import { genesNamed } from "../src/views/graphs/volcano";
+import { examplesFor, matched, type Matched } from "../src/views/graphs/match-graph";
+import type { OutlineNode } from "../src/store/use-project-store";
 import { deriveComparisons } from "../src/views/graphs/significance-overlay";
 import { headline } from "../src/views/analyses/analysis-results-view";
 import { fitWidths } from "../src/store/use-layout";
@@ -849,6 +855,64 @@ check("series take their own dashes and patterns, and a palette can be reversed"
   deepStrictEqual(read(JSON.stringify(file)).project.nodes.g1.graphOptions!.palette, reversed);
 });
 
+check("Match Another Graph… takes only what is ticked, series in order", () => {
+  const graph = (type: GraphType, table: string, series: string[], over: Partial<GraphOptions>): Matched => ({
+    type,
+    table,
+    series,
+    options: { ...newGraphOptions(type), ...over },
+  });
+  const example = graph("mean-error", "t1", ["Vehicle", "Low", "High"], {
+    pointSize: 12,
+    yMax: 100,
+    title: "Example",
+    series: { Vehicle: { color: "#000000", shape: "diamond" }, High: { color: "#FF0000" } },
+    points: { "Vehicle#0": { size: 15 } },
+  });
+  const target = graph("box-violin", "t2", ["A", "B"], { series: { A: { color: "#00FF00", dash: "dot" } } });
+  const options = matched(target, example, ["points", "colors", "styled"]);
+  strictEqual(options.pointSize, 12);
+  deepStrictEqual(options.palette, example.options.palette);
+  // By order: A takes Vehicle's color, B none (Low has none); A keeps its own dash.
+  deepStrictEqual(options.series, { A: { color: "#000000", dash: "dot" } });
+  // Unticked or out of reach: ranges, titles, and points styled in another table.
+  deepStrictEqual([options.yMax, options.title, options.points], [undefined, "", undefined]);
+  ok(matched({ ...target, table: "t1" }, example, ["styled"]).points);
+  // A heatmap keeps its gradient when the example's palette is categorical.
+  const heat = graph("heatmap", "t2", [], {});
+  deepStrictEqual(matched(heat, example, ["colors"]).palette, heat.options.palette);
+  // The examples: the other graphs Helix can draw, not one from a newer Helix.
+  const child = (id: string): OutlineNode => ({ id, type: "graph", name: id, parentId: "t" });
+  const tables = [
+    { id: "t", type: "table" as const, name: "T", parentId: null, children: ["g1", "g2", "g3"].map(child) },
+  ];
+  const nodes = {
+    g1: { ...child("g1"), graphType: "box-violin" },
+    g2: { ...child("g2"), graphType: "mean-error" },
+    g3: { ...child("g3"), graphType: "sankey" as GraphType }, // from a newer Helix
+  } as Record<string, ProjectNode>;
+  deepStrictEqual(examplesFor("g1", tables, nodes), [{ table: "T", graphs: [child("g2")] }]);
+});
+
+check("a column graph's bars stand at their column, even with one-way error bars", () => {
+  const table = {
+    columns: ["Title", "A", "B", "C"],
+    rows: [
+      [null, "1", "2", "3"],
+      [null, "2", "3", "4"],
+    ],
+  };
+  for (const errorDirection of ["above", "both"] as const) {
+    const options: GraphOptions = { ...newGraphOptions("mean-error"), errorDirection };
+    const { data } = GRAPHS["mean-error"].build(readTable(table).numeric, options, paintOf(options, 3));
+    // One offset group for every bar (and its caps' twin): Plotly sets none aside.
+    deepStrictEqual(
+      new Set(withCaps(data, options).map((t) => (t as { offsetgroup?: string }).offsetgroup)),
+      new Set(["column"]),
+    );
+  }
+});
+
 check("error bars that go one way have no foot: their caps are at their tips alone", () => {
   type Trace = {
     type: string;
@@ -1261,6 +1325,9 @@ check("an exported image stays within what a Mac can draw", () => {
   const at600 = largestAt(biggest, 600);
   ok(at600.width < 1250 && Math.abs(at600.width / at600.height - 4 / 3) < 0.01, `${at600.width} × ${at600.height}`);
   ok(at600.width * at600.height * (600 / 96) ** 2 <= 7500 * 5625);
+  // A size that fits is taken as it is, even one not rounded (a graph resized by hand).
+  const odd = { width: 341.79, height: 460 };
+  deepStrictEqual(largestAt(odd, 600), odd);
 });
 
 check("an exported image says its resolution, and none of the headers that say 72 DPI", async () => {
@@ -1607,6 +1674,43 @@ check("Open Recent reads only a list of paths", () => {
   } finally {
     delete (globalThis as { localStorage?: unknown }).localStorage;
   }
+});
+
+check("My Palettes keep, replace and delete palettes; a gradient of few colors blends evenly", async () => {
+  const stored: Record<string, string> = {};
+  const storage = {
+    getItem: (k: string) => stored[k] ?? null,
+    setItem: (k: string, v: string) => void (stored[k] = v),
+  };
+  const lab = { name: "Lab", kind: "categorical" as const, colors: ["#111111", "#222222"] };
+  const heat = { name: "Heat", kind: "sequential" as const, colors: ["#FFFFFF", "#FF0000"] };
+  Object.assign(globalThis, { localStorage: storage });
+  try {
+    ok((await keepPalette({ ...lab, reversed: true })) && (await keepPalette(heat)));
+    deepStrictEqual(await loadMyPalettes(), [lab, heat]); // kept as shown: no `reversed`
+    ok(await keepPalette({ ...lab, name: "Lab 2" }, "Lab"));
+    deepStrictEqual(
+      (await loadMyPalettes()).map((p) => p.name),
+      ["Lab 2", "Heat"],
+    );
+    ok(await deletePalette("Lab 2"));
+    deepStrictEqual(await loadMyPalettes(), [heat]);
+    // A broken entry is left out, the others kept.
+    stored["helix.palettes"] = JSON.stringify([heat, { name: "No colors", colors: [] }, 7]);
+    deepStrictEqual(await loadMyPalettes(), [heat]);
+  } finally {
+    delete (globalThis as { localStorage?: unknown }).localStorage;
+  }
+  deepStrictEqual(
+    [0, 1, 2, 3, 4].map((i) => paletteColor(heat, i, 5)),
+    ["#FFFFFF", "#FFBFBF", "#FF8080", "#FF4040", "#FF0000"],
+  );
+  ok(isHelixPalette("viridis") && isHelixPalette("Okabe-Ito") && !isHelixPalette("Lab"));
+  // A gradient of one color, from a broken file, runs from it to itself.
+  deepStrictEqual(readPalette({ name: "Red", kind: "sequential", colors: ["#FF0000"] })!.colors, [
+    "#FF0000",
+    "#FF0000",
+  ]);
 });
 
 check("a release is newer only when its version number is higher", () => {

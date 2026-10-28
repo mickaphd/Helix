@@ -1,7 +1,6 @@
 import * as React from "react";
 import { ChartLineIcon, GridNineIcon, PlusCircleIcon, SidebarSimpleIcon, SigmaIcon } from "@phosphor-icons/react";
 import { Button, IconButton } from "../../ui/controls";
-import { RenameDialog } from "../../ui/dialog";
 import { SidePanel, SidebarItem } from "../../ui/layout";
 import { popupMenu } from "../../native";
 import { useOutline, useProjectActions, type OutlineNode } from "../../store/use-project-store";
@@ -142,8 +141,14 @@ export function ProjectSidebar() {
   const rowClass = (id: string): string =>
     [dropClass(dropTarget, id), draggingId === id ? "opacity-40" : ""].filter(Boolean).join(" ");
 
-  // One rename dialog, for any table, analysis or graph.
-  const [renaming, setRenaming] = React.useState<OutlineNode | null>(null);
+  // The table, analysis or graph whose name is edited in place; the sidebar keeps the
+  // keyboard after.
+  const [renaming, setRenaming] = React.useState<string | null>(null);
+  const rename = (node: OutlineNode, name: string) => {
+    if (name.trim() && name.trim() !== node.name) renameNode(node.id, name.trim());
+    setRenaming(null);
+    listRef.current?.focus();
+  };
 
   // Tables whose analyses and graphs are hidden.
   const [collapsed, setCollapsed] = React.useState<ReadonlySet<string>>(new Set());
@@ -178,7 +183,7 @@ export function ProjectSidebar() {
     else if (e.key === "ArrowUp") select(rows[Math.max(0, i - 1)]);
     else if (e.key === "ArrowLeft") node.parentId ? select(node.parentId) : setOpen(node.id, false);
     else if (e.key === "ArrowRight") setOpen(node.id, true);
-    else if (e.key === "Enter") setRenaming(node);
+    else if (e.key === "Enter") setRenaming(node.id);
     else return;
     e.preventDefault();
   };
@@ -188,13 +193,13 @@ export function ProjectSidebar() {
       { text: "New Analysis…", action: () => openSelector({ kind: "new-analysis", tableId: table.id }) },
       { text: "New Graph…", action: () => openSelector({ kind: "new-graph", tableId: table.id }) },
       { item: "Separator" },
-      { text: "Rename…", action: () => setRenaming(table) },
+      { text: "Rename", action: () => setRenaming(table.id) },
       { text: `Delete ${NODE_NAMES.table}…`, action: () => removeWithConfirm(table, removeNode) },
     ]);
 
   const childMenu = (child: OutlineNode) =>
     void popupMenu([
-      { text: "Rename…", action: () => setRenaming(child) },
+      { text: "Rename", action: () => setRenaming(child.id) },
       { text: `Delete ${NODE_NAMES[child.type]}…`, action: () => removeWithConfirm(child, removeNode) },
     ]);
 
@@ -227,6 +232,8 @@ export function ProjectSidebar() {
             icon={<GridNineIcon className="size-4" />}
             title={table.name}
             selected={activeNodeId === table.id}
+            renaming={renaming === table.id}
+            onRename={(name) => rename(table, name)}
             open={!collapsed.has(table.id)}
             onToggle={() => setOpen(table.id, collapsed.has(table.id))}
             onClick={() => select(table.id)}
@@ -245,6 +252,8 @@ export function ProjectSidebar() {
                 }
                 title={child.name}
                 selected={activeNodeId === child.id}
+                renaming={renaming === child.id}
+                onRename={(name) => rename(child, name)}
                 onClick={() => select(child.id)}
                 onContextMenu={(e) => {
                   e.preventDefault();
@@ -257,13 +266,6 @@ export function ProjectSidebar() {
           </SidebarItem>
         ))}
       </div>
-
-      <RenameDialog
-        open={renaming !== null}
-        initialValue={renaming?.name ?? ""}
-        onConfirm={(name) => renaming && renameNode(renaming.id, name)}
-        onClose={() => setRenaming(null)}
-      />
     </SidePanel>
   );
 }

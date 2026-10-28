@@ -36,8 +36,8 @@ export default defineConfig({
   // The native side is rebuilt by Tauri; its build output must not reload the page.
   server: { port: 1420, strictPort: true, watch: { ignored: ["**/src-tauri/**"] } },
   build: {
-    // The oldest WebKit Helix meets: macOS 14's (`minimumSystemVersion` in tauri.conf.json).
-    target: "safari17",
+    // The oldest WebKit Helix meets: macOS 13.3's (`minimumSystemVersion` in tauri.conf.json).
+    target: "safari16.4",
     chunkSizeWarningLimit: 5000,
     // The app's pages: project windows, and the hidden window running R (engine.ts).
     rolldownOptions: { input: ["index.html", "engine.html"] },

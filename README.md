@@ -18,7 +18,7 @@ Get the latest version from the [Releases page](https://github.com/mickaphd/Heli
 - `Helix_…_aarch64.dmg` for Macs with Apple Silicon (M1 and later)
 - `Helix_…_x64.dmg` for Macs with an Intel processor
 
-Requires macOS 14 (Sonoma) or later. Open the DMG and drag **Helix** into the
+Requires macOS 13.3 (Ventura) or later. Open the DMG and drag **Helix** into the
 **Applications** folder. Helix is signed and notarized by Apple, so it opens like any other app.
 
 When a new version is out, Helix tells you (Helix › Check for Updates…): download it and
@@ -68,11 +68,13 @@ And a spreadsheet that feels like one:
 - **Statistics on the graph:** significance stars or P values from your analyses, regression
   lines with their confidence band and equation, fitted dose-response curves with their EC50
 - **Colors that work:** 15 palettes from the scientific literature (Okabe-Ito, Paul Tol,
-  Viridis, Batlow…), colorblind-friendly ones first, each reversible
+  Viridis, Batlow…), colorblind-friendly ones first, each reversible; or make your own,
+  kept on your Mac
 - **Style every series:** color, point shape, dashed lines, fill patterns; and the whole graph:
   fill opacity, outlines, error bars (thickness, caps, color, direction)
 - **Style single points:** click or drag over them to change their color, shape or size, or
   show their name; on a volcano plot, find genes by name
+- **Match:** give a graph the look of another one, choosing what it takes
 - **Lay it out:** move the legend and notes, resize by dragging an axis or typing a size, set
   each axis's range and step, white or transparent background
 - **Export** as PNG or JPG at 150, 300 or 600 DPI, at their true printed size, or as SVG; or

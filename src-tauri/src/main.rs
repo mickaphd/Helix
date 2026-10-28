@@ -253,19 +253,43 @@ fn read_text(path: String) -> Result<String, String> {
     fs::read_to_string(path).map_err(|e| e.to_string())
 }
 
-/// Writes the raw request body to the (URL-encoded) `path` header, atomically:
-/// a temp file renamed over the target, so a save is never left half-written.
+/// Writes the raw request body to the (URL-encoded) `path` header, atomically.
 #[tauri::command]
 fn write_file(request: Request) -> Result<(), String> {
     let header = request.headers().get("path").and_then(|v| v.to_str().ok()).ok_or("missing path")?;
     let path = percent_encoding::percent_decode_str(header).decode_utf8().map_err(|e| e.to_string())?;
     check_extension(&path, &["hlx", "png", "jpg", "jpeg", "svg"])?;
     let InvokeBody::Raw(data) = request.body() else { return Err("expected raw bytes".into()) };
-    let tmp = format!("{path}.tmp");
-    fs::write(&tmp, data).and_then(|()| fs::rename(&tmp, path.as_ref())).map_err(|e| {
+    write_atomically(Path::new(path.as_ref()), data)
+}
+
+/// A temp file renamed over `path`, so a save is never left half-written.
+fn write_atomically(path: &Path, data: &[u8]) -> Result<(), String> {
+    let mut tmp = path.as_os_str().to_owned();
+    tmp.push(".tmp"); // beside it: "Data.hlx.tmp"
+    fs::write(&tmp, data).and_then(|()| fs::rename(&tmp, path)).map_err(|e| {
         let _ = fs::remove_file(&tmp); // a failed save leaves nothing behind
         e.to_string()
     })
+}
+
+// ── My Palettes ──────────────────────────────────────────────────────────
+// The palettes made on this Mac, for every project and window: JSON in Helix's data
+// folder, read and checked by the page (src/store/my-palettes.ts).
+
+const PALETTES_FILE: &str = "palettes.json";
+
+/// The file's text, empty before the first palette.
+#[tauri::command]
+fn read_my_palettes(app: AppHandle) -> String {
+    app.path().app_data_dir().ok().and_then(|dir| fs::read_to_string(dir.join(PALETTES_FILE)).ok()).unwrap_or_default()
+}
+
+#[tauri::command]
+fn write_my_palettes(app: AppHandle, text: String) -> Result<(), String> {
+    let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    write_atomically(&dir.join(PALETTES_FILE), text.as_bytes())
 }
 
 // ── macOS ────────────────────────────────────────────────────────────────
@@ -484,6 +508,8 @@ fn main() {
             cancel_quit,
             read_text,
             write_file,
+            read_my_palettes,
+            write_my_palettes,
             set_recent_documents,
             accent_color,
             open_link,

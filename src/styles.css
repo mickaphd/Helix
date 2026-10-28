@@ -11,6 +11,7 @@
   --green: #248a3d;
   --excluded: #0d74ce; /* excluded cells */
   --desk: rgb(0 0 0 / 0.05); /* around a graph's sheet */
+  --edge: rgb(0 0 0 / 0.25); /* around a color mark, so a white one shows (a black one in dark) */
   --sheet-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.12), 0 2px 6px rgb(0 0 0 / 0.06), 0 12px 32px rgb(0 0 0 / 0.08);
 }
 
@@ -24,6 +25,7 @@
     --green: #30d158;
     --excluded: #70b8ff;
     --desk: rgb(0 0 0 / 0.3);
+    --edge: rgb(255 255 255 / 0.55);
     --sheet-shadow: 0 0 0 0.5px rgb(255 255 255 / 0.12), 0 4px 18px rgb(0 0 0 / 0.5);
     color-scheme: dark;
   }
@@ -42,6 +44,7 @@
   --color-support-green: var(--green);
   --color-excluded: var(--excluded);
   --color-desk: var(--desk);
+  --color-edge: var(--edge);
   --shadow-sheet: var(--sheet-shadow);
 
   --text-small: 11px;

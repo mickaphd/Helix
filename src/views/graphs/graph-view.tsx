@@ -227,7 +227,11 @@ export function GraphView({ node }: { node: ProjectNode }) {
     data,
     sigAnalysis?.analysisParams,
   );
-  const comparisons = React.useMemo(() => deriveComparisons(sigOutcome), [sigOutcome]);
+  // None while its analysis runs (its stars come once R answers).
+  const comparisons = React.useMemo(
+    () => (sigAnalysis && !sigOutcome ? null : deriveComparisons(sigOutcome)),
+    [sigAnalysis, sigOutcome],
+  );
   const regParams = (options.regAnalysisId ? nodes[options.regAnalysisId]?.analysisParams : undefined) as
     LinearRegressionParams | undefined;
   // A dose-response graph fits its own curve (no analysis node needed).
@@ -309,7 +313,7 @@ export function GraphView({ node }: { node: ProjectNode }) {
       const paint = paintOf(options, seriesNames.length);
       const fig = GRAPHS[type].build(volcanoColumns, buildOptions, paint, dataset?.titles);
       fig.data = withCaps(fig.data, options);
-      if (family === "column" && options.sigAnalysisId) addSignificance(fig, columns, type, options, comparisons);
+      if (family === "column" && options.sigAnalysisId) addSignificance(fig, columns, type, options, comparisons ?? []);
       if (type === "xy-scatter" && options.regAnalysisId) addRegression(fig, columns, options, regParams, paint);
       if (doseFit) addDoseCurve(fig, columns, options, doseFit, paint);
       // The points' names are part of the figure (the volcano places its own, among the
@@ -378,8 +382,14 @@ export function GraphView({ node }: { node: ProjectNode }) {
     const onMove = (ev: PointerEvent) => {
       // Screen pixels are divided by the view zoom.
       next = {
-        width: axis === "x" ? clamp(start.width + (ev.clientX - start.x) / zoom, GRAPH_LIMITS.width) : start.width,
-        height: axis === "y" ? clamp(start.height + (start.y - ev.clientY) / zoom, GRAPH_LIMITS.height) : start.height,
+        width:
+          axis === "x"
+            ? clamp(Math.round(start.width + (ev.clientX - start.x) / zoom), GRAPH_LIMITS.width)
+            : start.width,
+        height:
+          axis === "y"
+            ? clamp(Math.round(start.height + (start.y - ev.clientY) / zoom), GRAPH_LIMITS.height)
+            : start.height,
       };
       setDrag(next);
     };
@@ -404,6 +414,7 @@ export function GraphView({ node }: { node: ProjectNode }) {
       tag={titleCase(GRAPHS[type].label)}
       inspector={
         <FormatPanel
+          graphId={node.id}
           graphType={type}
           tableType={parent?.tableType}
           options={options}

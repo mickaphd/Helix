@@ -2,7 +2,7 @@
 // backdrop come from the browser engine. A dialog that can be dismissed has a
 // Cancel button, before its other buttons, as on macOS; Return presses its default one.
 import * as React from "react";
-import { Button, Input } from "./controls";
+import { Button } from "./controls";
 
 interface DialogProps {
   open: boolean;
@@ -13,10 +13,12 @@ interface DialogProps {
   title: string;
   description?: React.ReactNode;
   footer?: React.ReactNode;
+  /** A button on the left, away from the others, as macOS puts Delete. */
+  start?: React.ReactNode;
   children?: React.ReactNode;
 }
 
-export function Dialog({ open, onClose, onReturn, title, description, footer, children }: DialogProps) {
+export function Dialog({ open, onClose, onReturn, title, description, footer, start, children }: DialogProps) {
   const ref = React.useRef<HTMLDialogElement>(null);
 
   React.useLayoutEffect(() => {
@@ -50,6 +52,7 @@ export function Dialog({ open, onClose, onReturn, title, description, footer, ch
           {children}
           {(onClose || footer) && (
             <div className="flex justify-end gap-2">
+              {start && <div className="mr-auto">{start}</div>}
               {onClose && <Button onClick={onClose}>Cancel</Button>}
               {footer}
             </div>
@@ -57,42 +60,5 @@ export function Dialog({ open, onClose, onReturn, title, description, footer, ch
         </div>
       )}
     </dialog>
-  );
-}
-
-/** Asks for a new name (renaming things). Return confirms. */
-export function RenameDialog({
-  open,
-  initialValue,
-  onConfirm,
-  onClose,
-}: {
-  open: boolean;
-  initialValue: string;
-  onConfirm: (value: string) => void;
-  onClose: () => void;
-}) {
-  const [value, setValue] = React.useState(initialValue);
-  React.useEffect(() => setValue(initialValue), [initialValue, open]);
-
-  const confirm = () => {
-    if (value.trim()) onConfirm(value.trim());
-    onClose();
-  };
-
-  return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      onReturn={confirm}
-      title="Rename"
-      footer={
-        <Button variant="accent" onClick={confirm}>
-          Rename
-        </Button>
-      }
-    >
-      <Input autoFocus value={value} onChange={(e) => setValue(e.target.value)} />
-    </Dialog>
   );
 }

@@ -70,6 +70,10 @@ export function writeFile(path: string, data: string | Uint8Array) {
   return invoke("write_file", bytes, { headers: { path: encodeURIComponent(path) } });
 }
 
+/** My Palettes' file in Helix's data folder: its text ("" before the first), and a new one. */
+export const readMyPalettes = () => invoke<string>("read_my_palettes");
+export const writeMyPalettes = (text: string) => invoke("write_my_palettes", { text });
+
 // ── R engine ───────────────────────────────────────────────────────────
 // One R for the whole app, in the hidden "engine" window. The native shell
 // passes each request there and its answer back (see main.rs, `REngine`).

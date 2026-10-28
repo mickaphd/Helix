@@ -57,7 +57,7 @@
     "resources": { "../samples/Helix Sample.hlx": "Helix Sample.hlx" },
     "fileAssociations": [{ "ext": ["hlx"], "name": "Helix Project", "role": "Editor" }],
     "macOS": {
-      "minimumSystemVersion": "14.0",
+      "minimumSystemVersion": "13.3",
       "signingIdentity": "-",
       "dmg": {
         "background": "icons/dmg-background.png",

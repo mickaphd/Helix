@@ -131,10 +131,12 @@ A graph's colors and style are its own:
 "legend": { "x": 0.8, "y": 0.1 }, "note": { "x": 30, "y": 40 }, "xTitleGap": 12, "yTitleGap": 2
 ```
 
-- `palette`: which palette (`src/lib/palettes.ts`), and its colors, written out so
-  the figure keeps them whatever Helix's list of palettes becomes. `kind` is
+- `palette`: which palette (`src/lib/palettes.ts`, or one of the user's own, named as
+  they named it), and its colors, written out so the figure keeps them whatever Helix's
+  list of palettes becomes, and on a Mac that doesn't have the user's. `kind` is
   `"categorical"` (colors taken in turn) or `"sequential"` / `"diverging"` (a
-  gradient: series take evenly spaced colors along it, a heatmap all of it).
+  gradient: series take evenly spaced colors along it, a heatmap all of it; a
+  gradient of one color runs from it to itself).
   `reversed: true`: its colors are written from the last (Reverse Colors).
 - `series`: the series styled by hand, by column or group name (a volcano's are
   `"down"` and `"up"`): `color`, `shape` of its points, `dash` of its line (`"solid"`,

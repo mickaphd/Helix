@@ -10,8 +10,8 @@ const MAX_PIXELS = 7500 * 5625;
 /** The largest graph, in the proportions of `size`, whose image at `dpi` stays within
  *  what a Mac draws comfortably: `size` itself when it fits. */
 export function largestAt(size: { width: number; height: number }, dpi: number) {
-  const k = Math.min(1, (Math.sqrt(MAX_PIXELS / (size.width * size.height)) * PX_PER_INCH) / dpi);
-  return { width: Math.floor(size.width * k), height: Math.floor(size.height * k) };
+  const k = (Math.sqrt(MAX_PIXELS / (size.width * size.height)) * PX_PER_INCH) / dpi;
+  return k >= 1 ? size : { width: Math.floor(size.width * k), height: Math.floor(size.height * k) };
 }
 
 /** The image with its resolution written in, so other apps place it at its printed

@@ -132,7 +132,9 @@ const HIGH = "HLX-101 30 mg/kg";
     errorDirection: "above",
     errorColor: "#000000",
     outlineColor: "#000000",
-    ...palette("tableau-10"),
+    // One of My Palettes, made in the lab: gray for the vehicle, blues for the doses,
+    // orange for the standard of care.
+    palette: { name: "HLX-101 study", kind: "categorical", colors: ["#9E9E9E", "#6BAED6", "#08519C", "#E6550D"] },
     series: { [LOW]: { pattern: "diagonal" }, [HIGH]: { pattern: "crosshatch" } },
   });
 }

@@ -183,12 +183,15 @@ const oneOf = <T extends string>(choices: readonly T[], v: unknown) => choices.f
 /** A number brought within `limits`; anything else, none. */
 const within = (v: unknown, limits: Limits) => (isFiniteNumber(v) ? clamp(v, limits) : undefined);
 
-function readPalette(v: unknown): GraphPalette | undefined {
+/** A palette as a file holds it (a project's graph, My Palettes), or nothing if broken. */
+export function readPalette(v: unknown): GraphPalette | undefined {
   if (!isObj(v)) return undefined;
   const p = canonical(v, ["name", "kind", "colors", "reversed"]);
   const colors = Array.isArray(p.colors) ? p.colors.filter(isHex) : [];
   if (typeof p.name !== "string" || !colors.length) return undefined;
   const kind = oneOf(PALETTE_KINDS, p.kind) ?? "categorical";
+  // A gradient runs between two colors at least: one alone is taken at both ends.
+  if (kind !== "categorical" && colors.length === 1) colors.push(colors[0]);
   return defined({ ...p, name: p.name, kind, colors, reversed: p.reversed === true || undefined });
 }
 

@@ -12,7 +12,8 @@ import {
   type PointShape,
   type PointStyle,
 } from "../../store/types";
-import { PALETTES, swatchesOf, withOpacity, type Palette } from "../../lib/palettes";
+import { PALETTES, paletteNamed, swatchesOf, withOpacity } from "../../lib/palettes";
+import { keepPalette, loadMyPalettes } from "../../store/my-palettes";
 import { popupMenu, type Picture } from "../../native";
 import { separator } from "../../menus";
 import { TINT, visibleOutline } from "./plot-helpers";
@@ -34,7 +35,7 @@ function picture(width: number, draw: (g: CanvasRenderingContext2D) => void): Pi
 }
 
 /** A palette's colors side by side, or a gradient's as one band; outlined when chosen. */
-function strip(palette: Palette, chosen: boolean): Picture {
+function strip(palette: GraphPalette, chosen: boolean): Picture {
   return picture(176, (g) => {
     const [x, y, w, h] = [4, 6, 168, 24];
     g.beginPath();
@@ -162,28 +163,53 @@ export const chooseDash = (current: LineDash, pick: (dash: LineDash) => void, co
     DASHES.map((dash) => ({ text: "", icon: dashLine(color, dash, dash === current), action: () => pick(dash) })),
   );
 
-/** The palettes, under their kind (only gradients when `gradients`), then whether the
- *  graph takes the colors from the last. */
-export function choosePalette(
+/** The palettes under their kind, then My Palettes (only gradients when `gradients`),
+ *  then whether the graph takes the colors from the last; then making a palette, and
+ *  editing the graph's own, or keeping it in My Palettes if this Mac doesn't have it
+ *  (a colleague's). */
+export async function choosePalette(
   current: GraphPalette,
   gradients: boolean,
-  pick: (palette: Palette) => void,
-  reverse: () => void,
+  act: {
+    pick: (palette: GraphPalette) => void;
+    reverse: () => void;
+    create: (mine: GraphPalette[]) => void;
+    edit: (palette: GraphPalette, mine: GraphPalette[]) => void;
+  },
 ) {
-  const kinds = PALETTE_KINDS.filter((kind) => !gradients || kind !== "categorical");
-  return popupMenu([
-    ...kinds.flatMap((kind, i) => [
-      ...(i > 0 ? [separator] : []),
-      { text: titleCase(kind), enabled: false },
-      ...PALETTES.filter((p) => p.kind === kind).map((p) => ({
-        text: p.label,
-        icon: strip(p, p.name === current.name),
-        action: () => pick(p),
-      })),
-    ]),
-    separator,
-    { text: "Reverse Colors", checked: current.reversed === true, action: reverse },
-  ]);
+  const mine = await loadMyPalettes();
+  const own = mine.find((p) => p.name === current.name);
+  const fits = (p: GraphPalette) => !gradients || p.kind !== "categorical";
+  const item = (p: GraphPalette, text: string) => ({
+    text,
+    icon: strip(p, p.name === current.name),
+    action: () => act.pick(p),
+  });
+  const sections = [
+    ...PALETTE_KINDS.map((kind) => ({
+      title: titleCase(kind),
+      items: PALETTES.filter((p) => p.kind === kind && fits(p)).map((p) => item(p, p.label)),
+    })),
+    { title: "My Palettes", items: mine.filter(fits).map((p) => item(p, p.name)) },
+  ].filter(({ items }) => items.length);
+  return popupMenu(
+    [
+      ...sections.flatMap(({ title, items }, i) => [
+        ...(i > 0 ? [separator] : []),
+        { text: title, enabled: false },
+        ...items,
+      ]),
+      separator,
+      { text: "Reverse Colors", checked: current.reversed === true, action: act.reverse },
+      separator,
+      { text: "New Palette…", action: () => act.create(mine) },
+      own
+        ? { text: "Edit Palette…", action: () => act.edit(own, mine) }
+        : paletteNamed(current.name)
+          ? []
+          : { text: "Add to My Palettes", action: () => void keepPalette(current) },
+    ].flat(),
+  );
 }
 
 /** A series' color among the palette's swatches, the current one ringed. */

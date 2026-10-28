@@ -3,8 +3,9 @@ import * as React from "react";
 import { CaretUpDownIcon, PaletteIcon } from "@phosphor-icons/react";
 import { Input, Segmented, Select, Switch, cn } from "../../ui/controls";
 import { Row, Stepper } from "../../components/common/inspector";
-import { colorName, paletteNamed, type Palette } from "../../lib/palettes";
+import { colorName, paletteBackground, paletteNamed } from "../../lib/palettes";
 import { TINT, visibleOutline } from "./plot-helpers";
+import { PaletteDialog, draftFrom, type PaletteDraft } from "./palette-dialog";
 import {
   chooseColor,
   chooseDash,
@@ -39,18 +40,16 @@ export function TextRow({ label, value, onChange }: { label: string; value: stri
   );
 }
 
-/** A palette's colors in a small band: side by side, or blended along a gradient. */
-function PaletteBand({ palette }: { palette: GraphPalette }) {
-  const { kind, colors } = palette;
-  const background =
-    kind === "categorical"
-      ? `linear-gradient(to right, ${colors.map((c, i) => `${c} ${(i / colors.length) * 100}% ${((i + 1) / colors.length) * 100}%`).join(", ")})`
-      : `linear-gradient(to right, ${colors.join(", ")})`;
-  return <span className="h-3 w-16 shrink-0 rounded-sm border border-black/15" style={{ background }} />;
-}
+/** A palette's colors in a small band. */
+const PaletteBand = ({ palette }: { palette: GraphPalette }) => (
+  <span
+    className="h-3 w-16 shrink-0 rounded-sm border border-edge bg-origin-border"
+    style={{ backgroundImage: paletteBackground(palette) }}
+  />
+);
 
 /** The graph's palette: a native menu of them all (only gradients when `gradients`),
- *  and Reverse Colors. */
+ *  Reverse Colors, and the window making or editing one of My Palettes. */
 export function PaletteRow({
   value,
   gradients,
@@ -59,44 +58,57 @@ export function PaletteRow({
 }: {
   value: GraphPalette;
   gradients: boolean;
-  onChange: (palette: Palette) => void;
+  onChange: (palette: GraphPalette) => void;
   onReverse: () => void;
 }) {
+  const [draft, setDraft] = React.useState<PaletteDraft | null>(null);
+  const choose = () =>
+    choosePalette(value, gradients, {
+      pick: onChange,
+      reverse: onReverse,
+      create: (mine) => setDraft(draftFrom(value, mine)),
+      edit: (palette, mine) => setDraft({ palette, mine, editing: palette.name }),
+    });
   return (
     <Row label="Palette">
       <button
         type="button"
         className="flex h-7 w-full items-center gap-2 rounded-md bg-control px-2 text-regular"
-        onClick={() => void choosePalette(value, gradients, onChange, onReverse)}
+        onClick={() => void choose()}
       >
         <span className="truncate">{paletteNamed(value.name)?.label ?? value.name}</span>
         <span className="flex-1" />
         <PaletteBand palette={value} />
         <CaretUpDownIcon className="size-3.5 shrink-0 text-secondary" />
       </button>
+      {draft && <PaletteDialog draft={draft} gradients={gradients} onClose={() => setDraft(null)} onDone={onChange} />}
     </Row>
   );
 }
 
 // Every mark of the panel (color, shape, line, pattern) fills about 80 % of its 20 px
-// box, so they look the same size side by side.
+// box, so they look the same size side by side, and has a thin edge (`--edge`) so a
+// white mark shows in light mode and a black one in dark mode.
+const HALO = "[filter:drop-shadow(0_0_0.5px_var(--edge))_drop-shadow(0_0_0.5px_var(--edge))]";
 
 /** A point shape, drawn as in the menus (a circle's 24 of the 30 shown). */
 function ShapeIcon({ shape, color }: { shape: PointShape; color: string }) {
   return (
     <svg viewBox="3 3 30 30" className="size-5 shrink-0">
-      <path d={SHAPE_PATHS[shape]} fill={color} stroke="rgba(0,0,0,0.25)" strokeWidth={1.5} />
+      <path d={SHAPE_PATHS[shape]} fill={color} className="stroke-edge" strokeWidth={1.5} />
     </svg>
   );
 }
 
 /** A series' color: the Series section's own icon (Phosphor's Palette), drawn in it. */
-const ColorIcon = ({ color }: { color: string }) => <PaletteIcon className="size-5 shrink-0" color={color} />;
+const ColorIcon = ({ color }: { color: string }) => (
+  <PaletteIcon className={cn("size-5 shrink-0", HALO)} color={color} />
+);
 
 /** A line with its dashes, drawn as in the menus. */
 function LineIcon({ dash, color }: { dash: LineDash; color: string }) {
   return (
-    <svg viewBox="0 0 36 36" className="size-5 shrink-0">
+    <svg viewBox="0 0 36 36" className={cn("size-5 shrink-0", HALO)}>
       <path d="M4 18H32" stroke={color} strokeWidth={3} strokeDasharray={DASH_ARRAYS[dash].join(" ")} />
     </svg>
   );
@@ -106,7 +118,7 @@ function LineIcon({ dash, color }: { dash: LineDash; color: string }) {
 function PatternIcon({ color, pattern }: { color: string; pattern?: FillPattern }) {
   const id = React.useId();
   return (
-    <svg viewBox="0 0 20 20" className="size-5 shrink-0">
+    <svg viewBox="0 0 20 20" className={cn("size-5 shrink-0", HALO)}>
       <pattern id={id} width={8} height={8} patternUnits="userSpaceOnUse">
         {pattern && <path d={PATTERN_PATHS[pattern]} stroke={color} strokeWidth={1.5} />}
       </pattern>
@@ -242,7 +254,7 @@ export function ColorRow({
           same
         ) : (
           <svg viewBox="0 0 36 36" className="size-5 shrink-0">
-            <circle cx="18" cy="18" r="13" fill="none" stroke="rgba(0,0,0,0.25)" strokeWidth={9} />
+            <circle cx="18" cy="18" r="13" fill="none" className="stroke-edge" strokeWidth={9} />
             <circle cx="18" cy="18" r="13" fill="none" stroke={chosen} strokeWidth={6} />
           </svg>
         )}
@@ -407,16 +419,18 @@ export function Choice<T extends string>({
 export function Toggle({
   label,
   checked,
+  disabled,
   onChange,
 }: {
   label: string;
   checked: boolean;
+  disabled?: boolean;
   onChange: (v: boolean) => void;
 }) {
   return (
     <label className="flex items-center justify-between">
-      <span className="text-small text-secondary">{label}</span>
-      <Switch checked={checked} onChange={onChange} />
+      <span className={cn("text-small text-secondary", disabled && "opacity-40")}>{label}</span>
+      <Switch checked={checked} disabled={disabled} onChange={onChange} />
     </label>
   );
 }

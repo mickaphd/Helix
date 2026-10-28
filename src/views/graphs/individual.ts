@@ -4,7 +4,7 @@
 import type { GraphOptions } from "../../store/types";
 import type { GraphModule, GraphFigure } from ".";
 import type { Column } from "../../lib/dataset";
-import { baseLayout, centers, errors, jitter, seriesPoints, type Paint } from "./plot-helpers";
+import { baseLayout, centers, COLUMN_BAR, errors, jitter, seriesPoints, type Paint } from "./plot-helpers";
 import { pointKeyOf } from "../../lib/columns";
 
 function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFigure {
@@ -16,10 +16,9 @@ function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFig
     // Optional bar at the center value, behind the points.
     if (options.bars) {
       data.push({
-        type: "bar",
+        ...COLUMN_BAR,
         x: [i],
         y: [center[i]],
-        width: 0.6,
         marker: paint.bars(c.name, i),
         hoverinfo: "skip",
       });

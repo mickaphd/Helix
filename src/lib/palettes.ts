@@ -4,7 +4,7 @@
 // file (`GraphPalette`), so a figure keeps them even if an entry here is corrected.
 import type { GraphPalette, PaletteColor, SeriesStyle } from "../store/types";
 
-export interface Palette extends GraphPalette {
+interface Palette extends GraphPalette {
   label: string;
   /** The colors' names, where the authors give them. */
   names?: string[];
@@ -254,12 +254,16 @@ export const PALETTES: Palette[] = [
 
 export const paletteNamed = (name: string) => PALETTES.find((p) => p.name === name);
 
+/** Whether one of Helix's palettes is called `name` (its key or its label), in any case. */
+export const isHelixPalette = (name: string) =>
+  PALETTES.some((p) => [p.name, p.label].some((n) => n.toLowerCase() === name.toLowerCase()));
+
 /** A graph's palette: Helix's for a graph that has none (made before palettes). */
 export const paletteOf = (options: { palette?: GraphPalette }): GraphPalette =>
   options.palette ?? paletteNamed("helix")!;
 
-/** What a graph saves of a palette. */
-export const savedPalette = ({ name, kind, colors }: Palette): GraphPalette => ({ name, kind, colors });
+/** What a graph or My Palettes saves of a palette. */
+export const savedPalette = ({ name, kind, colors }: GraphPalette): GraphPalette => ({ name, kind, colors });
 
 /** Series' styles without the colors picked by hand, as a new palette leaves them; a
  *  style left empty goes. */
@@ -289,16 +293,31 @@ export function colorName(palette: GraphPalette, color: string): string {
 }
 
 /** The color of series `index` among `count`: a categorical palette's colors in turn
- *  (starting over after the last), a gradient's evenly spaced from end to end. */
+ *  (starting over after the last), a gradient's evenly spaced from end to end, blended
+ *  between its colors as the heatmap draws it (a palette made here has only a few). */
 export function paletteColor({ kind, colors }: GraphPalette, index: number, count: number): string {
   if (kind === "categorical") return colors[index % colors.length];
-  const at = count > 1 ? Math.min(index, count - 1) / (count - 1) : 0;
-  return colors[Math.round(at * (colors.length - 1))];
+  const at = (count > 1 ? Math.min(index, count - 1) / (count - 1) : 0) * (colors.length - 1);
+  const i = Math.floor(at);
+  return i === colors.length - 1 ? colors[i] : mix(colors[i], colors[i + 1], at - i);
+}
+
+/** The color `t` (0 to 1) of the way from `a` to `b`, both #RRGGBB. */
+function mix(a: string, b: string, t: number): string {
+  const [x, y] = [parseInt(a.slice(1), 16), parseInt(b.slice(1), 16)];
+  const channel = (shift: number) => Math.round(((x >> shift) & 255) * (1 - t) + ((y >> shift) & 255) * t) << shift;
+  return "#" + (channel(16) | channel(8) | channel(0)).toString(16).padStart(6, "0").toUpperCase();
 }
 
 /** A few of a palette's colors to pick from: all of a categorical one, 9 along a gradient. */
 export const swatchesOf = (palette: GraphPalette) =>
   palette.kind === "categorical" ? palette.colors : Array.from({ length: 9 }, (_, i) => paletteColor(palette, i, 9));
+
+/** A palette as a CSS background: its colors side by side, or blended along a gradient. */
+export const paletteBackground = ({ kind, colors }: GraphPalette) =>
+  kind === "categorical"
+    ? `linear-gradient(to right, ${colors.map((c, i) => `${c} ${(i / colors.length) * 100}% ${((i + 1) / colors.length) * 100}%`).join(", ")})`
+    : `linear-gradient(to right, ${colors.join(", ")})`;
 
 /** A gradient palette as a Plotly colorscale. */
 export const colorscaleOf = ({ colors }: GraphPalette) => colors.map((c, i) => [i / (colors.length - 1), c]);

@@ -105,6 +105,10 @@ type SidebarItemProps = Omit<React.ComponentProps<"div">, "title"> & {
   /** Whether its children show, for a row that has some. */
   open?: boolean;
   onToggle?: () => void;
+  /** Its name being edited in place, and what to do with the name typed (unchanged if
+   *  Escape). */
+  renaming?: boolean;
+  onRename?: (name: string) => void;
 };
 
 /** A sidebar row. With children, it gets a disclosure triangle. The selected row is
@@ -116,6 +120,8 @@ export function SidebarItem({
   selected,
   open = true,
   onToggle,
+  renaming,
+  onRename,
   children,
   className,
   ...props
@@ -145,12 +151,38 @@ export function SidebarItem({
           <CaretRightIcon className={cn("size-3.5 transition-transform", open && "rotate-90")} />
         </button>
         <span className={cn("text-secondary", selected && "group-focus:text-white")}>{icon}</span>
-        <span className="truncate" title={title}>
-          {title}
-        </span>
+        {renaming ? (
+          <NameField name={title} onDone={onRename!} />
+        ) : (
+          <span className="truncate" title={title}>
+            {title}
+          </span>
+        )}
       </div>
       {hasChildren && open && <div className="pl-2">{children}</div>}
     </>
+  );
+}
+
+/** A name edited in place, as in the Finder: Return or a click away keeps it, Escape
+ *  puts it back. The keys and clicks stay in the field. */
+function NameField({ name, onDone }: { name: string; onDone: (name: string) => void }) {
+  return (
+    <input
+      autoFocus
+      aria-label="Name"
+      defaultValue={name}
+      onFocus={(e) => e.currentTarget.select()}
+      onBlur={(e) => onDone(e.currentTarget.value)}
+      onKeyDown={(e) => {
+        e.stopPropagation();
+        if (e.key === "Escape") e.currentTarget.value = name;
+        if (e.key === "Escape" || (e.key === "Enter" && !e.nativeEvent.isComposing)) e.currentTarget.blur();
+      }}
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+      className="h-5 min-w-0 flex-1 rounded-sm bg-surface px-1 text-primary outline-none ring-2 ring-accent"
+    />
   );
 }
 

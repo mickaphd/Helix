@@ -35,6 +35,7 @@ import {
 } from "./panel-controls";
 import { dataControls, statisticsControls, styleControls, type SectionContext } from "./format-sections";
 import { VOLCANO_SERIES } from "./volcano";
+import { MatchSection } from "./match-graph";
 
 /** The points selected on the graph: how many, the first one's style (shown), whether
  *  any has its own, and how to set, resize (each from its own size) or reset theirs. */
@@ -48,6 +49,7 @@ interface Selection {
 }
 
 interface Props extends SectionContext {
+  graphId: string;
   setSeriesStyle: (key: string, style: SeriesStyle) => void;
   selection?: Selection;
   canExport: boolean;
@@ -336,6 +338,8 @@ export function FormatPanel(props: Props) {
           />
         </Section>
       )}
+
+      <MatchSection key={props.graphId} graphId={props.graphId} set={set} {...fold("Match")} />
 
       <Section
         title="Export"

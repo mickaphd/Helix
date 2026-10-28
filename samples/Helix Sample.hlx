@@ -1,7 +1,7 @@
 {
   "app": "helix",
   "schemaVersion": 1,
-  "savedAt": "2026-10-08T20:01:06.039Z",
+  "savedAt": "2026-10-28T10:53:35.728Z",
   "project": {
     "nodes": {
       "t-tumor": {
@@ -278,9 +278,9 @@
           "width": 640,
           "height": 460,
           "palette": {
-            "name": "tableau-10",
+            "name": "HLX-101 study",
             "kind": "categorical",
-            "colors": ["#4E79A7","#F28E2C","#E15759","#76B7B2","#59A14F","#EDC949","#AF7AA1","#FF9DA7","#9C755F","#BAB0AB"]
+            "colors": ["#9E9E9E","#6BAED6","#08519C","#E6550D"]
           },
           "errorColor": "#000000",
           "outlineColor": "#000000",

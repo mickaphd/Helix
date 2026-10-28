@@ -183,6 +183,11 @@ export function vectorTraces(data: unknown[]): unknown[] {
   );
 }
 
+/** A column's bar (its own trace, at its own x): every one in the same `offsetgroup`, so
+ *  Plotly draws each at its x instead of setting them side by side (with their caps'
+ *  twins, which share it). */
+export const COLUMN_BAR = { type: "bar", width: 0.6, offsetgroup: "column" } as const;
+
 /** The caps of error bars that go one way only: Plotly caps both ends, so those bars
  *  have none, and each such trace gets an invisible twin whose zero-long error bars, at
  *  their tips, are the caps. A bar's twin shares its place (`offsetgroup`). */

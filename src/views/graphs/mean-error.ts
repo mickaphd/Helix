@@ -7,7 +7,7 @@
 import type { GraphOptions } from "../../store/types";
 import type { GraphModule, GraphFigure } from ".";
 import type { Column } from "../../lib/dataset";
-import { baseLayout, centers, errors, GUIDE, seriesMarker, type Paint } from "./plot-helpers";
+import { baseLayout, centers, COLUMN_BAR, errors, GUIDE, seriesMarker, type Paint } from "./plot-helpers";
 
 function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFigure {
   const idx = columns.map((_, i) => i);
@@ -31,7 +31,7 @@ function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFig
 
     data.push(
       options.shape === "bar"
-        ? { type: "bar", x: [i], y: [y[i]], width: 0.6, marker: paint.bars(c.name, i), error_y, hoverinfo: "y" }
+        ? { ...COLUMN_BAR, x: [i], y: [y[i]], marker: paint.bars(c.name, i), error_y, hoverinfo: "y" }
         : {
             type: "scatter",
             mode: "markers",

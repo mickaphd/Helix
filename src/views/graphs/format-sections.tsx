@@ -41,7 +41,8 @@ export interface SectionContext {
   set: SetOptions;
   /** The analyses of the graph's table: sources for significance stars and fitted lines. */
   analyses: ProjectNode[];
-  comparisons: SigComparison[];
+  /** The chosen analysis's pairs; null while it runs. */
+  comparisons: SigComparison[] | null;
   seriesNames: string[];
   /** Volcano on a grouped table: the groups it can compare (Helix computes the DEGs). */
   volcanoGroups?: string[];
@@ -216,7 +217,7 @@ function SignificanceControls({
   set,
 }: {
   analyses: ProjectNode[];
-  comparisons: SigComparison[];
+  comparisons: SigComparison[] | null;
   options: GraphOptions;
   set: SetOptions;
 }) {
@@ -243,7 +244,9 @@ function SignificanceControls({
               { value: "pvalue", label: "P value" },
             ]}
           />
-          {comparisons.length ? (
+          {comparisons === null ? (
+            <p className="text-small text-secondary">Running the analysis…</p>
+          ) : comparisons.length ? (
             <Row label="Comparisons">
               <div className="flex flex-col gap-1.5">
                 {comparisons.map((c) => (
