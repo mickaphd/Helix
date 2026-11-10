@@ -39,7 +39,7 @@ export async function runCorrelationMatrix(
     r[i][j] = r[j][i] = v[`r_${i}_${j}`] ?? null;
     p[i][j] = p[j][i] = v[`p_${i}_${j}`] ?? null;
   }
-  const described = vars.map(describe);
+  const { groups: described } = await describe(vars);
   return {
     testType: "correlation-matrix",
     subtitle: method === "spearman" ? "Spearman correlation matrix" : "Pearson correlation matrix",

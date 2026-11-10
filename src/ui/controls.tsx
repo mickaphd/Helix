@@ -84,7 +84,7 @@ export function Checkbox({ checked, onChange }: { checked: boolean; onChange: (c
   return (
     <input
       type="checkbox"
-      className="size-3.5 accent-accent"
+      className="size-3.5 accent-accent focus-visible:outline-none"
       checked={checked}
       onChange={(e) => onChange(e.target.checked)}
     />
@@ -134,7 +134,7 @@ export function RadioList<T extends string>({
         <label key={o.value} className="flex items-center gap-2 text-regular">
           <input
             type="radio"
-            className="accent-accent"
+            className="accent-accent focus-visible:outline-none"
             checked={value === o.value}
             onChange={() => onChange(o.value)}
           />

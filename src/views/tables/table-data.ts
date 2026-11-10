@@ -33,17 +33,20 @@ function columnLetter(index: number): string {
 /** Default name of the `i`-th data column (0-based) for a table type. */
 function columnLabel(type: TableType, i: number): string {
   if (type === "xy") return i === 0 ? "X" : `Y${i}`;
+  if (type === "survival") return i === 0 ? "Time" : `Group ${columnLetter(i - 1)}`;
   if (type === "multiple") return `Var ${i + 1}`;
   if (type === "contingency") return `Outcome ${columnLetter(i)}`;
   return columnLetter(i);
 }
 
-/** The next `count` default column names not already taken, in order. An XY table
- *  already holding its X (column 1, whatever its name) only gets Y names. */
+/** The default names of the next `count` columns after `columns` (the Title column
+ *  first), each named for its place ("D" for the 4th, as a grouped table's groups are),
+ *  or the next one free when that is taken: a renamed column never frees its name for a
+ *  new one. A table with an X (its 1st data column, whatever its name) gets Y names after it. */
 export function freshColumnNames(columns: string[], type: TableType, count: number): string[] {
   const taken = new Set(columns);
   const names: string[] = [];
-  for (let i = type === "xy" && columns.length > 1 ? 1 : 0; names.length < count; i++) {
+  for (let i = columns.length - 1; names.length < count; i++) {
     const name = columnLabel(type, i);
     if (!taken.has(name)) names.push(name);
   }
@@ -55,7 +58,7 @@ const emptyRows = (count: number, width: number): Cell[][] =>
 
 /** A new table: the Title column, then `count` data columns named for `type`. */
 export function newTable(type: TableType, count: number): TableData {
-  return { columns: ["Title", ...freshColumnNames([], type, count)], rows: [] };
+  return { columns: ["Title", ...freshColumnNames(["Title"], type, count)], rows: [] };
 }
 
 /** A grouped table's sub-column names: "A:Y1", "A:Y2"… for each group key. */
@@ -104,6 +107,13 @@ export function writeBlock(data: TableData, r: number, c: number, block: Cell[][
     return row;
   });
   return { ...data, columns, rows };
+}
+
+/** How many of `block`'s columns, written from column `c`, a grouped table has no room
+ *  for (its columns come from its groups: `writeBlock` adds none). */
+export function columnsBeyond(data: TableData, c: number, block: Cell[][]): number {
+  const width = block.reduce((w, row) => Math.max(w, row.length), 0);
+  return isGrouped(data) ? Math.max(0, c + width - data.columns.length) : 0;
 }
 
 /** Sets every stored cell of `range` to `value` (null clears). */

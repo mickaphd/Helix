@@ -1,116 +1,42 @@
 // Outlier detection, ROUT method (Motulsky & Brown, BMC Bioinformatics 2006), column
-// by column as in Prism: each column is fitted robustly (on a Column table, a Huber
-// mean with MADN scale), each point's residual becomes a t statistic (df = n − 1), and
-// points are outliers when their FDR-adjusted P is below Q. Only `pt` runs in R,
-// in one batch.
-import type { AnalysisOutcome, Column, OutlierGroupRow, OutliersParams } from "../types";
-import { describe } from "./base";
-import { adjustPValues } from "../grouped/base";
+// by column as in Prism, computed by R: each column is fitted robustly (on a Column table,
+// a Huber mean with MADN scale), each point's residual becomes a t statistic (df = n − 1),
+// and points are outliers when their FDR-adjusted P (Benjamini-Hochberg) is below Q.
+import type { AnalysisOutcome, Column, OutliersParams } from "../types";
+import { describe, rVec } from "./base";
 import { evalNamedVector } from "../webr";
-import { median } from "../../lib/summary";
 
 const DEFAULTS: OutliersParams = { q: 1 };
-const MIN_POINTS = 3; // fewer than this, a robust fit + outlier test isn't meaningful
-const HUBER_K = 1.345; // 95%-efficiency tuning constant for Huber's psi function
 
-interface Point {
-  row: number;
-  value: number;
-}
-
-function groupPoints(columns: Column[]): { name: string; points: Point[] }[] {
-  return columns
-    .filter((c) => c.values.length > 0)
-    .map((c) => ({ name: c.name, points: c.rows.map((row, i) => ({ row, value: c.values[i] })) }));
-}
-
-/** Robust location (Huber M-estimator) + scale (MADN) for one column's values.
- *  `sd: null` means every value is identical — no meaningful outlier test. */
-function robustFit(values: number[]): { mean: number; sd: number | null } {
-  const center = median(values);
-  const mad = median(values.map((v) => Math.abs(v - center)));
-  const sd = mad * 1.4826;
-  if (sd === 0) return { mean: center, sd: null };
-  let mean = center;
-  for (let i = 0; i < 30; i++) {
-    let wSum = 0;
-    let wxSum = 0;
-    for (const v of values) {
-      const u = (v - mean) / sd;
-      const w = Math.abs(u) <= HUBER_K ? 1 : HUBER_K / Math.abs(u);
-      wSum += w;
-      wxSum += w * v;
-    }
-    const next = wxSum / wSum;
-    if (Math.abs(next - mean) < 1e-9) {
-      mean = next;
-      break;
-    }
-    mean = next;
-  }
-  return { mean, sd };
-}
+/** R: `rout(x, q)`, a column's robust mean, then each point's adjusted P (none when the
+ *  column has fewer than 3 values or none differ); `HUBER_K` gives 95% efficiency. */
+const R_ROUT = `
+rout<-function(x,q){mu<-median(x);s<-mad(x);if(length(x)<3||s==0)return(list(mu=if(length(x)<3)NA else mu,p=rep(NA,length(x))))
+for(i in 1:30){u<-(x-mu)/s;w<-ifelse(abs(u)<=1.345,1,1.345/abs(u));nx<-sum(w*x)/sum(w);done<-abs(nx-mu)<1e-9;mu<-nx;if(done)break}
+list(mu=mu,p=p.adjust(2*pt(-abs((x-mu)/s),length(x)-1),"BH"))}`;
 
 export async function runRout(columns: Column[], params?: OutliersParams): Promise<AnalysisOutcome> {
-  const groups = groupPoints(columns);
+  const groups = columns.filter((c) => c.values.length > 0);
   if (groups.length < 1) return { error: "This needs at least 1 column containing numeric data." };
   const { q: qPercent } = params ?? DEFAULTS;
-  const q = qPercent / 100;
 
-  const fits = groups.map((g) =>
-    g.points.length >= MIN_POINTS ? robustFit(g.points.map((p) => p.value)) : { mean: NaN, sd: null },
+  // Per column: its robust mean, points, outliers and their share; each point's adjusted P;
+  // then the totals.
+  const v = await evalNamedVector(
+    `${R_ROUT}\nq<-${qPercent / 100};R<-lapply(list(${groups.map((g) => rVec(g.values)).join(",")}),rout,q)\n` +
+      `o<-sapply(R,function(r)sum(r$p<q,na.rm=TRUE));N<-sapply(R,function(r)length(r$p))\n` +
+      `c(unlist(lapply(seq_along(R),function(i)setNames(c(R[[i]]$mu,N[i],o[i],100*o[i]/N[i],R[[i]]$p),` +
+      `c(paste0(c("mu_","n_","o_","pc_"),i-1),paste0("p_",i-1,"_",seq_along(R[[i]]$p)-1))))),` +
+      `total=sum(N),outliers=sum(o),percent=100*sum(o)/sum(N))`,
   );
 
-  // Batch every testable point's t statistic + df into one R round-trip for pt().
-  const owner: { g: number; p: number; t: number; df: number }[] = [];
-  groups.forEach((g, gi) => {
-    const fit = fits[gi];
-    if (g.points.length < MIN_POINTS || fit.sd == null) return;
-    g.points.forEach((pt, pi) =>
-      owner.push({ g: gi, p: pi, t: (pt.value - fit.mean) / fit.sd!, df: g.points.length - 1 }),
-    );
-  });
-
-  let rawPByOwner: (number | null)[] = [];
-  if (owner.length) {
-    const code = `c(${owner.map((o, k) => `p${k}=2*pt(${-Math.abs(o.t)},${o.df})`).join(",")})`;
-    const v = await evalNamedVector(code);
-    rawPByOwner = owner.map((_, k) => v[`p${k}`] ?? null);
-  }
-
-  // Slice raw p-values back per group, then FDR-adjust within each group independently.
-  const rawPByGroup: (number | null)[][] = groups.map((g) => new Array(g.points.length).fill(null));
-  owner.forEach(({ g, p }, k) => (rawPByGroup[g][p] = rawPByOwner[k]));
-  const adjPByGroup = rawPByGroup.map((raw) => adjustPValues(raw, "fdr"));
-
-  const outlierGroups: OutlierGroupRow[] = [];
-  const flagged: { group: string; row: number; value: number; p: number }[] = [];
-  const skipped: string[] = [];
-  let totalPoints = 0;
-  let totalOutliers = 0;
-
-  groups.forEach((g, gi) => {
-    const fit = fits[gi];
-    const adj = adjPByGroup[gi];
-    if (g.points.length < MIN_POINTS || fit.sd == null) skipped.push(g.name);
-    let outliers = 0;
-    g.points.forEach((pt, pi) => {
-      const p = adj[pi];
-      if (p != null && p < q) {
-        outliers++;
-        flagged.push({ group: g.name, row: pt.row, value: pt.value, p });
-      }
-    });
-    totalPoints += g.points.length;
-    totalOutliers += outliers;
-    outlierGroups.push({
-      group: g.name,
-      points: g.points.length,
-      outliers,
-      percent: g.points.length ? (outliers / g.points.length) * 100 : 0,
-      robustMean: g.points.length >= MIN_POINTS ? fit.mean : null,
-    });
-  });
+  const flagged = groups.flatMap((g, gi) =>
+    g.rows.flatMap((row, k) => {
+      const p = v[`p_${gi}_${k}`];
+      return p != null && p < qPercent / 100 ? [{ group: g.name, row, value: g.values[k], p }] : [];
+    }),
+  );
+  const skipped = groups.filter((_, gi) => v[`p_${gi}_0`] == null).map((g) => g.name);
 
   const notes =
     (flagged.length
@@ -128,14 +54,20 @@ export async function runRout(columns: Column[], params?: OutliersParams): Promi
     testType: "outliers",
     subtitle: `ROUT method (Q = ${qPercent}%)`,
     stats: [
-      { label: "Total observations", value: totalPoints },
+      { label: "Total observations", value: v.total ?? null },
       { label: "Groups analyzed", value: groups.length },
-      { label: "Outliers detected", value: totalOutliers },
-      { label: "Outlier percentage (%)", value: totalPoints ? (totalOutliers / totalPoints) * 100 : 0 },
+      { label: "Outliers detected", value: v.outliers ?? null },
+      { label: "Outlier percentage (%)", value: v.percent ?? null },
       { label: "Q parameter (%)", value: qPercent },
     ],
-    groups: groups.map((g) => describe({ name: g.name, values: g.points.map((p) => p.value) })),
-    outlierGroups,
+    groups: (await describe(groups)).groups,
+    outlierGroups: groups.map((g, gi) => ({
+      group: g.name,
+      points: v[`n_${gi}`] ?? 0,
+      outliers: v[`o_${gi}`] ?? 0,
+      percent: v[`pc_${gi}`] ?? 0,
+      robustMean: v[`mu_${gi}`] ?? null,
+    })),
     notes,
   };
 }

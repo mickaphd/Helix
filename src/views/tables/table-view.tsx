@@ -3,7 +3,7 @@
 import { GROUPED_LIMITS, type ProjectNode, type TableData } from "../../store/types";
 import type { TableMove } from "../../store/references";
 import { useProjectActions } from "../../store/use-project-store";
-import { Section, Stepper, WithInspector } from "../../components/common/inspector";
+import { Section, Stepper, WithInspector } from "../../components/inspector";
 import { useLayout } from "../../store/use-layout";
 import { ColumnsIcon } from "@phosphor-icons/react";
 import { Toolbar } from "../../ui/layout";

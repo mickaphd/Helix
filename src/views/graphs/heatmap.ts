@@ -1,6 +1,8 @@
-// "Heatmap" (Multiple Variables table only): each column is a variable, each row
-// a subject — the classic use for that table type. Cell color encodes magnitude
-// along the graph's palette; row order matches the table (Y axis reversed).
+// "Heatmap": one cell per value — on a Multiple Variables table each column is a
+// variable and each row a subject, on a Contingency table each cell a count, on a
+// Grouped table each cell a group's mean or median on that row (`plotColumns`). Cell
+// color encodes magnitude along the graph's palette; row order matches the table
+// (Y axis reversed).
 import type { GraphOptions } from "../../store/types";
 import type { GraphModule, GraphFigure } from ".";
 import type { Column } from "../../lib/dataset";

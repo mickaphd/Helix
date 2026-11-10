@@ -1,11 +1,11 @@
 // The inspector: the panel on the right of a graph (Format) or a grouped table (Groups),
 // full height like the sidebar, and the building blocks its sections share.
 import * as React from "react";
-import { Button, cn, IconButton } from "../../ui/controls";
+import { Button, cn, IconButton } from "../ui/controls";
 import { CaretRightIcon, MinusIcon, PlusIcon, SidebarSimpleIcon } from "@phosphor-icons/react";
-import { SidePanel, Toolbar } from "../../ui/layout";
-import { clampWidth, INSPECTOR_WIDTH, useLayout } from "../../store/use-layout";
-import { clamp } from "../../store/types";
+import { SidePanel, Toolbar } from "../ui/layout";
+import { clampWidth, INSPECTOR_WIDTH, useLayout } from "../store/use-layout";
+import { clamp } from "../store/types";
 
 /** A view with an inspector: its toolbar and content on the left, the inspector on the
  *  right. The inspector's button stays at the window's top right: in the inspector when

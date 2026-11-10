@@ -4,13 +4,19 @@
 import { ANALYSES } from "../../stats";
 import type { AnalysisPickerValue } from "../../stats/types";
 import type { TableData, TableType } from "../../store/types";
-import type { SelectorOption } from "../../components/common/universal-modal";
+import type { SelectorOption } from "../../components/universal-modal";
 import { groupsOf, readTable } from "../../lib/dataset";
 import { titleCase } from "../../lib/format";
 
 /** A test as the picker, the Analysis menu and its wizard name it. */
 export const analysisLabel = (value: AnalysisPickerValue) =>
-  titleCase(value === "compare-many-groups" ? "Compare more than two groups" : ANALYSES[value].label);
+  titleCase(
+    value === "compare-many-groups"
+      ? "Compare more than two groups"
+      : value === "interpolate"
+        ? "Interpolate a standard curve"
+        : ANALYSES[value].label,
+  );
 
 const optionsFor = (order: AnalysisPickerValue[]): SelectorOption<AnalysisPickerValue>[] =>
   order.map((value) => ({ value, label: analysisLabel(value) }));
@@ -30,9 +36,10 @@ export const ANALYSIS_OPTIONS_BY_TABLE: Record<TableType, SelectorOption<Analysi
     "one-sample-t",
     "outliers",
   ]),
-  xy: optionsFor(["correlation", "linear-regression", "area-under-curve", "nonlinear-regression"]),
+  xy: optionsFor(["correlation", "linear-regression", "area-under-curve", "nonlinear-regression", "interpolate"]),
   grouped: optionsFor(["two-way-anova", "multiple-t-tests"]),
-  multiple: optionsFor(["correlation-matrix", "multiple-regression"]),
+  multiple: optionsFor(["descriptive-statistics", "correlation-matrix", "multiple-regression", "outliers"]),
+  survival: optionsFor(["survival", "cox"]),
   contingency: optionsFor(["chi-square"]),
 };
 

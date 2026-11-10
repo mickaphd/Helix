@@ -12,6 +12,8 @@ import type {
   MultipleTTestsParams,
   NonlinearRegressionParams,
   OutliersParams,
+  SurvivalParams,
+  CoxParams,
   TwoWayAnovaParams,
   XYCorrelationParams,
 } from "./types";
@@ -34,6 +36,8 @@ import { runMultipleTTests } from "./grouped/multiple-t-tests";
 import { runCorrelationMatrix } from "./multiple/correlation-matrix";
 import { runMultipleRegression } from "./multiple/multiple-regression";
 import { runChiSquare } from "./contingency/chi-square";
+import { runSurvival } from "./survival/survival-analysis";
+import { runCox } from "./survival/cox-regression";
 import type { TableData } from "../store/types";
 import { readTable, setColumns, type Column } from "../lib/dataset";
 
@@ -83,7 +87,11 @@ export const ANALYSES: Record<AnalysisType, Analysis> = {
   "nonlinear-regression": {
     label: "Nonlinear regression",
     minColumns: 2,
-    run: (c, p) => runNonlinearRegression(c, p as NonlinearRegressionParams),
+    name: (p) =>
+      (p as NonlinearRegressionParams | undefined)?.interpolate
+        ? "Interpolated standard curve"
+        : "Nonlinear regression",
+    run: (c, p, t) => runNonlinearRegression(c, p as NonlinearRegressionParams, t),
   },
   "two-way-anova": {
     label: "Two-way ANOVA",
@@ -106,6 +114,8 @@ export const ANALYSES: Record<AnalysisType, Analysis> = {
     run: (c, p) => runMultipleRegression(c, p as MultipleRegressionParams),
   },
   "chi-square": { label: "Chi-square or Fisher's exact test", minColumns: 2, run: (c) => runChiSquare(c) },
+  survival: { label: "Survival analysis", minColumns: 3, run: (c, p) => runSurvival(c, p as SurvivalParams) },
+  cox: { label: "Cox proportional hazards regression", minColumns: 3, run: (c, p) => runCox(c, p as CoxParams) },
 };
 
 // One result per table version, test and params, shared by everyone who asks:
@@ -122,8 +132,11 @@ export function runAnalysis(
   if (!analysis) return Promise.resolve({ error: `Unknown analysis type: ${String(testType)}` });
   const table = readTable(data);
   // A data set or a column the analysis names (a regression's Y…) must still be there.
-  const named = params as { y?: string; dependent?: string; predictors?: string[]; datasets?: string[] } | undefined;
-  const chosen = [named?.y, named?.dependent, ...(named?.predictors ?? []), ...(named?.datasets ?? [])];
+  // prettier-ignore
+  const named = params as
+    { y?: string; dependent?: string; reference?: string; control?: string; compareWith?: string; predictors?: string[]; datasets?: string[] } | undefined;
+  // prettier-ignore
+  const chosen = [named?.y, named?.dependent, named?.reference, named?.control, named?.compareWith, ...(named?.predictors ?? []), ...(named?.datasets ?? [])];
   const gone =
     params?.sets?.find((name) => !table.sets.some((s) => s.name === name)) ??
     chosen.find((name) => name !== undefined && !table.columns.some((c) => c.name === name));

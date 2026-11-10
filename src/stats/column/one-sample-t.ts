@@ -9,6 +9,7 @@ const DEFAULTS: OneSampleTParams = { hypotheticalValue: 0, tails: "two-sided", g
 export const oneSampleTSpec: ColumnTestSpec<OneSampleTParams> = {
   testType: "one-sample-t",
   minGroups: 1,
+  minValues: 2,
   rCode: (groups, params) => {
     const p = { ...DEFAULTS, ...params };
     const alt = rAlt(p.tails);
@@ -17,7 +18,9 @@ export const oneSampleTSpec: ColumnTestSpec<OneSampleTParams> = {
       const stmts = groups.map(
         (_, i) => `wt${i}<-suppressWarnings(wilcox.test(g${i},mu=${p.hypotheticalValue},alternative="${alt}"))`,
       );
-      const vals = groups.map((_, i) => `V${i}=unname(wt${i}$statistic),p${i}=wt${i}$p.value`);
+      const vals = groups.map(
+        (_, i) => `V${i}=unname(wt${i}$statistic),p${i}=wt${i}$p.value,mh${i}=median(g${i})-${p.hypotheticalValue}`,
+      );
       return `${decl};${stmts.join(";")};c(${vals.join(",")})`;
     }
     const stmts = groups.map((_, i) => `tt${i}<-t.test(g${i},mu=${p.hypotheticalValue},alternative="${alt}")`);
@@ -34,10 +37,7 @@ export const oneSampleTSpec: ColumnTestSpec<OneSampleTParams> = {
       return groups.flatMap((g, i) => [
         { label: `${g.name} — Test statistic (V)`, value: v[`V${i}`] },
         pRow(`${g.name} — P value`, v[`p${i}`]),
-        {
-          label: `${g.name} — Median vs. hypothetical`,
-          value: g.median != null ? g.median - p.hypotheticalValue : null,
-        },
+        { label: `${g.name} — Median vs. hypothetical`, value: v[`mh${i}`] },
       ]);
     }
     return groups.flatMap((g, i) => [

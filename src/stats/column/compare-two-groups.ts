@@ -54,9 +54,9 @@ function rCode(groups: Group[], p: CompareTwoGroupsParams): string {
     return (
       `${decl};w<-suppressWarnings(wilcox.test(g0,g1,paired=${rBool(p.paired)},${alt},conf.int=TRUE));` +
       (p.paired
-        ? `c(W=unname(w$statistic),p=w$p.value,hl=unname(w$estimate))`
+        ? `c(W=unname(w$statistic),p=w$p.value,hl=unname(w$estimate),mdn=median(g0)-median(g1))`
         : `ra<-rank(c(g0,g1));sa<-sum(ra[seq_along(g0)]);` +
-          `c(W=unname(w$statistic),p=w$p.value,hl=unname(w$estimate),sa=sa,sb=sum(ra)-sa)`)
+          `c(W=unname(w$statistic),p=w$p.value,hl=unname(w$estimate),mdn=median(g0)-median(g1),sa=sa,sb=sum(ra)-sa)`)
     );
   }
   if (p.paired && p.ratio) {
@@ -83,15 +83,21 @@ function rCode(groups: Group[], p: CompareTwoGroupsParams): string {
   );
 }
 
-function medianDiff(groups: { median: number | null }[]): number | null {
-  const [a, b] = groups;
-  return a.median != null && b.median != null ? a.median - b.median : null;
-}
-
 export const compareTwoGroupsSpec: ColumnTestSpec<CompareTwoGroupsParams> = {
   testType: "compare-two-groups",
   minGroups: 2,
   maxGroups: 2,
+  minValues: 2,
+  matched: (params) => (params ?? DEFAULTS).paired,
+  // 5 — a ratio is of two values above 0.
+  check: (columns, params) => {
+    const p = params ?? DEFAULTS;
+    if (!(p.paired && p.gaussian && p.ratio)) return undefined;
+    for (const g of pairedGroups(dataGroups(columns).slice(0, 2))) {
+      const v = g.values.find((v) => v <= 0);
+      if (v !== undefined) return `The ratio t test needs values above 0; “${g.name}” holds ${v}.`;
+    }
+  },
   // The first two columns holding data; paired, only rows where both have a value.
   parseGroups: (columns, params) =>
     (params ?? DEFAULTS).paired ? pairedGroups(dataGroups(columns).slice(0, 2)) : dataGroups(columns),
@@ -102,7 +108,7 @@ export const compareTwoGroupsSpec: ColumnTestSpec<CompareTwoGroupsParams> = {
       const rows: StatRow[] = [
         { label: "Test statistic", value: v.W },
         pRow("P value", v.p),
-        { label: "Median difference", value: medianDiff(groups) },
+        { label: "Median difference", value: v.mdn },
         { label: "Hodges-Lehmann difference", value: v.hl },
       ];
       if (!p.paired) {

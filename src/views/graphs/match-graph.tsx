@@ -5,7 +5,7 @@
 import * as React from "react";
 import { CaretUpDownIcon, MagicWandIcon } from "@phosphor-icons/react";
 import { Button } from "../../ui/controls";
-import { Row, Section } from "../../components/common/inspector";
+import { Row, Section } from "../../components/inspector";
 import { popupMenu } from "../../native";
 import { separator } from "../../menus";
 import { useOutline, useProjectStore, type OutlineNode } from "../../store/use-project-store";
@@ -141,11 +141,12 @@ export function MatchSection({
 
   const asMatched = (node: ProjectNode): Matched => {
     const table = nodes[node.parentId!];
+    const options = { ...DEFAULT_GRAPH_OPTIONS, ...node.graphOptions };
     return {
       type: node.graphType!,
       table: table.id,
-      options: { ...DEFAULT_GRAPH_OPTIONS, ...node.graphOptions },
-      series: graphSeries(node.graphType!, table.data!, table.tableType!),
+      options,
+      series: graphSeries(node.graphType!, table.data!, table.tableType!, options),
     };
   };
   const target = asMatched(nodes[graphId]);

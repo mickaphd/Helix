@@ -107,6 +107,40 @@ export function AnalysisResultsView({ result }: { result: AnalysisResult }) {
         </header>
       )}
 
+      {result.fit && (
+        <Table
+          title="Best-fit values"
+          columns={[{ label: "" }, ...result.fit.sets.map((s) => ({ label: s, numeric: true }))]}
+          rows={result.fit.rows.map((row) => [
+            <span className="text-secondary">{row.label}</span>,
+            ...(row.ranges?.map(([low, high]) => (low == null && high == null ? "—" : `${num(low)} to ${num(high)}`)) ??
+              row.values!.map(num)),
+          ])}
+        />
+      )}
+
+      {result.interpolated && result.interpolated.length > 0 && (
+        <Table
+          title="Interpolated values"
+          columns={[
+            { label: "" },
+            { label: "Y", numeric: true },
+            { label: "X", numeric: true },
+            ...(result.interpolated[0].concentration !== undefined
+              ? [{ label: "Concentration (10^X)", numeric: true }]
+              : []),
+            { label: "" },
+          ]}
+          rows={result.interpolated.map((u) => [
+            u.label,
+            num(u.y),
+            num(u.x),
+            ...(u.concentration !== undefined ? [num(u.concentration)] : []),
+            <span className="text-secondary">{u.extrapolated ? "extrapolated" : ""}</span>,
+          ])}
+        />
+      )}
+
       {(result.equation || result.stats.length > 0) && (
         <Table
           columns={[{ label: "" }, { label: "", numeric: true }]}
@@ -125,7 +159,7 @@ export function AnalysisResultsView({ result }: { result: AnalysisResult }) {
           title={result.comparisonsLabel ?? "Multiple comparisons"}
           columns={[
             { label: "Comparison" },
-            { label: "Difference", numeric: true },
+            { label: result.comparisonsEffect ?? "Difference", numeric: true },
             { label: "P value", numeric: true },
           ]}
           rows={result.comparisons.map((c) => [
@@ -198,6 +232,44 @@ export function AnalysisResultsView({ result }: { result: AnalysisResult }) {
         />
       )}
 
+      {result.survivalGroups && result.survivalGroups.length > 0 && (
+        <Table
+          title="Survival by group"
+          columns={[
+            { label: "" },
+            { label: "Subjects", numeric: true },
+            { label: "Events", numeric: true },
+            { label: "Median survival", numeric: true },
+            { label: "95% CI of median", numeric: true },
+          ]}
+          rows={result.survivalGroups.map((g) => [
+            g.group,
+            g.subjects,
+            g.events,
+            g.median == null ? "Undefined" : num(g.median),
+            `${g.low == null ? "—" : num(g.low)} to ${g.high == null ? "—" : num(g.high)}`,
+          ])}
+        />
+      )}
+
+      {result.hazardRatios && result.hazardRatios.length > 0 && (
+        <Table
+          title="Hazard ratios"
+          columns={[
+            { label: "" },
+            { label: "Hazard ratio", numeric: true },
+            { label: "95% CI", numeric: true },
+            { label: "P value", numeric: true },
+          ]}
+          rows={result.hazardRatios.map((h) => [
+            h.comparison,
+            num(h.ratio),
+            `${num(h.low)} to ${num(h.high)}`,
+            <P p={h.p} />,
+          ])}
+        />
+      )}
+
       {result.coefficients && result.coefficients.length > 0 && (
         <Table
           title="Coefficients"
@@ -207,8 +279,16 @@ export function AnalysisResultsView({ result }: { result: AnalysisResult }) {
             { label: "Std. error", numeric: true },
             { label: "t", numeric: true },
             { label: "P value", numeric: true },
+            { label: "95% CI", numeric: true },
           ]}
-          rows={result.coefficients.map((c) => [c.term, num(c.estimate), num(c.stdError), num(c.t), <P p={c.p} />])}
+          rows={result.coefficients.map((c) => [
+            c.term,
+            num(c.estimate),
+            num(c.stdError),
+            num(c.t),
+            <P p={c.p} />,
+            c.low == null && c.high == null ? "—" : `${num(c.low)} to ${num(c.high)}`,
+          ])}
         />
       )}
 

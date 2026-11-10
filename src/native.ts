@@ -207,20 +207,26 @@ export type MenuItems = NonNullable<MenuOptions["items"]>;
 // Menus made here live in the shell until closed, even once replaced: each one is
 // closed when it's done with, or they would pile up until Helix quits.
 let menuBar: (Menu | Submenu)[] = [];
+// One menu bar is installed at a time, in the order asked: an earlier one, slower to
+// build, never ends up over a later one.
+let installing: Promise<void> = Promise.resolve();
 
 /** Installs the app's menu bar: `menus`, then Window and Help, which macOS fills with
  *  the open windows and its menu search. */
-export async function installMenuBar(menus: MenuItems, windowItems: MenuItems, helpItems: MenuItems) {
-  if (!isNative) return;
-  const windows = await Submenu.new({ text: "Window", items: windowItems });
-  const help = await Submenu.new({ text: "Help", items: helpItems });
-  const menu = await Menu.new({ items: [...menus, windows, help] });
-  await menu.setAsAppMenu();
-  await windows.setAsWindowsMenuForNSApp();
-  await help.setAsHelpMenuForNSApp();
-  const replaced = menuBar;
-  menuBar = [menu, windows, help];
-  for (const old of replaced) void old.close();
+export function installMenuBar(menus: MenuItems, windowItems: MenuItems, helpItems: MenuItems): Promise<void> {
+  if (!isNative) return Promise.resolve();
+  const install = async () => {
+    const windows = await Submenu.new({ text: "Window", items: windowItems });
+    const help = await Submenu.new({ text: "Help", items: helpItems });
+    const menu = await Menu.new({ items: [...menus, windows, help] });
+    await menu.setAsAppMenu();
+    await windows.setAsWindowsMenuForNSApp();
+    await help.setAsHelpMenuForNSApp();
+    const replaced = menuBar;
+    menuBar = [menu, windows, help];
+    for (const old of replaced) void old.close();
+  };
+  return (installing = installing.then(install, install));
 }
 
 /** A menu item's picture: RGBA pixels, shown 18 points high (36 pixels on Retina). */

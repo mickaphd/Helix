@@ -1,0 +1,19 @@
+[
+  {
+    "name": "lattice",
+    "version": "0.23-1",
+    "sha256": "b1f6c45be57330e13595bfeb87550c21e3b09d6ee2a58551c19911d345a72722"
+  },
+  {
+    "name": "Matrix",
+    "version": "1.7-6",
+    "sha256": "a6caf93b993de359eab932fff8ac0c39d7e2f372b885458f0f98051a9be82237",
+    "depends": ["lattice"]
+  },
+  {
+    "name": "survival",
+    "version": "3.8-12",
+    "sha256": "a1e35add8cb37a3e7096ffc7a3f4484b1a8a3d0c9d7b59947095837a09bf3935",
+    "depends": ["Matrix"]
+  }
+]

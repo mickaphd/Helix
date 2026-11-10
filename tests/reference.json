@@ -632,6 +632,7 @@
  },
  "anova column {\"posthoc\":\"none\"}": {
   "testType": "anova",
+  "subtitle": "One-way ANOVA",
   "stats": [
    {
     "label": "F",
@@ -693,6 +694,7 @@
  },
  "anova column {\"posthoc\":\"tukey\"}": {
   "testType": "anova",
+  "subtitle": "One-way ANOVA",
   "stats": [
    {
     "label": "F",
@@ -793,6 +795,7 @@
  },
  "anova column {\"posthoc\":\"bonferroni\"}": {
   "testType": "anova",
+  "subtitle": "One-way ANOVA",
   "stats": [
    {
     "label": "F",
@@ -890,6 +893,341 @@
    }
   ],
   "comparisonsLabel": "Bonferroni-corrected multiple comparisons"
+ },
+ "anova column {\"posthoc\":\"dunnett\",\"control\":\"Control\"}": {
+  "testType": "anova",
+  "subtitle": "One-way ANOVA",
+  "stats": [
+   {
+    "label": "F",
+    "value": 4.857880533
+   },
+   {
+    "label": "DFn",
+    "value": 3
+   },
+   {
+    "label": "DFd",
+    "value": 21
+   },
+   {
+    "label": "P value",
+    "value": 0.01013594077,
+    "p": true
+   },
+   {
+    "label": "R squared (eta squared)",
+    "value": 0.4096752805
+   }
+  ],
+  "groups": [
+   {
+    "name": "Control",
+    "mean": 14.3375,
+    "sd": 6.372247305,
+    "sem": 2.25292964,
+    "median": 12.3,
+    "n": 8
+   },
+   {
+    "name": "Low",
+    "mean": 14.84285714,
+    "sd": 0.8443086775,
+    "sem": 0.3191186843,
+    "median": 14.9,
+    "n": 7
+   },
+   {
+    "name": "High",
+    "mean": 19.61666667,
+    "sd": 1.083358974,
+    "sem": 0.4422794491,
+    "median": 19.65,
+    "n": 6
+   },
+   {
+    "name": "Sparse",
+    "mean": 10.625,
+    "sd": 1.25,
+    "sem": 0.625,
+    "median": 10.75,
+    "n": 4
+   }
+  ],
+  "notes": "Compares means across groups; assumes normal distributions with equal variances.",
+  "comparisons": [
+   {
+    "group1": "Low",
+    "group2": "Control",
+    "diff": 0.5053571429,
+    "p": 0.9891219737
+   },
+   {
+    "group1": "High",
+    "group2": "Control",
+    "diff": 5.279166667,
+    "p": 0.04589486477
+   },
+   {
+    "group1": "Sparse",
+    "group2": "Control",
+    "diff": -3.7125,
+    "p": 0.2913382669
+   }
+  ],
+  "comparisonsLabel": "Dunnett's multiple comparisons test (vs. Control)"
+ },
+ "anova column {\"posthoc\":\"none\",\"equalSd\":false}": {
+  "testType": "anova",
+  "subtitle": "Welch's ANOVA",
+  "stats": [
+   {
+    "label": "F (Welch)",
+    "value": 44.45757269
+   },
+   {
+    "label": "DFn",
+    "value": 3
+   },
+   {
+    "label": "DFd",
+    "value": 9.659745383
+   },
+   {
+    "label": "P value",
+    "value": 0.000005757840605,
+    "p": true
+   }
+  ],
+  "groups": [
+   {
+    "name": "Control",
+    "mean": 14.3375,
+    "sd": 6.372247305,
+    "sem": 2.25292964,
+    "median": 12.3,
+    "n": 8
+   },
+   {
+    "name": "Low",
+    "mean": 14.84285714,
+    "sd": 0.8443086775,
+    "sem": 0.3191186843,
+    "median": 14.9,
+    "n": 7
+   },
+   {
+    "name": "High",
+    "mean": 19.61666667,
+    "sd": 1.083358974,
+    "sem": 0.4422794491,
+    "median": 19.65,
+    "n": 6
+   },
+   {
+    "name": "Sparse",
+    "mean": 10.625,
+    "sd": 1.25,
+    "sem": 0.625,
+    "median": 10.75,
+    "n": 4
+   }
+  ],
+  "notes": "Compares means across groups without assuming equal SDs (Welch's ANOVA); assumes normal distributions."
+ },
+ "anova column {\"posthoc\":\"games-howell\",\"equalSd\":false}": {
+  "testType": "anova",
+  "subtitle": "Welch's ANOVA",
+  "stats": [
+   {
+    "label": "F (Welch)",
+    "value": 44.45757269
+   },
+   {
+    "label": "DFn",
+    "value": 3
+   },
+   {
+    "label": "DFd",
+    "value": 9.659745383
+   },
+   {
+    "label": "P value",
+    "value": 0.000005757840605,
+    "p": true
+   }
+  ],
+  "groups": [
+   {
+    "name": "Control",
+    "mean": 14.3375,
+    "sd": 6.372247305,
+    "sem": 2.25292964,
+    "median": 12.3,
+    "n": 8
+   },
+   {
+    "name": "Low",
+    "mean": 14.84285714,
+    "sd": 0.8443086775,
+    "sem": 0.3191186843,
+    "median": 14.9,
+    "n": 7
+   },
+   {
+    "name": "High",
+    "mean": 19.61666667,
+    "sd": 1.083358974,
+    "sem": 0.4422794491,
+    "median": 19.65,
+    "n": 6
+   },
+   {
+    "name": "Sparse",
+    "mean": 10.625,
+    "sd": 1.25,
+    "sem": 0.625,
+    "median": 10.75,
+    "n": 4
+   }
+  ],
+  "notes": "Compares means across groups without assuming equal SDs (Welch's ANOVA); assumes normal distributions.",
+  "comparisons": [
+   {
+    "group1": "Control",
+    "group2": "Low",
+    "diff": -0.5053571429,
+    "p": 0.9957862486
+   },
+   {
+    "group1": "Control",
+    "group2": "High",
+    "diff": -5.279166667,
+    "p": 0.1816107811
+   },
+   {
+    "group1": "Control",
+    "group2": "Sparse",
+    "diff": 3.7125,
+    "p": 0.4357968804
+   },
+   {
+    "group1": "Low",
+    "group2": "High",
+    "diff": -4.773809524,
+    "p": 0.00003843734807
+   },
+   {
+    "group1": "Low",
+    "group2": "Sparse",
+    "diff": 4.217857143,
+    "p": 0.008789595204
+   },
+   {
+    "group1": "High",
+    "group2": "Sparse",
+    "diff": 8.991666667,
+    "p": 0.0001115788581
+   }
+  ],
+  "comparisonsLabel": "Games-Howell multiple comparisons test"
+ },
+ "anova column {\"posthoc\":\"t3\",\"equalSd\":false}": {
+  "testType": "anova",
+  "subtitle": "Welch's ANOVA",
+  "stats": [
+   {
+    "label": "F (Welch)",
+    "value": 44.45757269
+   },
+   {
+    "label": "DFn",
+    "value": 3
+   },
+   {
+    "label": "DFd",
+    "value": 9.659745383
+   },
+   {
+    "label": "P value",
+    "value": 0.000005757840605,
+    "p": true
+   }
+  ],
+  "groups": [
+   {
+    "name": "Control",
+    "mean": 14.3375,
+    "sd": 6.372247305,
+    "sem": 2.25292964,
+    "median": 12.3,
+    "n": 8
+   },
+   {
+    "name": "Low",
+    "mean": 14.84285714,
+    "sd": 0.8443086775,
+    "sem": 0.3191186843,
+    "median": 14.9,
+    "n": 7
+   },
+   {
+    "name": "High",
+    "mean": 19.61666667,
+    "sd": 1.083358974,
+    "sem": 0.4422794491,
+    "median": 19.65,
+    "n": 6
+   },
+   {
+    "name": "Sparse",
+    "mean": 10.625,
+    "sd": 1.25,
+    "sem": 0.625,
+    "median": 10.75,
+    "n": 4
+   }
+  ],
+  "notes": "Compares means across groups without assuming equal SDs (Welch's ANOVA); assumes normal distributions.",
+  "comparisons": [
+   {
+    "group1": "Control",
+    "group2": "Low",
+    "diff": -0.5053571429,
+    "p": 0.9999440378
+   },
+   {
+    "group1": "Control",
+    "group2": "High",
+    "diff": -5.279166667,
+    "p": 0.2330004846
+   },
+   {
+    "group1": "Control",
+    "group2": "Sparse",
+    "diff": 3.7125,
+    "p": 0.5530673068
+   },
+   {
+    "group1": "Low",
+    "group2": "High",
+    "diff": -4.773809524,
+    "p": 0.00004487244755
+   },
+   {
+    "group1": "Low",
+    "group2": "Sparse",
+    "diff": 4.217857143,
+    "p": 0.01101162976
+   },
+   {
+    "group1": "High",
+    "group2": "Sparse",
+    "diff": 8.991666667,
+    "p": 0.0001370051153
+   }
+  ],
+  "comparisonsLabel": "Dunnett's T3 multiple comparisons test"
  },
  "kruskal-wallis column {\"posthoc\":\"dunn\"}": {
   "testType": "kruskal-wallis",
@@ -1043,7 +1381,7 @@
     "n": 2
    }
   ],
-  "notes": "Compares means across matched groups, blocking on subject; assumes normal distributions. Uses complete rows only (every subject measured in every group). 6 rows left out for missing data."
+  "notes": "Compares means across matched groups, blocking on subject; assumes normal distributions. Assumes sphericity (no Geisser-Greenhouse correction). Uses complete rows only (every subject measured in every group). 6 rows left out for missing data."
  },
  "rm-anova column {\"posthoc\":\"tukey\"}": {
   "testType": "rm-anova",
@@ -1105,7 +1443,7 @@
     "n": 2
    }
   ],
-  "notes": "Compares means across matched groups, blocking on subject; assumes normal distributions. Uses complete rows only (every subject measured in every group). 6 rows left out for missing data.",
+  "notes": "Compares means across matched groups, blocking on subject; assumes normal distributions. Assumes sphericity (no Geisser-Greenhouse correction). Uses complete rows only (every subject measured in every group). 6 rows left out for missing data.",
   "comparisons": [
    {
     "group1": "Control",
@@ -1206,7 +1544,7 @@
     "n": 2
    }
   ],
-  "notes": "Compares means across matched groups, blocking on subject; assumes normal distributions. Uses complete rows only (every subject measured in every group). 6 rows left out for missing data.",
+  "notes": "Compares means across matched groups, blocking on subject; assumes normal distributions. Assumes sphericity (no Geisser-Greenhouse correction). Uses complete rows only (every subject measured in every group). 6 rows left out for missing data.",
   "comparisons": [
    {
     "group1": "Control",
@@ -1339,6 +1677,218 @@
    }
   ],
   "comparisonsLabel": "Dunn's multiple comparisons test (Bonferroni-corrected)"
+ },
+ "rm-anova matched {\"posthoc\":\"none\"}": {
+  "testType": "rm-anova",
+  "subtitle": "Repeated-measures one-way ANOVA",
+  "stats": [
+   {
+    "label": "F",
+    "value": 21.84728313
+   },
+   {
+    "label": "DFn",
+    "value": 2
+   },
+   {
+    "label": "DFd",
+    "value": 10
+   },
+   {
+    "label": "P value",
+    "value": 0.0002240517331,
+    "p": true
+   },
+   {
+    "label": "R squared (eta squared)",
+    "value": 0.6851196384
+   }
+  ],
+  "groups": [
+   {
+    "name": "Day 0",
+    "mean": 10.38333333,
+    "sd": 0.5492419018,
+    "sem": 0.2242270675,
+    "median": 10.3,
+    "n": 6
+   },
+   {
+    "name": "Day 7",
+    "mean": 12.93333333,
+    "sd": 0.9201449161,
+    "sem": 0.375647589,
+    "median": 13,
+    "n": 6
+   },
+   {
+    "name": "Day 14",
+    "mean": 16.85,
+    "sd": 3.248845949,
+    "sem": 1.326335805,
+    "median": 16.65,
+    "n": 6
+   }
+  ],
+  "notes": "Compares means across matched groups, blocking on subject; assumes normal distributions. Assumes sphericity (no Geisser-Greenhouse correction). Uses complete rows only (every subject measured in every group)."
+ },
+ "rm-anova matched {\"posthoc\":\"tukey\",\"sphericity\":false}": {
+  "testType": "rm-anova",
+  "subtitle": "Repeated-measures one-way ANOVA",
+  "stats": [
+   {
+    "label": "F",
+    "value": 21.84728313
+   },
+   {
+    "label": "DFn",
+    "value": 1.010764105
+   },
+   {
+    "label": "DFd",
+    "value": 5.053820527
+   },
+   {
+    "label": "P value",
+    "value": 0.005274048336,
+    "p": true
+   },
+   {
+    "label": "R squared (eta squared)",
+    "value": 0.6851196384
+   },
+   {
+    "label": "Geisser-Greenhouse epsilon",
+    "value": 0.5053820527
+   }
+  ],
+  "groups": [
+   {
+    "name": "Day 0",
+    "mean": 10.38333333,
+    "sd": 0.5492419018,
+    "sem": 0.2242270675,
+    "median": 10.3,
+    "n": 6
+   },
+   {
+    "name": "Day 7",
+    "mean": 12.93333333,
+    "sd": 0.9201449161,
+    "sem": 0.375647589,
+    "median": 13,
+    "n": 6
+   },
+   {
+    "name": "Day 14",
+    "mean": 16.85,
+    "sd": 3.248845949,
+    "sem": 1.326335805,
+    "median": 16.65,
+    "n": 6
+   }
+  ],
+  "notes": "Compares means across matched groups, blocking on subject; assumes normal distributions. Sphericity not assumed: the Geisser-Greenhouse epsilon corrects both degrees of freedom, and each pair is compared on its own differences (paired t test). Uses complete rows only (every subject measured in every group).",
+  "comparisons": [
+   {
+    "group1": "Day 0",
+    "group2": "Day 7",
+    "diff": -2.55,
+    "p": 0.001075874457
+   },
+   {
+    "group1": "Day 0",
+    "group2": "Day 14",
+    "diff": -6.466666667,
+    "p": 0.01045714095
+   },
+   {
+    "group1": "Day 7",
+    "group2": "Day 14",
+    "diff": -3.916666667,
+    "p": 0.02829141195
+   }
+  ],
+  "comparisonsLabel": "Tukey's multiple comparisons test"
+ },
+ "rm-anova matched {\"posthoc\":\"bonferroni\",\"sphericity\":false}": {
+  "testType": "rm-anova",
+  "subtitle": "Repeated-measures one-way ANOVA",
+  "stats": [
+   {
+    "label": "F",
+    "value": 21.84728313
+   },
+   {
+    "label": "DFn",
+    "value": 1.010764105
+   },
+   {
+    "label": "DFd",
+    "value": 5.053820527
+   },
+   {
+    "label": "P value",
+    "value": 0.005274048336,
+    "p": true
+   },
+   {
+    "label": "R squared (eta squared)",
+    "value": 0.6851196384
+   },
+   {
+    "label": "Geisser-Greenhouse epsilon",
+    "value": 0.5053820527
+   }
+  ],
+  "groups": [
+   {
+    "name": "Day 0",
+    "mean": 10.38333333,
+    "sd": 0.5492419018,
+    "sem": 0.2242270675,
+    "median": 10.3,
+    "n": 6
+   },
+   {
+    "name": "Day 7",
+    "mean": 12.93333333,
+    "sd": 0.9201449161,
+    "sem": 0.375647589,
+    "median": 13,
+    "n": 6
+   },
+   {
+    "name": "Day 14",
+    "mean": 16.85,
+    "sd": 3.248845949,
+    "sem": 1.326335805,
+    "median": 16.65,
+    "n": 6
+   }
+  ],
+  "notes": "Compares means across matched groups, blocking on subject; assumes normal distributions. Sphericity not assumed: the Geisser-Greenhouse epsilon corrects both degrees of freedom, and each pair is compared on its own differences (paired t test). Uses complete rows only (every subject measured in every group).",
+  "comparisons": [
+   {
+    "group1": "Day 0",
+    "group2": "Day 7",
+    "diff": -2.55,
+    "p": 0.001374964058
+   },
+   {
+    "group1": "Day 0",
+    "group2": "Day 14",
+    "diff": -6.466666667,
+    "p": 0.01365554041
+   },
+   {
+    "group1": "Day 7",
+    "group2": "Day 14",
+    "diff": -3.916666667,
+    "p": 0.03769606441
+   }
+  ],
+  "comparisonsLabel": "Bonferroni-corrected multiple comparisons"
  },
  "shapiro-wilk column {}": {
   "testType": "shapiro-wilk",
@@ -1632,7 +2182,7 @@
     "n": 8
    }
   ],
-  "notes": "Pearson correlation between X and each Y data column; assumes a linear relationship.",
+  "notes": "Pearson correlation between X and each Y data set; assumes a linear relationship.",
   "correlations": [
    {
     "variable": "Y1",
@@ -1689,7 +2239,7 @@
     "n": 8
    }
   ],
-  "notes": "Spearman rank correlation between X and each Y data column; non-parametric, no linearity assumption.",
+  "notes": "Spearman rank correlation between X and each Y data set; non-parametric, no linearity assumption.",
   "correlations": [
    {
     "variable": "Y1",
@@ -2023,7 +2573,7 @@
     "n": 8
    }
   ],
-  "notes": "Trapezoidal-rule area under the curve for each Y series vs. X, measured from a baseline of Y = 0. Area below the baseline counts as negative. Points are sorted by X first; a series needs at least 2 points to compute.",
+  "notes": "Trapezoidal-rule area under the curve for each Y data set vs. X, measured from a baseline of Y = 0. Area below the baseline counts as negative. Points are sorted by X first; a data set needs at least 2 points.",
   "areas": [
    {
     "variable": "Y1",
@@ -2080,7 +2630,7 @@
     "n": 8
    }
   ],
-  "notes": "Trapezoidal-rule area under the curve for each Y series vs. X, measured from a baseline of Y = 2. Area below the baseline counts as negative. Points are sorted by X first; a series needs at least 2 points to compute.",
+  "notes": "Trapezoidal-rule area under the curve for each Y data set vs. X, measured from a baseline of Y = 2. Area below the baseline counts as negative. Points are sorted by X first; a data set needs at least 2 points.",
   "areas": [
    {
     "variable": "Y1",
@@ -2102,28 +2652,44 @@
  "nonlinear-regression xy {\"model\":\"line\"}": {
   "testType": "nonlinear-regression",
   "subtitle": "Line",
-  "stats": [
-   {
-    "label": "R squared",
-    "value": 0.9984613141
-   },
-   {
-    "label": "Sy.x",
-    "value": 0.2277528156
-   },
-   {
-    "label": "Sum of squares",
-    "value": 0.3112280702
-   },
-   {
-    "label": "Degrees of freedom",
-    "value": 6
-   },
-   {
-    "label": "N",
-    "value": 8
-   }
-  ],
+  "stats": [],
+  "fit": {
+   "sets": [
+    "Y1"
+   ],
+   "rows": [
+    {
+     "label": "R squared",
+     "values": [
+      0.9984613141
+     ]
+    },
+    {
+     "label": "Sy.x",
+     "values": [
+      0.2277528156
+     ]
+    },
+    {
+     "label": "Sum of squares",
+     "values": [
+      0.3112280702
+     ]
+    },
+    {
+     "label": "Degrees of freedom",
+     "values": [
+      6
+     ]
+    },
+    {
+     "label": "N",
+     "values": [
+      8
+     ]
+    }
+   ]
+  },
   "groups": [
    {
     "name": "X",
@@ -2142,49 +2708,69 @@
     "n": 9
    }
   ],
-  "notes": "Nonlinear least-squares fit (\"Line\") of \"Y1\" on \"X\".",
+  "notes": "Least-squares fit (\"Line\") of “Y1” on “X”. 95% CIs are asymptotic (from each parameter's standard error).",
   "coefficients": [
    {
     "term": "Intercept",
     "estimate": 0.9929824561,
     "stdError": 0.1419525361,
     "t": 6.995172354,
-    "p": 0.0004250712706
+    "p": 0.0004250712706,
+    "low": 0.6456371133,
+    "high": 1.340327799
    },
    {
     "term": "Slope",
     "estimate": 2.012280702,
     "stdError": 0.03224944911,
     "t": 62.39736669,
-    "p": 1.139070697e-9
+    "p": 1.139070697e-9,
+    "low": 1.933369143,
+    "high": 2.091192261
    }
   ]
  },
  "nonlinear-regression xy {\"y\":\"Y3\",\"model\":\"quadratic\"}": {
   "testType": "nonlinear-regression",
   "subtitle": "Second order polynomial (quadratic)",
-  "stats": [
-   {
-    "label": "R squared",
-    "value": 0.9990436649
-   },
-   {
-    "label": "Sy.x",
-    "value": 0.07877339984
-   },
-   {
-    "label": "Sum of squares",
-    "value": 0.02482099409
-   },
-   {
-    "label": "Degrees of freedom",
-    "value": 4
-   },
-   {
-    "label": "N",
-    "value": 7
-   }
-  ],
+  "stats": [],
+  "fit": {
+   "sets": [
+    "Y3"
+   ],
+   "rows": [
+    {
+     "label": "R squared",
+     "values": [
+      0.9990436649
+     ]
+    },
+    {
+     "label": "Sy.x",
+     "values": [
+      0.07877339984
+     ]
+    },
+    {
+     "label": "Sum of squares",
+     "values": [
+      0.02482099409
+     ]
+    },
+    {
+     "label": "Degrees of freedom",
+     "values": [
+      4
+     ]
+    },
+    {
+     "label": "N",
+     "values": [
+      7
+     ]
+    }
+   ]
+  },
   "groups": [
    {
     "name": "X",
@@ -2203,56 +2789,78 @@
     "n": 8
    }
   ],
-  "notes": "Nonlinear least-squares fit (\"Second order polynomial (quadratic)\") of \"Y3\" on \"X\".",
+  "notes": "Least-squares fit (\"Second order polynomial (quadratic)\") of “Y3” on “X”. 95% CIs are asymptotic (from each parameter's standard error).",
   "coefficients": [
    {
     "term": "B0",
     "estimate": 4.955370177,
     "stdError": 0.06404937781,
     "t": 77.36796744,
-    "p": 1.672718889e-7
+    "p": 1.672718889e-7,
+    "low": 4.777540596,
+    "high": 5.133199759
    },
    {
     "term": "B1",
     "estimate": -0.8602624261,
     "stdError": 0.03912744418,
     "t": -21.98616455,
-    "p": 0.0000253272144
+    "p": 0.0000253272144,
+    "low": -0.968897627,
+    "high": -0.7516272253
    },
    {
     "term": "B2",
     "estimate": 0.0176659715,
     "stdError": 0.004829172504,
     "t": 3.658177769,
-    "p": 0.02161499159
+    "p": 0.02161499159,
+    "low": 0.004258039137,
+    "high": 0.03107390386
    }
   ]
  },
  "nonlinear-regression xy {\"y\":\"Y1\",\"model\":\"cubic\"}": {
   "testType": "nonlinear-regression",
   "subtitle": "Third order polynomial (cubic)",
-  "stats": [
-   {
-    "label": "R squared",
-    "value": 0.9987335393
-   },
-   {
-    "label": "Sy.x",
-    "value": 0.2530639314
-   },
-   {
-    "label": "Sum of squares",
-    "value": 0.2561654135
-   },
-   {
-    "label": "Degrees of freedom",
-    "value": 4
-   },
-   {
-    "label": "N",
-    "value": 8
-   }
-  ],
+  "stats": [],
+  "fit": {
+   "sets": [
+    "Y1"
+   ],
+   "rows": [
+    {
+     "label": "R squared",
+     "values": [
+      0.9987335393
+     ]
+    },
+    {
+     "label": "Sy.x",
+     "values": [
+      0.2530639314
+     ]
+    },
+    {
+     "label": "Sum of squares",
+     "values": [
+      0.2561654135
+     ]
+    },
+    {
+     "label": "Degrees of freedom",
+     "values": [
+      4
+     ]
+    },
+    {
+     "label": "N",
+     "values": [
+      8
+     ]
+    }
+   ]
+  },
   "groups": [
    {
     "name": "X",
@@ -2271,71 +2879,117 @@
     "n": 9
    }
   ],
-  "notes": "Nonlinear least-squares fit (\"Third order polynomial (cubic)\") of \"Y1\" on \"X\".",
+  "notes": "Least-squares fit (\"Third order polynomial (cubic)\") of “Y1” on “X”. 95% CIs are asymptotic (from each parameter's standard error).",
   "coefficients": [
    {
     "term": "B0",
     "estimate": 1.028822055,
     "stdError": 0.2358125608,
     "t": 4.362880635,
-    "p": 0.01203494852
+    "p": 0.01203494852,
+    "low": 0.3741014248,
+    "high": 1.683542685
    },
    {
     "term": "B1",
     "estimate": 2.06468254,
     "stdError": 0.2793250497,
     "t": 7.39168414,
-    "p": 0.001786325663
+    "p": 0.001786325663,
+    "low": 1.289151873,
+    "high": 2.840213207
    },
    {
     "term": "B2",
     "estimate": -0.03502506266,
     "stdError": 0.08521156772,
     "t": -0.4110364777,
-    "p": 0.7021130339
+    "p": 0.7021130339,
+    "low": -0.2716103028,
+    "high": 0.2015601774
    },
    {
     "term": "B3",
     "estimate": 0.003801169591,
     "stdError": 0.006944959069,
     "t": 0.5473278608,
-    "p": 0.613258205
+    "p": 0.613258205,
+    "low": -0.01548112802,
+    "high": 0.0230834672
    }
   ]
  },
  "nonlinear-regression doseLog {\"model\":\"sigmoidal-4pl-logx\"}": {
   "testType": "nonlinear-regression",
   "subtitle": "Sigmoidal, 4PL, X is log(concentration)",
-  "stats": [
-   {
-    "label": "EC50",
-    "value": 0.1438862706
-   },
-   {
-    "label": "Span",
-    "value": 97.96387721
-   },
-   {
-    "label": "R squared",
-    "value": 0.9999224337
-   },
-   {
-    "label": "Sy.x",
-    "value": 0.4474730704
-   },
-   {
-    "label": "Sum of squares",
-    "value": 1.201392892
-   },
-   {
-    "label": "Degrees of freedom",
-    "value": 6
-   },
-   {
-    "label": "N",
-    "value": 10
-   }
-  ],
+  "stats": [],
+  "fit": {
+   "sets": [
+    "Response"
+   ],
+   "rows": [
+    {
+     "label": "EC50",
+     "values": [
+      0.1438862706
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       0.137793742,
+       0.1502481795
+      ]
+     ]
+    },
+    {
+     "label": "Span",
+     "values": [
+      97.96387721
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       96.62588276,
+       99.30187167
+      ]
+     ]
+    },
+    {
+     "label": "R squared",
+     "values": [
+      0.9999224337
+     ]
+    },
+    {
+     "label": "Sy.x",
+     "values": [
+      0.4474730704
+     ]
+    },
+    {
+     "label": "Sum of squares",
+     "values": [
+      1.201392892
+     ]
+    },
+    {
+     "label": "Degrees of freedom",
+     "values": [
+      6
+     ]
+    },
+    {
+     "label": "N",
+     "values": [
+      10
+     ]
+    }
+   ]
+  },
   "groups": [
    {
     "name": "X",
@@ -2354,67 +3008,102 @@
     "n": 10
    }
   ],
-  "notes": "Nonlinear least-squares fit (\"Sigmoidal, 4PL, X is log(concentration)\") of \"Response\" on \"X\".",
+  "notes": "Least-squares fit (\"Sigmoidal, 4PL, X is log(concentration)\") of “Response” on “X”. 95% CIs are asymptotic (from each parameter's standard error).",
   "coefficients": [
    {
     "term": "Bottom",
     "estimate": 1.278310063,
     "stdError": 0.3572701809,
     "t": 3.577992598,
-    "p": 0.01167127022
+    "p": 0.01167127022,
+    "low": 0.404101423,
+    "high": 2.152518702
    },
    {
     "term": "Top",
     "estimate": 99.24218728,
     "stdError": 0.3272161451,
     "t": 303.2924529,
-    "p": 8.670812482e-14
+    "p": 8.670812482e-14,
+    "low": 98.44151821,
+    "high": 100.0428563
    },
    {
     "term": "LogEC50",
     "estimate": -0.8419806437,
     "stdError": 0.007679010652,
     "t": -109.6470212,
-    "p": 3.879305116e-11
+    "p": 3.879305116e-11,
+    "low": -0.8607705059,
+    "high": -0.8231907816
    },
    {
-    "term": "HillSlope",
+    "term": "Hill slope",
     "estimate": 0.9769513568,
     "stdError": 0.01584450365,
     "t": 61.65869113,
-    "p": 1.223320237e-9
+    "p": 1.223320237e-9,
+    "low": 0.9381812531,
+    "high": 1.015721461
    }
   ]
  },
  "nonlinear-regression doseRaw {\"model\":\"sigmoidal-4pl-x\"}": {
   "testType": "nonlinear-regression",
   "subtitle": "Sigmoidal, 4PL, X is concentration",
-  "stats": [
-   {
-    "label": "Span",
-    "value": 98.41239654
-   },
-   {
-    "label": "R squared",
-    "value": 0.9999599898
-   },
-   {
-    "label": "Sy.x",
-    "value": 0.3205544508
-   },
-   {
-    "label": "Sum of squares",
-    "value": 0.3082654679
-   },
-   {
-    "label": "Degrees of freedom",
-    "value": 3
-   },
-   {
-    "label": "N",
-    "value": 7
-   }
-  ],
+  "stats": [],
+  "fit": {
+   "sets": [
+    "Response"
+   ],
+   "rows": [
+    {
+     "label": "Span",
+     "values": [
+      98.41239654
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       95.30660712,
+       101.518186
+      ]
+     ]
+    },
+    {
+     "label": "R squared",
+     "values": [
+      0.9999599898
+     ]
+    },
+    {
+     "label": "Sy.x",
+     "values": [
+      0.3205544508
+     ]
+    },
+    {
+     "label": "Sum of squares",
+     "values": [
+      0.3082654679
+     ]
+    },
+    {
+     "label": "Degrees of freedom",
+     "values": [
+      3
+     ]
+    },
+    {
+     "label": "N",
+     "values": [
+      7
+     ]
+    }
+   ]
+  },
   "groups": [
    {
     "name": "X",
@@ -2433,63 +3122,87 @@
     "n": 8
    }
   ],
-  "notes": "Nonlinear least-squares fit (\"Sigmoidal, 4PL, X is concentration\") of \"Response\" on \"X\".",
+  "notes": "Least-squares fit (\"Sigmoidal, 4PL, X is concentration\") of “Response” on “X”. 95% CIs are asymptotic (from each parameter's standard error).",
   "coefficients": [
    {
     "term": "Bottom",
     "estimate": 0.9712190483,
     "stdError": 0.760423366,
     "t": 1.277208318,
-    "p": 0.2914099531
+    "p": 0.2914099531,
+    "low": -1.448787483,
+    "high": 3.39122558
    },
    {
     "term": "Top",
     "estimate": 99.38361559,
     "stdError": 0.3347186826,
     "t": 296.9168461,
-    "p": 8.424584591e-8
+    "p": 8.424584591e-8,
+    "low": 98.31839135,
+    "high": 100.4488398
    },
    {
     "term": "EC50",
     "estimate": 1.13316317,
     "stdError": 0.02392382471,
     "t": 47.36546868,
-    "p": 0.00002071995365
+    "p": 0.00002071995365,
+    "low": 1.057026883,
+    "high": 1.209299458
    },
    {
-    "term": "HillSlope",
+    "term": "Hill slope",
     "estimate": 0.9565525395,
     "stdError": 0.01825043187,
     "t": 52.41259748,
-    "p": 0.00001529659803
+    "p": 0.00001529659803,
+    "low": 0.89847152,
+    "high": 1.014633559
    }
   ]
  },
  "nonlinear-regression doseRaw {\"model\":\"hyperbola\"}": {
   "testType": "nonlinear-regression",
   "subtitle": "Hyperbola (X is concentration)",
-  "stats": [
-   {
-    "label": "R squared",
-    "value": 0.9993778117
-   },
-   {
-    "label": "Sy.x",
-    "value": 0.9791588025
-   },
-   {
-    "label": "Sum of squares",
-    "value": 4.793759802
-   },
-   {
-    "label": "Degrees of freedom",
-    "value": 5
-   },
-   {
-    "label": "N",
-    "value": 7
-   }
-  ],
+  "stats": [],
+  "fit": {
+   "sets": [
+    "Response"
+   ],
+   "rows": [
+    {
+     "label": "R squared",
+     "values": [
+      0.9993778117
+     ]
+    },
+    {
+     "label": "Sy.x",
+     "values": [
+      0.9791588025
+     ]
+    },
+    {
+     "label": "Sum of squares",
+     "values": [
+      4.793759802
+     ]
+    },
+    {
+     "label": "Degrees of freedom",
+     "values": [
+      5
+     ]
+    },
+    {
+     "label": "N",
+     "values": [
+      7
+     ]
+    }
+   ]
+  },
   "groups": [
    {
     "name": "X",
@@ -2508,49 +3221,69 @@
     "n": 8
    }
   ],
-  "notes": "Nonlinear least-squares fit (\"Hyperbola (X is concentration)\") of \"Response\" on \"X\".",
+  "notes": "Least-squares fit (\"Hyperbola (X is concentration)\") of “Response” on “X”. 95% CIs are asymptotic (from each parameter's standard error).",
   "coefficients": [
    {
     "term": "Bmax",
     "estimate": 98.4301164,
     "stdError": 0.6482847339,
     "t": 151.8316123,
-    "p": 2.351207812e-10
+    "p": 2.351207812e-10,
+    "low": 96.76364744,
+    "high": 100.0965854
    },
    {
     "term": "Kd",
     "estimate": 1.071529382,
     "stdError": 0.03506663428,
     "t": 30.55694975,
-    "p": 7.043415608e-7
+    "p": 7.043415608e-7,
+    "low": 0.9813877284,
+    "high": 1.161671035
    }
   ]
  },
  "nonlinear-regression doseRaw {\"model\":\"semilog-line\"}": {
   "testType": "nonlinear-regression",
   "subtitle": "Semilog line",
-  "stats": [
-   {
-    "label": "R squared",
-    "value": 0.9453113572
-   },
-   {
-    "label": "Sy.x",
-    "value": 9.179960088
-   },
-   {
-    "label": "Sum of squares",
-    "value": 421.3583361
-   },
-   {
-    "label": "Degrees of freedom",
-    "value": 5
-   },
-   {
-    "label": "N",
-    "value": 7
-   }
-  ],
+  "stats": [],
+  "fit": {
+   "sets": [
+    "Response"
+   ],
+   "rows": [
+    {
+     "label": "R squared",
+     "values": [
+      0.9453113572
+     ]
+    },
+    {
+     "label": "Sy.x",
+     "values": [
+      9.179960088
+     ]
+    },
+    {
+     "label": "Sum of squares",
+     "values": [
+      421.3583361
+     ]
+    },
+    {
+     "label": "Degrees of freedom",
+     "values": [
+      5
+     ]
+    },
+    {
+     "label": "N",
+     "values": [
+      7
+     ]
+    }
+   ]
+  },
   "groups": [
    {
     "name": "X",
@@ -2569,21 +3302,1518 @@
     "n": 8
    }
   ],
-  "notes": "Nonlinear least-squares fit (\"Semilog line\") of \"Response\" on \"X\".",
+  "notes": "Least-squares fit (\"Semilog line\") of “Response” on “X”. 95% CIs are asymptotic (from each parameter's standard error).",
   "coefficients": [
    {
     "term": "Intercept",
     "estimate": 46.03195951,
     "stdError": 3.864098342,
     "t": 11.91272981,
-    "p": 0.00007345228265
+    "p": 0.00007345228265,
+    "low": 36.0989785,
+    "high": 55.96494052
    },
    {
     "term": "Slope",
     "estimate": 14.00787048,
     "stdError": 1.50677446,
     "t": 9.296594049,
-    "p": 0.0002422691305
+    "p": 0.0002422691305,
+    "low": 10.13458342,
+    "high": 17.88115754
+   }
+  ]
+ },
+ "nonlinear-regression doseLog {\"model\":\"agonist-3pl-logx\"}": {
+  "testType": "nonlinear-regression",
+  "subtitle": "log(agonist) vs. response, standard slope (3PL)",
+  "stats": [],
+  "fit": {
+   "sets": [
+    "Response"
+   ],
+   "rows": [
+    {
+     "label": "EC50",
+     "values": [
+      0.1440302722
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       0.1378420825,
+       0.1504962703
+      ]
+     ]
+    },
+    {
+     "label": "Span",
+     "values": [
+      97.37261752
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       96.48596855,
+       98.25926648
+      ]
+     ]
+    },
+    {
+     "label": "R squared",
+     "values": [
+      0.9998964175
+     ]
+    },
+    {
+     "label": "Sy.x",
+     "values": [
+      0.4787403644
+     ]
+    },
+    {
+     "label": "Sum of squares",
+     "values": [
+      1.604346355
+     ]
+    },
+    {
+     "label": "Degrees of freedom",
+     "values": [
+      7
+     ]
+    },
+    {
+     "label": "N",
+     "values": [
+      10
+     ]
+    }
+   ]
+  },
+  "groups": [
+   {
+    "name": "X",
+    "mean": -0.75,
+    "sd": 1.513825177,
+    "sem": 0.4787135539,
+    "median": -0.75,
+    "n": 10
+   },
+   {
+    "name": "Response",
+    "mean": 52.05,
+    "sd": 41.48438126,
+    "sem": 13.11851321,
+    "median": 55.05,
+    "n": 10
+   }
+  ],
+  "notes": "Least-squares fit (\"log(agonist) vs. response, standard slope (3PL)\") of “Response” on “X”. 95% CIs are asymptotic (from each parameter's standard error).",
+  "coefficients": [
+   {
+    "term": "Bottom",
+    "estimate": 1.591601431,
+    "stdError": 0.296247916,
+    "t": 5.372532074,
+    "p": 0.001038678856,
+    "low": 0.891086424,
+    "high": 2.292116437
+   },
+   {
+    "term": "Top",
+    "estimate": 98.96421895,
+    "stdError": 0.2782111995,
+    "t": 355.7161578,
+    "p": 3.664167413e-16,
+    "low": 98.306354,
+    "high": 99.6220839
+   },
+   {
+    "term": "LogEC50",
+    "estimate": -0.8415462186,
+    "stdError": 0.008065533263,
+    "t": -104.3385714,
+    "p": 1.957908964e-12,
+    "low": -0.8606181741,
+    "high": -0.822474263
+   }
+  ]
+ },
+ "nonlinear-regression doseFall {\"model\":\"inhibitor-3pl-logx\"}": {
+  "testType": "nonlinear-regression",
+  "subtitle": "log(inhibitor) vs. response, standard slope (3PL)",
+  "stats": [],
+  "fit": {
+   "sets": [
+    "Response"
+   ],
+   "rows": [
+    {
+     "label": "IC50",
+     "values": [
+      0.1440302715
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       0.1378420804,
+       0.1504962712
+      ]
+     ]
+    },
+    {
+     "label": "Span",
+     "values": [
+      97.37261756
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       96.48596876,
+       98.25926635
+      ]
+     ]
+    },
+    {
+     "label": "R squared",
+     "values": [
+      0.9998964175
+     ]
+    },
+    {
+     "label": "Sy.x",
+     "values": [
+      0.4787403644
+     ]
+    },
+    {
+     "label": "Sum of squares",
+     "values": [
+      1.604346355
+     ]
+    },
+    {
+     "label": "Degrees of freedom",
+     "values": [
+      7
+     ]
+    },
+    {
+     "label": "N",
+     "values": [
+      10
+     ]
+    }
+   ]
+  },
+  "groups": [
+   {
+    "name": "X",
+    "mean": -0.75,
+    "sd": 1.513825177,
+    "sem": 0.4787135539,
+    "median": -0.75,
+    "n": 10
+   },
+   {
+    "name": "Response",
+    "mean": 47.95,
+    "sd": 41.48438126,
+    "sem": 13.11851321,
+    "median": 44.95,
+    "n": 10
+   }
+  ],
+  "notes": "Least-squares fit (\"log(inhibitor) vs. response, standard slope (3PL)\") of “Response” on “X”. 95% CIs are asymptotic (from each parameter's standard error).",
+  "coefficients": [
+   {
+    "term": "Bottom",
+    "estimate": 1.035781111,
+    "stdError": 0.2782112088,
+    "t": 3.723002805,
+    "p": 0.007426699536,
+    "low": 0.3779161394,
+    "high": 1.693646082
+   },
+   {
+    "term": "Top",
+    "estimate": 98.40839867,
+    "stdError": 0.2962479526,
+    "t": 332.1825443,
+    "p": 5.916322518e-16,
+    "low": 97.70788357,
+    "high": 99.10891376
+   },
+   {
+    "term": "LogIC50",
+    "estimate": -0.8415462206,
+    "stdError": 0.008065535276,
+    "t": -104.3385457,
+    "p": 1.957912349e-12,
+    "low": -0.860618181,
+    "high": -0.8224742603
+   }
+  ]
+ },
+ "nonlinear-regression doseLog {\"model\":\"asymmetric-5pl-logx\"}": {
+  "testType": "nonlinear-regression",
+  "subtitle": "Asymmetric sigmoidal, 5PL, X is log(concentration)",
+  "stats": [],
+  "fit": {
+   "sets": [
+    "Response"
+   ],
+   "rows": [
+    {
+     "label": "EC50",
+     "values": [
+      0.1441462298
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       0.1370601879,
+       0.1515986216
+      ]
+     ]
+    },
+    {
+     "label": "Span",
+     "values": [
+      97.90266599
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       96.328283,
+       99.47704898
+      ]
+     ]
+    },
+    {
+     "label": "R squared",
+     "values": [
+      0.9999245072
+     ]
+    },
+    {
+     "label": "Sy.x",
+     "values": [
+      0.4835858525
+     ]
+    },
+    {
+     "label": "Sum of squares",
+     "values": [
+      1.169276384
+     ]
+    },
+    {
+     "label": "Degrees of freedom",
+     "values": [
+      5
+     ]
+    },
+    {
+     "label": "N",
+     "values": [
+      10
+     ]
+    }
+   ]
+  },
+  "groups": [
+   {
+    "name": "X",
+    "mean": -0.75,
+    "sd": 1.513825177,
+    "sem": 0.4787135539,
+    "median": -0.75,
+    "n": 10
+   },
+   {
+    "name": "Response",
+    "mean": 52.05,
+    "sd": 41.48438126,
+    "sem": 13.11851321,
+    "median": 55.05,
+    "n": 10
+   }
+  ],
+  "notes": "Least-squares fit (\"Asymmetric sigmoidal, 5PL, X is log(concentration)\") of “Response” on “X”. 95% CIs are asymptotic (from each parameter's standard error; the asymmetry S's, on its log).",
+  "coefficients": [
+   {
+    "term": "Bottom",
+    "estimate": 1.430642754,
+    "stdError": 0.5636469012,
+    "t": 2.538189691,
+    "p": 0.0520083457,
+    "low": -0.01825773204,
+    "high": 2.87954324
+   },
+   {
+    "term": "Top",
+    "estimate": 99.33330874,
+    "stdError": 0.4326943079,
+    "t": 229.5692523,
+    "p": 2.976096268e-11,
+    "low": 98.22103262,
+    "high": 100.4455849
+   },
+   {
+    "term": "LogEC50",
+    "estimate": -0.8411967123,
+    "stdError": 0.008516346183,
+    "t": -98.77436806,
+    "p": 2.016534916e-9,
+    "low": -0.8630886771,
+    "high": -0.8193047475
+   },
+   {
+    "term": "Hill slope",
+    "estimate": 0.9618435194,
+    "stdError": 0.04418647108,
+    "t": 21.76782839,
+    "p": 0.000003797152387,
+    "low": 0.8482585795,
+    "high": 1.075428459
+   },
+   {
+    "term": "Asymmetry (S)",
+    "estimate": 1.052418402,
+    "stdError": 0.1500531903,
+    "t": 7.013635632,
+    "p": 0.0009085728832,
+    "low": 0.7294814977,
+    "high": 1.518317458
+   }
+  ]
+ },
+ "nonlinear-regression doseUnknowns {\"model\":\"sigmoidal-4pl-logx\",\"interpolate\":true}": {
+  "testType": "nonlinear-regression",
+  "subtitle": "Sigmoidal, 4PL, X is log(concentration)",
+  "stats": [],
+  "fit": {
+   "sets": [
+    "Response"
+   ],
+   "rows": [
+    {
+     "label": "EC50",
+     "values": [
+      0.1438862706
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       0.137793742,
+       0.1502481795
+      ]
+     ]
+    },
+    {
+     "label": "Span",
+     "values": [
+      97.96387721
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       96.62588276,
+       99.30187167
+      ]
+     ]
+    },
+    {
+     "label": "R squared",
+     "values": [
+      0.9999224337
+     ]
+    },
+    {
+     "label": "Sy.x",
+     "values": [
+      0.4474730704
+     ]
+    },
+    {
+     "label": "Sum of squares",
+     "values": [
+      1.201392892
+     ]
+    },
+    {
+     "label": "Degrees of freedom",
+     "values": [
+      6
+     ]
+    },
+    {
+     "label": "N",
+     "values": [
+      10
+     ]
+    }
+   ]
+  },
+  "groups": [
+   {
+    "name": "X",
+    "mean": -0.75,
+    "sd": 1.513825177,
+    "sem": 0.4787135539,
+    "median": -0.75,
+    "n": 10
+   },
+   {
+    "name": "Response",
+    "mean": 52.28571429,
+    "sd": 47.56349371,
+    "sem": 12.7118784,
+    "median": 45.6,
+    "n": 14
+   }
+  ],
+  "notes": "Least-squares fit (\"Sigmoidal, 4PL, X is log(concentration)\") of “Response” on “X”. 95% CIs are asymptotic (from each parameter's standard error). Each unknown's X is read off the curve (the lowest, if the curve reaches its Y twice); “extrapolated”: beyond the standards' X. “—”: the curve never reaches that Y.",
+  "coefficients": [
+   {
+    "term": "Bottom",
+    "estimate": 1.278310063,
+    "stdError": 0.3572701809,
+    "t": 3.577992598,
+    "p": 0.01167127022,
+    "low": 0.404101423,
+    "high": 2.152518702
+   },
+   {
+    "term": "Top",
+    "estimate": 99.24218728,
+    "stdError": 0.3272161451,
+    "t": 303.2924529,
+    "p": 8.670812482e-14,
+    "low": 98.44151821,
+    "high": 100.0428563
+   },
+   {
+    "term": "LogEC50",
+    "estimate": -0.8419806437,
+    "stdError": 0.007679010652,
+    "t": -109.6470212,
+    "p": 3.879305116e-11,
+    "low": -0.8607705059,
+    "high": -0.8231907816
+   },
+   {
+    "term": "Hill slope",
+    "estimate": 0.9769513568,
+    "stdError": 0.01584450365,
+    "t": 61.65869113,
+    "p": 1.223320237e-9,
+    "low": 0.9381812531,
+    "high": 1.015721461
+   }
+  ],
+  "interpolated": [
+   {
+    "label": "Sample 1",
+    "y": 50,
+    "x": -0.8467045144,
+    "concentration": 0.1423296841,
+    "extrapolated": false
+   },
+   {
+    "label": "Sample 2",
+    "y": 10,
+    "x": -1.875777829,
+    "concentration": 0.01331135209,
+    "extrapolated": false
+   },
+   {
+    "label": "Row 13",
+    "y": 1.5,
+    "x": -3.548702994,
+    "concentration": 0.0002826812518,
+    "extrapolated": true
+   },
+   {
+    "label": "Sample 4",
+    "y": 150,
+    "x": null,
+    "concentration": null,
+    "extrapolated": false
+   }
+  ]
+ },
+ "nonlinear-regression doseFar {\"y\":\"A\",\"model\":\"sigmoidal-4pl-logx\",\"compareWith\":\"B\",\"compare\":\"ec50\"}": {
+  "error": "These two curves can't be fitted with one EC50: they are too far apart, or their slopes too different. Ask whether one curve fits both instead, or compare them with a standard-slope (3PL) model."
+ },
+ "nonlinear-regression growth {\"model\":\"exponential-growth\"}": {
+  "testType": "nonlinear-regression",
+  "subtitle": "Exponential growth",
+  "stats": [],
+  "fit": {
+   "sets": [
+    "Volume"
+   ],
+   "rows": [
+    {
+     "label": "Doubling time",
+     "values": [
+      7.643637719
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       7.045318393,
+       8.353012131
+      ]
+     ]
+    },
+    {
+     "label": "Tau",
+     "values": [
+      11.02743823
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       10.16424591,
+       12.05084918
+      ]
+     ]
+    },
+    {
+     "label": "R squared",
+     "values": [
+      0.9962082741
+     ]
+    },
+    {
+     "label": "Sy.x",
+     "values": [
+      14.17757056
+     ]
+    },
+    {
+     "label": "Sum of squares",
+     "values": [
+      1005.017534
+     ]
+    },
+    {
+     "label": "Degrees of freedom",
+     "values": [
+      5
+     ]
+    },
+    {
+     "label": "N",
+     "values": [
+      7
+     ]
+    }
+   ]
+  },
+  "groups": [
+   {
+    "name": "Day",
+    "mean": 10.28571429,
+    "sd": 7.565586245,
+    "sem": 2.859522818,
+    "median": 10,
+    "n": 7
+   },
+   {
+    "name": "Volume",
+    "mean": 318.7142857,
+    "sd": 210.1806479,
+    "sem": 79.44081783,
+    "median": 251,
+    "n": 7
+   }
+  ],
+  "notes": "Least-squares fit (\"Exponential growth\") of “Volume” on “Day”. 95% CIs are asymptotic (from each parameter's standard error).",
+  "coefficients": [
+   {
+    "term": "Y0",
+    "estimate": 102.9493373,
+    "stdError": 5.520909033,
+    "t": 18.64717145,
+    "p": 0.000008164870695,
+    "low": 88.75738883,
+    "high": 117.1412858
+   },
+   {
+    "term": "K",
+    "estimate": 0.09068289289,
+    "stdError": 0.002995893276,
+    "t": 30.26906653,
+    "p": 7.383179513e-7,
+    "low": 0.08298170405,
+    "high": 0.09838408172
+   }
+  ]
+ },
+ "nonlinear-regression decay {\"model\":\"one-phase-decay\"}": {
+  "testType": "nonlinear-regression",
+  "subtitle": "One-phase decay",
+  "stats": [],
+  "fit": {
+   "sets": [
+    "Plasma"
+   ],
+   "rows": [
+    {
+     "label": "Half-life",
+     "values": [
+      1.03514554
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       0.9654444323,
+       1.11569405
+      ]
+     ]
+    },
+    {
+     "label": "Tau",
+     "values": [
+      1.493399337
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       1.392841895,
+       1.609606273
+      ]
+     ]
+    },
+    {
+     "label": "Span",
+     "values": [
+      86.62002597
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       84.19593101,
+       89.04412093
+      ]
+     ]
+    },
+    {
+     "label": "R squared",
+     "values": [
+      0.9994215568
+     ]
+    },
+    {
+     "label": "Sy.x",
+     "values": [
+      0.9388619684
+     ]
+    },
+    {
+     "label": "Sum of squares",
+     "values": [
+      4.407308978
+     ]
+    },
+    {
+     "label": "Degrees of freedom",
+     "values": [
+      5
+     ]
+    },
+    {
+     "label": "N",
+     "values": [
+      8
+     ]
+    }
+   ]
+  },
+  "groups": [
+   {
+    "name": "Hours",
+    "mean": 4.1875,
+    "sd": 4.225243019,
+    "sem": 1.493848996,
+    "median": 3,
+    "n": 8
+   },
+   {
+    "name": "Plasma",
+    "mean": 38.75,
+    "sd": 32.99190377,
+    "sem": 11.66439944,
+    "median": 25.85,
+    "n": 8
+   }
+  ],
+  "notes": "Least-squares fit (\"One-phase decay\") of “Plasma” on “Hours”. 95% CIs are asymptotic (from each parameter's standard error).",
+  "coefficients": [
+   {
+    "term": "Y0",
+    "estimate": 97.42278411,
+    "stdError": 0.852931175,
+    "t": 114.2211552,
+    "p": 9.754713691e-10,
+    "low": 95.23025473,
+    "high": 99.6153135
+   },
+   {
+    "term": "Plateau",
+    "estimate": 10.80275814,
+    "stdError": 0.5526112088,
+    "t": 19.54856863,
+    "p": 0.000006465902522,
+    "low": 9.382225805,
+    "high": 12.22329048
+   },
+   {
+    "term": "K",
+    "estimate": 0.669613261,
+    "stdError": 0.01880637138,
+    "t": 35.60565978,
+    "p": 3.288859315e-7,
+    "low": 0.6212699444,
+    "high": 0.7179565777
+   }
+  ]
+ },
+ "nonlinear-regression enzyme {\"model\":\"michaelis-menten\"}": {
+  "testType": "nonlinear-regression",
+  "subtitle": "Michaelis-Menten",
+  "stats": [],
+  "fit": {
+   "sets": [
+    "Rate"
+   ],
+   "rows": [
+    {
+     "label": "R squared",
+     "values": [
+      0.9997074168
+     ]
+    },
+    {
+     "label": "Sy.x",
+     "values": [
+      0.4395035879
+     ]
+    },
+    {
+     "label": "Sum of squares",
+     "values": [
+      0.965817019
+     ]
+    },
+    {
+     "label": "Degrees of freedom",
+     "values": [
+      5
+     ]
+    },
+    {
+     "label": "N",
+     "values": [
+      7
+     ]
+    }
+   ]
+  },
+  "groups": [
+   {
+    "name": "Substrate",
+    "mean": 12.64285714,
+    "sd": 17.84823587,
+    "sem": 6.745999066,
+    "median": 5,
+    "n": 7
+   },
+   {
+    "name": "Rate",
+    "mean": 41.2,
+    "sd": 23.45563188,
+    "sem": 8.865395541,
+    "median": 44.2,
+    "n": 7
+   }
+  ],
+  "notes": "Least-squares fit (\"Michaelis-Menten\") of “Rate” on “Substrate”. 95% CIs are asymptotic (from each parameter's standard error).",
+  "coefficients": [
+   {
+    "term": "Vmax",
+    "estimate": 74.59561247,
+    "stdError": 0.4210797921,
+    "t": 177.1531521,
+    "p": 1.087454721e-10,
+    "low": 73.51319241,
+    "high": 75.67803254
+   },
+   {
+    "term": "Km",
+    "estimate": 3.38651208,
+    "stdError": 0.068810665,
+    "t": 49.21493027,
+    "p": 6.544858954e-8,
+    "low": 3.209628634,
+    "high": 3.563395525
+   }
+  ]
+ },
+ "nonlinear-regression xy {\"y\":\"Y1\",\"model\":\"line\",\"interpolate\":true}": {
+  "testType": "nonlinear-regression",
+  "subtitle": "Line",
+  "stats": [],
+  "fit": {
+   "sets": [
+    "Y1"
+   ],
+   "rows": [
+    {
+     "label": "R squared",
+     "values": [
+      0.9984613141
+     ]
+    },
+    {
+     "label": "Sy.x",
+     "values": [
+      0.2277528156
+     ]
+    },
+    {
+     "label": "Sum of squares",
+     "values": [
+      0.3112280702
+     ]
+    },
+    {
+     "label": "Degrees of freedom",
+     "values": [
+      6
+     ]
+    },
+    {
+     "label": "N",
+     "values": [
+      8
+     ]
+    }
+   ]
+  },
+  "groups": [
+   {
+    "name": "X",
+    "mean": 3.625,
+    "sd": 2.669269563,
+    "sem": 0.9437293044,
+    "median": 3.5,
+    "n": 8
+   },
+   {
+    "name": "Y1",
+    "mean": 9.033333333,
+    "sd": 5.503635162,
+    "sem": 1.834545054,
+    "median": 9.1,
+    "n": 9
+   }
+  ],
+  "notes": "Least-squares fit (\"Line\") of “Y1” on “X”. 95% CIs are asymptotic (from each parameter's standard error). Each unknown's X is read off the curve (the lowest, if the curve reaches its Y twice); “extrapolated”: beyond the standards' X.",
+  "coefficients": [
+   {
+    "term": "Intercept",
+    "estimate": 0.9929824561,
+    "stdError": 0.1419525361,
+    "t": 6.995172354,
+    "p": 0.0004250712706,
+    "low": 0.6456371133,
+    "high": 1.340327799
+   },
+   {
+    "term": "Slope",
+    "estimate": 2.012280702,
+    "stdError": 0.03224944911,
+    "t": 62.39736669,
+    "p": 1.139070697e-9,
+    "low": 1.933369143,
+    "high": 2.091192261
+   }
+  ],
+  "interpolated": [
+   {
+    "label": "Row 8",
+    "y": 15,
+    "x": 6.960767219,
+    "extrapolated": false
+   }
+  ]
+ },
+ "nonlinear-regression doseRaw {\"model\":\"asymmetric-5pl-x\"}": {
+  "testType": "nonlinear-regression",
+  "subtitle": "Asymmetric sigmoidal, 5PL, X is concentration",
+  "stats": [],
+  "fit": {
+   "sets": [
+    "Response"
+   ],
+   "rows": [
+    {
+     "label": "Span",
+     "values": [
+      97.10636601
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       88.86132414,
+       105.3514079
+      ]
+     ]
+    },
+    {
+     "label": "R squared",
+     "values": [
+      0.9999689275
+     ]
+    },
+    {
+     "label": "Sy.x",
+     "values": [
+      0.3459792881
+     ]
+    },
+    {
+     "label": "Sum of squares",
+     "values": [
+      0.2394033356
+     ]
+    },
+    {
+     "label": "Degrees of freedom",
+     "values": [
+      2
+     ]
+    },
+    {
+     "label": "N",
+     "values": [
+      7
+     ]
+    }
+   ]
+  },
+  "groups": [
+   {
+    "name": "X",
+    "mean": 18.05,
+    "sd": 34.64860335,
+    "sem": 12.25013119,
+    "median": 2,
+    "n": 8
+   },
+   {
+    "name": "Response",
+    "mean": 54.2375,
+    "sd": 39.53985105,
+    "sem": 13.9794484,
+    "median": 59.5,
+    "n": 8
+   }
+  ],
+  "notes": "Least-squares fit (\"Asymmetric sigmoidal, 5PL, X is concentration\") of “Response” on “X”. 95% CIs are asymptotic (from each parameter's standard error; the asymmetry S's, on its log).",
+  "coefficients": [
+   {
+    "term": "Bottom",
+    "estimate": 2.527171679,
+    "stdError": 2.120441109,
+    "t": 1.191814132,
+    "p": 0.3555803815,
+    "low": -6.596350045,
+    "high": 11.6506934
+   },
+   {
+    "term": "Top",
+    "estimate": 99.63353769,
+    "stdError": 0.5029228003,
+    "t": 198.1090092,
+    "p": 0.00002547856417,
+    "low": 97.46963553,
+    "high": 101.7974398
+   },
+   {
+    "term": "EC50",
+    "estimate": 1.171667918,
+    "stdError": 0.05547511694,
+    "t": 21.12060293,
+    "p": 0.002234240903,
+    "low": 0.9329777542,
+    "high": 1.410358081
+   },
+   {
+    "term": "Hill slope",
+    "estimate": 0.9210012104,
+    "stdError": 0.05029526337,
+    "t": 18.31188761,
+    "p": 0.002968905307,
+    "low": 0.7045981582,
+    "high": 1.137404263
+   },
+   {
+    "term": "Asymmetry (S)",
+    "estimate": 1.212382038,
+    "stdError": 0.3289548332,
+    "t": 3.685557758,
+    "p": 0.06637385647,
+    "low": 0.3772493409,
+    "high": 3.896283031
+   }
+  ]
+ },
+ "nonlinear-regression doseTwo {\"y\":\"Control\",\"model\":\"sigmoidal-4pl-logx\",\"compareWith\":\"Treated\",\"compare\":\"ec50\"}": {
+  "testType": "nonlinear-regression",
+  "subtitle": "Sigmoidal, 4PL, X is log(concentration)",
+  "stats": [
+   {
+    "label": "F",
+    "value": 2164.410191
+   },
+   {
+    "label": "DFn",
+    "value": 1
+   },
+   {
+    "label": "DFd",
+    "value": 12
+   },
+   {
+    "label": "P value",
+    "value": 6.35307148e-15,
+    "p": true
+   }
+  ],
+  "fit": {
+   "sets": [
+    "Control",
+    "Treated"
+   ],
+   "rows": [
+    {
+     "label": "EC50",
+     "values": [
+      0.1438862706,
+      0.4145094891
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       0.137793742,
+       0.1502481795
+      ],
+      [
+       0.4007107084,
+       0.4287834414
+      ]
+     ]
+    },
+    {
+     "label": "Span",
+     "values": [
+      97.96387721,
+      98.60451872
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       96.62588276,
+       99.30187167
+      ],
+      [
+       97.5323415,
+       99.67669593
+      ]
+     ]
+    },
+    {
+     "label": "R squared",
+     "values": [
+      0.9999224337,
+      0.9999559518
+     ]
+    },
+    {
+     "label": "Sy.x",
+     "values": [
+      0.4474730704,
+      0.3319585961
+     ]
+    },
+    {
+     "label": "Sum of squares",
+     "values": [
+      1.201392892,
+      0.6611790572
+     ]
+    },
+    {
+     "label": "Degrees of freedom",
+     "values": [
+      6,
+      6
+     ]
+    },
+    {
+     "label": "N",
+     "values": [
+      10,
+      10
+     ]
+    }
+   ]
+  },
+  "groups": [
+   {
+    "name": "X",
+    "mean": -0.75,
+    "sd": 1.513825177,
+    "sem": 0.4787135539,
+    "median": -0.75,
+    "n": 10
+   },
+   {
+    "name": "Control",
+    "mean": 52.05,
+    "sd": 41.48438126,
+    "sem": 13.11851321,
+    "median": 55.05,
+    "n": 10
+   },
+   {
+    "name": "Treated",
+    "mean": 43.21,
+    "sd": 40.83893703,
+    "sem": 12.91440582,
+    "median": 32.6,
+    "n": 10
+   }
+  ],
+  "notes": "Least-squares fit (\"Sigmoidal, 4PL, X is log(concentration)\") of “Control” and “Treated” on “X”. 95% CIs are asymptotic (from each parameter's standard error). Extra sum-of-squares F test: Is the EC50 different between them? The EC50s differ.",
+  "coefficients": [
+   {
+    "term": "Control — Bottom",
+    "estimate": 1.278310063,
+    "stdError": 0.3572701809,
+    "t": 3.577992598,
+    "p": 0.01167127022,
+    "low": 0.404101423,
+    "high": 2.152518702
+   },
+   {
+    "term": "Control — Top",
+    "estimate": 99.24218728,
+    "stdError": 0.3272161451,
+    "t": 303.2924529,
+    "p": 8.670812482e-14,
+    "low": 98.44151821,
+    "high": 100.0428563
+   },
+   {
+    "term": "Control — LogEC50",
+    "estimate": -0.8419806437,
+    "stdError": 0.007679010652,
+    "t": -109.6470212,
+    "p": 3.879305116e-11,
+    "low": -0.8607705059,
+    "high": -0.8231907816
+   },
+   {
+    "term": "Control — Hill slope",
+    "estimate": 0.9769513568,
+    "stdError": 0.01584450365,
+    "t": 61.65869113,
+    "p": 1.223320237e-9,
+    "low": 0.9381812531,
+    "high": 1.015721461
+   },
+   {
+    "term": "Treated — Bottom",
+    "estimate": 1.092058539,
+    "stdError": 0.2214461903,
+    "t": 4.931484882,
+    "p": 0.002626293756,
+    "low": 0.5501992321,
+    "high": 1.633917847
+   },
+   {
+    "term": "Treated — Top",
+    "estimate": 99.69657726,
+    "stdError": 0.3190498134,
+    "t": 312.4796601,
+    "p": 7.249418996e-14,
+    "low": 98.91589049,
+    "high": 100.477264
+   },
+   {
+    "term": "Treated — LogEC50",
+    "estimate": -0.382465523,
+    "stdError": 0.006009014417,
+    "t": -63.64862795,
+    "p": 1.011305267e-9,
+    "low": -0.3971690516,
+    "high": -0.3677619944
+   },
+   {
+    "term": "Treated — Hill slope",
+    "estimate": 0.9515258252,
+    "stdError": 0.01168112183,
+    "t": 81.45842829,
+    "p": 2.304927268e-10,
+    "low": 0.9229431497,
+    "high": 0.9801085006
+   }
+  ]
+ },
+ "nonlinear-regression doseTwo {\"y\":\"Control\",\"model\":\"sigmoidal-4pl-logx\",\"compareWith\":\"Treated\",\"compare\":\"all\"}": {
+  "testType": "nonlinear-regression",
+  "subtitle": "Sigmoidal, 4PL, X is log(concentration)",
+  "stats": [
+   {
+    "label": "F",
+    "value": 1174.822487
+   },
+   {
+    "label": "DFn",
+    "value": 4
+   },
+   {
+    "label": "DFd",
+    "value": 12
+   },
+   {
+    "label": "P value",
+    "value": 1.907204788e-15,
+    "p": true
+   }
+  ],
+  "fit": {
+   "sets": [
+    "Control",
+    "Treated"
+   ],
+   "rows": [
+    {
+     "label": "EC50",
+     "values": [
+      0.1438862706,
+      0.4145094891
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       0.137793742,
+       0.1502481795
+      ],
+      [
+       0.4007107084,
+       0.4287834414
+      ]
+     ]
+    },
+    {
+     "label": "Span",
+     "values": [
+      97.96387721,
+      98.60451872
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       96.62588276,
+       99.30187167
+      ],
+      [
+       97.5323415,
+       99.67669593
+      ]
+     ]
+    },
+    {
+     "label": "R squared",
+     "values": [
+      0.9999224337,
+      0.9999559518
+     ]
+    },
+    {
+     "label": "Sy.x",
+     "values": [
+      0.4474730704,
+      0.3319585961
+     ]
+    },
+    {
+     "label": "Sum of squares",
+     "values": [
+      1.201392892,
+      0.6611790572
+     ]
+    },
+    {
+     "label": "Degrees of freedom",
+     "values": [
+      6,
+      6
+     ]
+    },
+    {
+     "label": "N",
+     "values": [
+      10,
+      10
+     ]
+    }
+   ]
+  },
+  "groups": [
+   {
+    "name": "X",
+    "mean": -0.75,
+    "sd": 1.513825177,
+    "sem": 0.4787135539,
+    "median": -0.75,
+    "n": 10
+   },
+   {
+    "name": "Control",
+    "mean": 52.05,
+    "sd": 41.48438126,
+    "sem": 13.11851321,
+    "median": 55.05,
+    "n": 10
+   },
+   {
+    "name": "Treated",
+    "mean": 43.21,
+    "sd": 40.83893703,
+    "sem": 12.91440582,
+    "median": 32.6,
+    "n": 10
+   }
+  ],
+  "notes": "Least-squares fit (\"Sigmoidal, 4PL, X is log(concentration)\") of “Control” and “Treated” on “X”. 95% CIs are asymptotic (from each parameter's standard error). Extra sum-of-squares F test: Does one curve fit both data sets? The curves differ: one curve doesn't fit both.",
+  "coefficients": [
+   {
+    "term": "Control — Bottom",
+    "estimate": 1.278310063,
+    "stdError": 0.3572701809,
+    "t": 3.577992598,
+    "p": 0.01167127022,
+    "low": 0.404101423,
+    "high": 2.152518702
+   },
+   {
+    "term": "Control — Top",
+    "estimate": 99.24218728,
+    "stdError": 0.3272161451,
+    "t": 303.2924529,
+    "p": 8.670812482e-14,
+    "low": 98.44151821,
+    "high": 100.0428563
+   },
+   {
+    "term": "Control — LogEC50",
+    "estimate": -0.8419806437,
+    "stdError": 0.007679010652,
+    "t": -109.6470212,
+    "p": 3.879305116e-11,
+    "low": -0.8607705059,
+    "high": -0.8231907816
+   },
+   {
+    "term": "Control — Hill slope",
+    "estimate": 0.9769513568,
+    "stdError": 0.01584450365,
+    "t": 61.65869113,
+    "p": 1.223320237e-9,
+    "low": 0.9381812531,
+    "high": 1.015721461
+   },
+   {
+    "term": "Treated — Bottom",
+    "estimate": 1.092058539,
+    "stdError": 0.2214461903,
+    "t": 4.931484882,
+    "p": 0.002626293756,
+    "low": 0.5501992321,
+    "high": 1.633917847
+   },
+   {
+    "term": "Treated — Top",
+    "estimate": 99.69657726,
+    "stdError": 0.3190498134,
+    "t": 312.4796601,
+    "p": 7.249418996e-14,
+    "low": 98.91589049,
+    "high": 100.477264
+   },
+   {
+    "term": "Treated — LogEC50",
+    "estimate": -0.382465523,
+    "stdError": 0.006009014417,
+    "t": -63.64862795,
+    "p": 1.011305267e-9,
+    "low": -0.3971690516,
+    "high": -0.3677619944
+   },
+   {
+    "term": "Treated — Hill slope",
+    "estimate": 0.9515258252,
+    "stdError": 0.01168112183,
+    "t": 81.45842829,
+    "p": 2.304927268e-10,
+    "low": 0.9229431497,
+    "high": 0.9801085006
    }
   ]
  },
@@ -2743,94 +4973,94 @@
     "group1": "A (Day 1)",
     "group2": "B (Day 1)",
     "diff": -3,
-    "p": 0.1188234153
+    "p": 0.007069090881
    },
    {
     "group1": "A (Day 1)",
     "group2": "C (Day 1)",
     "diff": 1,
-    "p": 0.9979667466
+    "p": 0.5222007219
    },
    {
     "group1": "B (Day 1)",
     "group2": "C (Day 1)",
     "diff": 4,
-    "p": 0.009137547538
+    "p": 0.0003862584338
    },
    {
     "group1": "A (Day 2)",
     "group2": "B (Day 2)",
     "diff": -5,
-    "p": 0.0005141612144
+    "p": 0.00001865880911
    },
    {
     "group1": "A (Day 2)",
     "group2": "C (Day 2)",
     "diff": 2,
-    "p": 0.8009753258
+    "p": 0.138698659
    },
    {
     "group1": "B (Day 2)",
     "group2": "C (Day 2)",
     "diff": 7,
-    "p": 0.00001299152409
+    "p": 4.315105678e-7
    },
    {
     "group1": "A (Day 3)",
     "group2": "B (Day 3)",
     "diff": -7.333333333,
-    "p": 6.360085089e-7
+    "p": 2.034628532e-8
    },
    {
     "group1": "A (Day 3)",
     "group2": "C (Day 3)",
     "diff": 3,
-    "p": 0.1188234153
+    "p": 0.007069090881
    },
    {
     "group1": "B (Day 3)",
     "group2": "C (Day 3)",
     "diff": 10.33333333,
-    "p": 3.300041351e-10
+    "p": 1.012834261e-11
    },
    {
     "group1": "A (Day 4)",
     "group2": "B (Day 4)",
     "diff": -9,
-    "p": 8.066107005e-9
+    "p": 2.503073304e-10
    },
    {
     "group1": "A (Day 4)",
     "group2": "C (Day 4)",
     "diff": 5,
-    "p": 0.0005141612144
+    "p": 0.00001865880911
    },
    {
     "group1": "B (Day 4)",
     "group2": "C (Day 4)",
     "diff": 14,
-    "p": 1.723066134e-13
+    "p": 8.881784197e-15
    },
    {
     "group1": "A (Day 5)",
     "group2": "B (Day 5)",
     "diff": -10.33333333,
-    "p": 3.300041351e-10
+    "p": 1.012834261e-11
    },
    {
     "group1": "A (Day 5)",
     "group2": "C (Day 5)",
     "diff": 7.333333333,
-    "p": 6.360085089e-7
+    "p": 2.034628532e-8
    },
    {
     "group1": "B (Day 5)",
     "group2": "C (Day 5)",
     "diff": 17.66666667,
-    "p": 3.996802889e-15
+    "p": 3.552713679e-15
    }
   ],
-  "comparisonsLabel": "Tukey's multiple comparisons (groups within each row)"
+  "comparisonsLabel": "Tukey's multiple comparisons (groups within each row, each row a family)"
  },
  "two-way-anova grouped {\"design\":\"ordinary\",\"posthoc\":\"bonferroni\",\"posthocTarget\":\"rows\"}": {
   "testType": "two-way-anova",
@@ -2912,121 +5142,121 @@
     "group1": "Day 1 (A)",
     "group2": "Day 2 (A)",
     "diff": -2,
-    "p": 1
+    "p": 0.3604532488
    },
    {
     "group1": "Day 1 (A)",
     "group2": "Day 3 (A)",
     "diff": -4,
-    "p": 0.004047984831
+    "p": 0.001349328277
    },
    {
     "group1": "Day 1 (A)",
     "group2": "Day 4 (A)",
     "diff": -7,
-    "p": 5.23525589e-7
+    "p": 1.745085297e-7
    },
    {
     "group1": "Day 1 (A)",
     "group2": "Day 5 (A)",
     "diff": -10,
-    "p": 2.218067149e-10
+    "p": 7.393557163e-11
    },
    {
     "group1": "Day 2 (A)",
     "group2": "Day 3 (A)",
     "diff": -2,
-    "p": 1
+    "p": 0.3604532488
    },
    {
     "group1": "Day 2 (A)",
     "group2": "Day 4 (A)",
     "diff": -5,
-    "p": 0.0001918111737
+    "p": 0.0000639370579
    },
    {
     "group1": "Day 2 (A)",
     "group2": "Day 5 (A)",
     "diff": -8,
-    "p": 3.359087616e-8
+    "p": 1.119695872e-8
    },
    {
     "group1": "Day 3 (A)",
     "group2": "Day 4 (A)",
     "diff": -3,
-    "p": 0.07746058545
+    "p": 0.02582019515
    },
    {
     "group1": "Day 3 (A)",
     "group2": "Day 5 (A)",
     "diff": -6,
-    "p": 0.000009462392035
+    "p": 0.000003154130678
    },
    {
     "group1": "Day 4 (A)",
     "group2": "Day 5 (A)",
     "diff": -3,
-    "p": 0.07746058545
+    "p": 0.02582019515
    },
    {
     "group1": "Day 1 (B)",
     "group2": "Day 2 (B)",
     "diff": -4,
-    "p": 0.004047984831
+    "p": 0.001349328277
    },
    {
     "group1": "Day 1 (B)",
     "group2": "Day 3 (B)",
     "diff": -8.333333333,
-    "p": 1.392811618e-8
+    "p": 4.642705394e-9
    },
    {
     "group1": "Day 1 (B)",
     "group2": "Day 4 (B)",
     "diff": -13,
-    "p": 3.495164925e-13
+    "p": 1.165054975e-13
    },
    {
     "group1": "Day 1 (B)",
     "group2": "Day 5 (B)",
     "diff": -17.33333333,
-    "p": 1.824831537e-16
+    "p": 6.082771789e-17
    },
    {
     "group1": "Day 2 (B)",
     "group2": "Day 3 (B)",
     "diff": -4.333333333,
-    "p": 0.00146846689
+    "p": 0.0004894889635
    },
    {
     "group1": "Day 2 (B)",
     "group2": "Day 4 (B)",
     "diff": -9,
-    "p": 2.524799349e-9
+    "p": 8.415997831e-10
    },
    {
     "group1": "Day 2 (B)",
     "group2": "Day 5 (B)",
     "diff": -13.33333333,
-    "p": 1.828707235e-13
+    "p": 6.095690783e-14
    },
    {
     "group1": "Day 3 (B)",
     "group2": "Day 4 (B)",
     "diff": -4.666666667,
-    "p": 0.0005304941832
+    "p": 0.0001768313944
    },
    {
     "group1": "Day 3 (B)",
     "group2": "Day 5 (B)",
     "diff": -9,
-    "p": 2.524799349e-9
+    "p": 8.415997831e-10
    },
    {
     "group1": "Day 4 (B)",
     "group2": "Day 5 (B)",
     "diff": -4.333333333,
-    "p": 0.00146846689
+    "p": 0.0004894889635
    },
    {
     "group1": "Day 1 (C)",
@@ -3038,19 +5268,19 @@
     "group1": "Day 1 (C)",
     "group2": "Day 3 (C)",
     "diff": -2,
-    "p": 1
+    "p": 0.3604532488
    },
    {
     "group1": "Day 1 (C)",
     "group2": "Day 4 (C)",
     "diff": -3,
-    "p": 0.07746058545
+    "p": 0.02582019515
    },
    {
     "group1": "Day 1 (C)",
     "group2": "Day 5 (C)",
     "diff": -3.666666667,
-    "p": 0.01104562416
+    "p": 0.00368187472
    },
    {
     "group1": "Day 2 (C)",
@@ -3062,13 +5292,13 @@
     "group1": "Day 2 (C)",
     "group2": "Day 4 (C)",
     "diff": -2,
-    "p": 1
+    "p": 0.5889078966
    },
    {
     "group1": "Day 2 (C)",
     "group2": "Day 5 (C)",
     "diff": -2.666666667,
-    "p": 0.4135882109
+    "p": 0.137862737
    },
    {
     "group1": "Day 3 (C)",
@@ -3080,7 +5310,7 @@
     "group1": "Day 3 (C)",
     "group2": "Day 5 (C)",
     "diff": -1.666666667,
-    "p": 1
+    "p": 0.7722972907
    },
    {
     "group1": "Day 4 (C)",
@@ -3089,7 +5319,7 @@
     "p": 1
    }
   ],
-  "comparisonsLabel": "Bonferroni-corrected multiple comparisons (row means within each group)"
+  "comparisonsLabel": "Bonferroni-corrected multiple comparisons (rows within each group, each group a family)"
  },
  "two-way-anova grouped {\"design\":\"repeated-measures\",\"posthoc\":\"tukey\",\"posthocTarget\":\"groups\"}": {
   "testType": "two-way-anova",
@@ -3161,100 +5391,544 @@
     "n": 10
    }
   ],
-  "notes": "Matched by row: each replicate column is treated as the same subject across every row within its group. 1 replicate column excluded (missing a value in at least one row).",
+  "notes": "Matched by row: each replicate column is treated as the same subject across every row within its group. Assumes sphericity (no Geisser-Greenhouse correction). 1 replicate column excluded (missing a value in at least one row).",
   "comparisons": [
    {
     "group1": "A (Day 1)",
     "group2": "B (Day 1)",
     "diff": -3,
-    "p": 0.6035755243
+    "p": 0.1379876594
    },
    {
     "group1": "A (Day 1)",
     "group2": "C (Day 1)",
     "diff": 1,
-    "p": 0.999507805
+    "p": 0.7737999395
    },
    {
     "group1": "B (Day 1)",
     "group2": "C (Day 1)",
     "diff": 4,
-    "p": 0.3265477552
+    "p": 0.08220062516
    },
    {
     "group1": "A (Day 2)",
     "group2": "B (Day 2)",
     "diff": -5,
-    "p": 0.1688159772
+    "p": 0.02537397426
    },
    {
     "group1": "A (Day 2)",
     "group2": "C (Day 2)",
     "diff": 2,
-    "p": 0.9518775821
+    "p": 0.4082627427
    },
    {
     "group1": "B (Day 2)",
     "group2": "C (Day 2)",
     "diff": 7,
-    "p": 0.07595356814
+    "p": 0.01026170575
    },
    {
     "group1": "A (Day 3)",
     "group2": "B (Day 3)",
     "diff": -7.333333333,
-    "p": 0.04066887211
+    "p": 0.005206244266
    },
    {
     "group1": "A (Day 3)",
     "group2": "C (Day 3)",
     "diff": 3,
-    "p": 0.6035755243
+    "p": 0.1842093695
    },
    {
     "group1": "B (Day 3)",
     "group2": "C (Day 3)",
     "diff": 10.33333333,
-    "p": 0.009242421358
+    "p": 0.001839901626
    },
    {
     "group1": "A (Day 4)",
     "group2": "B (Day 4)",
     "diff": -9,
-    "p": 0.01707567338
+    "p": 0.002078292219
    },
    {
     "group1": "A (Day 4)",
     "group2": "C (Day 4)",
-    "diff": 5,
-    "p": 0.1688159772
+    "diff": 5.5,
+    "p": 0.0270034571
    },
    {
     "group1": "B (Day 4)",
     "group2": "C (Day 4)",
-    "diff": 14,
-    "p": 0.002255607714
+    "diff": 14.5,
+    "p": 0.0003741971488
    },
    {
     "group1": "A (Day 5)",
     "group2": "B (Day 5)",
     "diff": -10.33333333,
-    "p": 0.009242421358
+    "p": 0.00109718618
    },
    {
     "group1": "A (Day 5)",
     "group2": "C (Day 5)",
-    "diff": 7.333333333,
-    "p": 0.04066887211
+    "diff": 7,
+    "p": 0.01026170575
    },
    {
     "group1": "B (Day 5)",
     "group2": "C (Day 5)",
-    "diff": 17.66666667,
-    "p": 0.0007639983393
+    "diff": 17.33333333,
+    "p": 0.0001577607759
    }
   ],
-  "comparisonsLabel": "Tukey's multiple comparisons (groups within each row)"
+  "comparisonsLabel": "Tukey's multiple comparisons (groups within each row, each row a family)"
+ },
+ "two-way-anova grouped {\"design\":\"repeated-measures\",\"posthoc\":\"tukey\",\"posthocTarget\":\"groups\",\"sphericity\":false}": {
+  "testType": "two-way-anova",
+  "subtitle": "Repeated-measures two-way ANOVA",
+  "stats": [
+   {
+    "label": "Group F",
+    "value": 152.3995232
+   },
+   {
+    "label": "Group DFn",
+    "value": 2
+   },
+   {
+    "label": "Group P value",
+    "value": 0.00003309213745,
+    "p": true
+   },
+   {
+    "label": "Row F",
+    "value": 146.8402778
+   },
+   {
+    "label": "Row DFn",
+    "value": 1.57891887
+   },
+   {
+    "label": "Row DFd",
+    "value": 7.894594351
+   },
+   {
+    "label": "Row P value",
+    "value": 8.8294201e-7,
+    "p": true
+   },
+   {
+    "label": "Interaction F",
+    "value": 16.90393519
+   },
+   {
+    "label": "Interaction DFn",
+    "value": 3.15783774
+   },
+   {
+    "label": "Interaction DFd",
+    "value": 7.894594351
+   },
+   {
+    "label": "Interaction P value",
+    "value": 0.0007963933421,
+    "p": true
+   },
+   {
+    "label": "Geisser-Greenhouse epsilon",
+    "value": 0.3947297175
+   }
+  ],
+  "groups": [
+   {
+    "name": "A",
+    "mean": 15.6,
+    "sd": 3.775863194,
+    "sem": 0.9749236844,
+    "median": 15,
+    "n": 15
+   },
+   {
+    "name": "B",
+    "mean": 22.53333333,
+    "sd": 6.479270976,
+    "sem": 1.672940572,
+    "median": 22,
+    "n": 15
+   },
+   {
+    "name": "C",
+    "mean": 11.9,
+    "sd": 1.728840331,
+    "sem": 0.5467073156,
+    "median": 12,
+    "n": 10
+   }
+  ],
+  "notes": "Matched by row: each replicate column is treated as the same subject across every row within its group. Sphericity not assumed: the Geisser-Greenhouse epsilon corrects the degrees of freedom of the row and interaction effects, and each comparison has its own error (rows within a group: a paired t test; groups within a row: that row's pooled SD). 1 replicate column excluded (missing a value in at least one row).",
+  "comparisons": [
+   {
+    "group1": "A (Day 1)",
+    "group2": "B (Day 1)",
+    "diff": -3,
+    "p": 0.04494520122
+   },
+   {
+    "group1": "A (Day 1)",
+    "group2": "C (Day 1)",
+    "diff": 1,
+    "p": 0.6082675617
+   },
+   {
+    "group1": "B (Day 1)",
+    "group2": "C (Day 1)",
+    "diff": 4,
+    "p": 0.023353916
+   },
+   {
+    "group1": "A (Day 2)",
+    "group2": "B (Day 2)",
+    "diff": -5,
+    "p": 0.005852814615
+   },
+   {
+    "group1": "A (Day 2)",
+    "group2": "C (Day 2)",
+    "diff": 2,
+    "p": 0.2072240323
+   },
+   {
+    "group1": "B (Day 2)",
+    "group2": "C (Day 2)",
+    "diff": 7,
+    "p": 0.002142767255
+   },
+   {
+    "group1": "A (Day 3)",
+    "group2": "B (Day 3)",
+    "diff": -7.333333333,
+    "p": 0.002409845659
+   },
+   {
+    "group1": "A (Day 3)",
+    "group2": "C (Day 3)",
+    "diff": 3,
+    "p": 0.1163822463
+   },
+   {
+    "group1": "B (Day 3)",
+    "group2": "C (Day 3)",
+    "diff": 10.33333333,
+    "p": 0.000825145046
+   },
+   {
+    "group1": "A (Day 4)",
+    "group2": "B (Day 4)",
+    "diff": -9,
+    "p": 0.000195311796
+   },
+   {
+    "group1": "A (Day 4)",
+    "group2": "C (Day 4)",
+    "diff": 5.5,
+    "p": 0.003329267506
+   },
+   {
+    "group1": "B (Day 4)",
+    "group2": "C (Day 4)",
+    "diff": 14.5,
+    "p": 0.00003235853513
+   },
+   {
+    "group1": "A (Day 5)",
+    "group2": "B (Day 5)",
+    "diff": -10.33333333,
+    "p": 0.0004863919521
+   },
+   {
+    "group1": "A (Day 5)",
+    "group2": "C (Day 5)",
+    "diff": 7,
+    "p": 0.00489043012
+   },
+   {
+    "group1": "B (Day 5)",
+    "group2": "C (Day 5)",
+    "diff": 17.33333333,
+    "p": 0.00006733676162
+   }
+  ],
+  "comparisonsLabel": "Tukey's multiple comparisons (groups within each row, each row a family)"
+ },
+ "two-way-anova grouped {\"design\":\"repeated-measures\",\"posthoc\":\"bonferroni\",\"posthocTarget\":\"rows\",\"sphericity\":false}": {
+  "testType": "two-way-anova",
+  "subtitle": "Repeated-measures two-way ANOVA",
+  "stats": [
+   {
+    "label": "Group F",
+    "value": 152.3995232
+   },
+   {
+    "label": "Group DFn",
+    "value": 2
+   },
+   {
+    "label": "Group P value",
+    "value": 0.00003309213745,
+    "p": true
+   },
+   {
+    "label": "Row F",
+    "value": 146.8402778
+   },
+   {
+    "label": "Row DFn",
+    "value": 1.57891887
+   },
+   {
+    "label": "Row DFd",
+    "value": 7.894594351
+   },
+   {
+    "label": "Row P value",
+    "value": 8.8294201e-7,
+    "p": true
+   },
+   {
+    "label": "Interaction F",
+    "value": 16.90393519
+   },
+   {
+    "label": "Interaction DFn",
+    "value": 3.15783774
+   },
+   {
+    "label": "Interaction DFd",
+    "value": 7.894594351
+   },
+   {
+    "label": "Interaction P value",
+    "value": 0.0007963933421,
+    "p": true
+   },
+   {
+    "label": "Geisser-Greenhouse epsilon",
+    "value": 0.3947297175
+   }
+  ],
+  "groups": [
+   {
+    "name": "A",
+    "mean": 15.6,
+    "sd": 3.775863194,
+    "sem": 0.9749236844,
+    "median": 15,
+    "n": 15
+   },
+   {
+    "name": "B",
+    "mean": 22.53333333,
+    "sd": 6.479270976,
+    "sem": 1.672940572,
+    "median": 22,
+    "n": 15
+   },
+   {
+    "name": "C",
+    "mean": 11.9,
+    "sd": 1.728840331,
+    "sem": 0.5467073156,
+    "median": 12,
+    "n": 10
+   }
+  ],
+  "notes": "Matched by row: each replicate column is treated as the same subject across every row within its group. Sphericity not assumed: the Geisser-Greenhouse epsilon corrects the degrees of freedom of the row and interaction effects, and each comparison has its own error (rows within a group: a paired t test; groups within a row: that row's pooled SD). 1 replicate column excluded (missing a value in at least one row).",
+  "comparisons": [
+   {
+    "group1": "Day 1 (A)",
+    "group2": "Day 2 (A)",
+    "diff": -2,
+    "p": 0
+   },
+   {
+    "group1": "Day 1 (A)",
+    "group2": "Day 3 (A)",
+    "diff": -4,
+    "p": 0.2020410289
+   },
+   {
+    "group1": "Day 1 (A)",
+    "group2": "Day 4 (A)",
+    "diff": -7,
+    "p": 0.1980394118
+   },
+   {
+    "group1": "Day 1 (A)",
+    "group2": "Day 5 (A)",
+    "diff": -10,
+    "p": 0
+   },
+   {
+    "group1": "Day 2 (A)",
+    "group2": "Day 3 (A)",
+    "diff": -2,
+    "p": 0.7417990023
+   },
+   {
+    "group1": "Day 2 (A)",
+    "group2": "Day 4 (A)",
+    "diff": -5,
+    "p": 0.3774955135
+   },
+   {
+    "group1": "Day 2 (A)",
+    "group2": "Day 5 (A)",
+    "diff": -8,
+    "p": 0
+   },
+   {
+    "group1": "Day 3 (A)",
+    "group2": "Day 4 (A)",
+    "diff": -3,
+    "p": 1
+   },
+   {
+    "group1": "Day 3 (A)",
+    "group2": "Day 5 (A)",
+    "diff": -6,
+    "p": 0.09132611386
+   },
+   {
+    "group1": "Day 4 (A)",
+    "group2": "Day 5 (A)",
+    "diff": -3,
+    "p": 0.9546596627
+   },
+   {
+    "group1": "Day 1 (B)",
+    "group2": "Day 2 (B)",
+    "diff": -4,
+    "p": 0
+   },
+   {
+    "group1": "Day 1 (B)",
+    "group2": "Day 3 (B)",
+    "diff": -8.333333333,
+    "p": 0.01596170211
+   },
+   {
+    "group1": "Day 1 (B)",
+    "group2": "Day 4 (B)",
+    "diff": -13,
+    "p": 0.07797389936
+   },
+   {
+    "group1": "Day 1 (B)",
+    "group2": "Day 5 (B)",
+    "diff": -17.33333333,
+    "p": 0.06953423775
+   },
+   {
+    "group1": "Day 2 (B)",
+    "group2": "Day 3 (B)",
+    "diff": -4.333333333,
+    "p": 0.05865153228
+   },
+   {
+    "group1": "Day 2 (B)",
+    "group2": "Day 4 (B)",
+    "diff": -9,
+    "p": 0.1606530194
+   },
+   {
+    "group1": "Day 2 (B)",
+    "group2": "Day 5 (B)",
+    "diff": -13.33333333,
+    "p": 0.1166757779
+   },
+   {
+    "group1": "Day 3 (B)",
+    "group2": "Day 4 (B)",
+    "diff": -4.666666667,
+    "p": 0.8479136936
+   },
+   {
+    "group1": "Day 3 (B)",
+    "group2": "Day 5 (B)",
+    "diff": -9,
+    "p": 0.3509871865
+   },
+   {
+    "group1": "Day 4 (B)",
+    "group2": "Day 5 (B)",
+    "diff": -4.333333333,
+    "p": 0.05865153228
+   },
+   {
+    "group1": "Day 1 (C)",
+    "group2": "Day 2 (C)",
+    "diff": -1,
+    "p": 0
+   },
+   {
+    "group1": "Day 1 (C)",
+    "group2": "Day 3 (C)",
+    "diff": -2,
+    "p": 0
+   },
+   {
+    "group1": "Day 1 (C)",
+    "group2": "Day 4 (C)",
+    "diff": -2.5,
+    "p": 1
+   },
+   {
+    "group1": "Day 1 (C)",
+    "group2": "Day 5 (C)",
+    "diff": -4,
+    "p": 0
+   },
+   {
+    "group1": "Day 2 (C)",
+    "group2": "Day 3 (C)",
+    "diff": -1,
+    "p": 0
+   },
+   {
+    "group1": "Day 2 (C)",
+    "group2": "Day 4 (C)",
+    "diff": -1.5,
+    "p": 1
+   },
+   {
+    "group1": "Day 2 (C)",
+    "group2": "Day 5 (C)",
+    "diff": -3,
+    "p": 0
+   },
+   {
+    "group1": "Day 3 (C)",
+    "group2": "Day 4 (C)",
+    "diff": -0.5,
+    "p": 1
+   },
+   {
+    "group1": "Day 3 (C)",
+    "group2": "Day 5 (C)",
+    "diff": -2,
+    "p": 0
+   },
+   {
+    "group1": "Day 4 (C)",
+    "group2": "Day 5 (C)",
+    "diff": -1.5,
+    "p": 1
+   }
+  ],
+  "comparisonsLabel": "Bonferroni-corrected multiple comparisons (rows within each group, each group a family)"
  },
  "two-way-anova grouped {\"design\":\"nonparametric\",\"posthoc\":\"none\",\"posthocTarget\":\"groups\"}": {
   "testType": "two-way-anova",
@@ -4037,6 +6711,156 @@
    }
   ]
  },
+ "descriptive-statistics multiple {}": {
+  "testType": "descriptive-statistics",
+  "stats": [],
+  "groups": [
+   {
+    "name": "Weight",
+    "mean": 76.3,
+    "sd": 12.00971829,
+    "sem": 3.797806384,
+    "median": 73.5,
+    "n": 10,
+    "ciLow": 67.70876508,
+    "ciHigh": 84.89123492,
+    "min": 58,
+    "max": 95,
+    "range": 37
+   },
+   {
+    "name": "Height",
+    "mean": 175.3333333,
+    "sd": 8.860022573,
+    "sem": 2.953340858,
+    "median": 175,
+    "n": 9,
+    "ciLow": 168.5229171,
+    "ciHigh": 182.1437496,
+    "min": 160,
+    "max": 188,
+    "range": 28
+   },
+   {
+    "name": "Age",
+    "mean": 39.9,
+    "sd": 9.837004964,
+    "sem": 3.110734104,
+    "median": 39.5,
+    "n": 10,
+    "ciLow": 32.86303056,
+    "ciHigh": 46.93696944,
+    "min": 25,
+    "max": 55,
+    "range": 30
+   },
+   {
+    "name": "Dose",
+    "mean": 1.9,
+    "sd": 0.8755950358,
+    "sem": 0.2768874621,
+    "median": 2,
+    "n": 10,
+    "ciLow": 1.273637044,
+    "ciHigh": 2.526362956,
+    "min": 1,
+    "max": 3,
+    "range": 2
+   }
+  ],
+  "notes": "Per-column summary. Range is Max − Min. 95% CI is the t-based confidence interval of the mean; columns with fewer than 2 values have no SD, SEM, or CI."
+ },
+ "outliers multiple {\"q\":1}": {
+  "testType": "outliers",
+  "subtitle": "ROUT method (Q = 1%)",
+  "stats": [
+   {
+    "label": "Total observations",
+    "value": 39
+   },
+   {
+    "label": "Groups analyzed",
+    "value": 4
+   },
+   {
+    "label": "Outliers detected",
+    "value": 0
+   },
+   {
+    "label": "Outlier percentage (%)",
+    "value": 0
+   },
+   {
+    "label": "Q parameter (%)",
+    "value": 1
+   }
+  ],
+  "groups": [
+   {
+    "name": "Weight",
+    "mean": 76.3,
+    "sd": 12.00971829,
+    "sem": 3.797806384,
+    "median": 73.5,
+    "n": 10
+   },
+   {
+    "name": "Height",
+    "mean": 175.3333333,
+    "sd": 8.860022573,
+    "sem": 2.953340858,
+    "median": 175,
+    "n": 9
+   },
+   {
+    "name": "Age",
+    "mean": 39.9,
+    "sd": 9.837004964,
+    "sem": 3.110734104,
+    "median": 39.5,
+    "n": 10
+   },
+   {
+    "name": "Dose",
+    "mean": 1.9,
+    "sd": 0.8755950358,
+    "sem": 0.2768874621,
+    "median": 2,
+    "n": 10
+   }
+  ],
+  "outlierGroups": [
+   {
+    "group": "Weight",
+    "points": 10,
+    "outliers": 0,
+    "percent": 0,
+    "robustMean": 76.25
+   },
+   {
+    "group": "Height",
+    "points": 9,
+    "outliers": 0,
+    "percent": 0,
+    "robustMean": 175.7142857
+   },
+   {
+    "group": "Age",
+    "points": 10,
+    "outliers": 0,
+    "percent": 0,
+    "robustMean": 39.88396972
+   },
+   {
+    "group": "Dose",
+    "points": 10,
+    "outliers": 0,
+    "percent": 0,
+    "robustMean": 1.9
+   }
+  ],
+  "notes": "No outliers detected at Q = 1%. Method: each column fit independently to a robust mean (Huber M-estimator, scale from the median absolute deviation), residuals tested via a two-tailed t distribution and FDR-corrected (Benjamini-Hochberg) within that column. This mirrors the published Motulsky & Brown (2006) ROUT algorithm's logic, not GraphPad's certified implementation."
+ },
  "chi-square contingency2 {}": {
   "testType": "chi-square",
   "subtitle": "Fisher's exact test",
@@ -4047,11 +6871,11 @@
     "p": true
    },
    {
-    "label": "Odds ratio",
+    "label": "Odds ratio (conditional estimate)",
     "value": 6.614723219
    },
    {
-    "label": "Chi-square (for reference)",
+    "label": "Chi-square (Yates' correction, for reference)",
     "value": 6.4160401
    },
    {
@@ -4060,7 +6884,7 @@
    }
   ],
   "groups": [],
-  "notes": "Contingency table 2×2, N = 40. Fisher's exact test (2×2). Odds ratio 95% CI: 1.457 to 35.74 for the table as entered (rows × columns)."
+  "notes": "Contingency table 2×2, N = 40. Fisher's exact test (2×2). Odds ratio 95% CI: 1.457 to 35.74 for the table as entered (rows × columns); it is the test's conditional estimate, close to but not a·d / b·c."
  },
  "chi-square contingency3 {}": {
   "testType": "chi-square",
@@ -4093,11 +6917,11 @@
     "p": true
    },
    {
-    "label": "Odds ratio",
+    "label": "Odds ratio (conditional estimate)",
     "value": 6.614723219
    },
    {
-    "label": "Chi-square (for reference)",
+    "label": "Chi-square (Yates' correction, for reference)",
     "value": 6.4160401
    },
    {
@@ -4106,7 +6930,924 @@
    }
   ],
   "groups": [],
-  "notes": "Contingency table 2×2, N = 40. Fisher's exact test (2×2). Odds ratio 95% CI: 1.457 to 35.74 for the table as entered (rows × columns)."
+  "notes": "Contingency table 2×2, N = 40. Fisher's exact test (2×2). Odds ratio 95% CI: 1.457 to 35.74 for the table as entered (rows × columns); it is the test's conditional estimate, close to but not a·d / b·c."
+ },
+ "survival freireich {\"curveTest\":\"logrank\",\"correction\":\"holm\"}": {
+  "testType": "survival",
+  "subtitle": "Log-rank (Mantel-Cox) test",
+  "stats": [
+   {
+    "label": "Chi-square",
+    "value": 16.79294099
+   },
+   {
+    "label": "df",
+    "value": 1
+   },
+   {
+    "label": "P value",
+    "value": 0.00004168809109,
+    "p": true
+   },
+   {
+    "label": "Hazard ratio (Mantel-Haenszel), 6-MP / Placebo",
+    "value": 0.1943187086
+   },
+   {
+    "label": "95% CI lower",
+    "value": 0.08876125526
+   },
+   {
+    "label": "95% CI upper",
+    "value": 0.4254081403
+   },
+   {
+    "label": "Hazard ratio (log-rank), 6-MP / Placebo",
+    "value": 0.2393147159
+   },
+   {
+    "label": "95% CI lower",
+    "value": 0.1134671769
+   },
+   {
+    "label": "95% CI upper",
+    "value": 0.5047409726
+   }
+  ],
+  "groups": [],
+  "survivalGroups": [
+   {
+    "group": "6-MP",
+    "subjects": 21,
+    "events": 9,
+    "median": 23,
+    "low": 13,
+    "high": null
+   },
+   {
+    "group": "Placebo",
+    "subjects": 21,
+    "events": 21,
+    "median": 8,
+    "low": 4,
+    "high": 11
+   }
+  ],
+  "comparisons": [],
+  "comparisonsLabel": "Pairwise comparisons (Log-rank (Mantel-Cox) test, Holm-corrected)",
+  "comparisonsEffect": "Hazard ratio",
+  "notes": "Kaplan-Meier curves (R's survival package). A median survival is the time the curve falls to 50%; its 95% interval (log-log) is open (—) where the band never reaches 50%. A hazard ratio above 1: the first group's events come sooner. "
+ },
+ "survival freireich {\"curveTest\":\"gehan\",\"correction\":\"holm\"}": {
+  "testType": "survival",
+  "subtitle": "Gehan-Breslow-Wilcoxon test",
+  "stats": [
+   {
+    "label": "Chi-square",
+    "value": 13.45785205
+   },
+   {
+    "label": "df",
+    "value": 1
+   },
+   {
+    "label": "P value",
+    "value": 0.0002439829219,
+    "p": true
+   },
+   {
+    "label": "Hazard ratio (Mantel-Haenszel), 6-MP / Placebo",
+    "value": 0.1943187086
+   },
+   {
+    "label": "95% CI lower",
+    "value": 0.08876125526
+   },
+   {
+    "label": "95% CI upper",
+    "value": 0.4254081403
+   },
+   {
+    "label": "Hazard ratio (log-rank), 6-MP / Placebo",
+    "value": 0.2393147159
+   },
+   {
+    "label": "95% CI lower",
+    "value": 0.1134671769
+   },
+   {
+    "label": "95% CI upper",
+    "value": 0.5047409726
+   }
+  ],
+  "groups": [],
+  "survivalGroups": [
+   {
+    "group": "6-MP",
+    "subjects": 21,
+    "events": 9,
+    "median": 23,
+    "low": 13,
+    "high": null
+   },
+   {
+    "group": "Placebo",
+    "subjects": 21,
+    "events": 21,
+    "median": 8,
+    "low": 4,
+    "high": 11
+   }
+  ],
+  "comparisons": [],
+  "comparisonsLabel": "Pairwise comparisons (Gehan-Breslow-Wilcoxon test, Holm-corrected)",
+  "comparisonsEffect": "Hazard ratio",
+  "notes": "Kaplan-Meier curves (R's survival package). A median survival is the time the curve falls to 50%; its 95% interval (log-log) is open (—) where the band never reaches 50%. A hazard ratio above 1: the first group's events come sooner. "
+ },
+ "survival survival3 {\"curveTest\":\"logrank\",\"correction\":\"holm\"}": {
+  "testType": "survival",
+  "subtitle": "Log-rank (Mantel-Cox) test",
+  "stats": [
+   {
+    "label": "Chi-square",
+    "value": 15.94825876
+   },
+   {
+    "label": "df",
+    "value": 2
+   },
+   {
+    "label": "P value",
+    "value": 0.00034425449,
+    "p": true
+   }
+  ],
+  "groups": [],
+  "survivalGroups": [
+   {
+    "group": "A",
+    "subjects": 8,
+    "events": 6,
+    "median": 20,
+    "low": 5,
+    "high": null
+   },
+   {
+    "group": "B",
+    "subjects": 8,
+    "events": 7,
+    "median": 8.5,
+    "low": 3,
+    "high": null
+   },
+   {
+    "group": "C",
+    "subjects": 8,
+    "events": 4,
+    "median": 50,
+    "low": 12,
+    "high": null
+   }
+  ],
+  "comparisons": [
+   {
+    "group1": "A",
+    "group2": "B",
+    "diff": 0.3418037381,
+    "p": 0.04820605934
+   },
+   {
+    "group1": "A",
+    "group2": "C",
+    "diff": 3.488123515,
+    "p": 0.04820605934
+   },
+   {
+    "group1": "B",
+    "group2": "C",
+    "diff": 5.654407252,
+    "p": 0.001644658501
+   }
+  ],
+  "comparisonsLabel": "Pairwise comparisons (Log-rank (Mantel-Cox) test, Holm-corrected)",
+  "comparisonsEffect": "Hazard ratio",
+  "notes": "Kaplan-Meier curves (R's survival package). A median survival is the time the curve falls to 50%; its 95% interval (log-log) is open (—) where the band never reaches 50%. A pairwise hazard ratio is the first group's to the second's (log-rank method)."
+ },
+ "survival survival3 {\"curveTest\":\"trend\",\"correction\":\"none\"}": {
+  "testType": "survival",
+  "subtitle": "Log-rank test for trend",
+  "stats": [
+   {
+    "label": "Chi-square",
+    "value": 3.666701563
+   },
+   {
+    "label": "df",
+    "value": 1
+   },
+   {
+    "label": "P value",
+    "value": 0.05550993572,
+    "p": true
+   }
+  ],
+  "groups": [],
+  "survivalGroups": [
+   {
+    "group": "A",
+    "subjects": 8,
+    "events": 6,
+    "median": 20,
+    "low": 5,
+    "high": null
+   },
+   {
+    "group": "B",
+    "subjects": 8,
+    "events": 7,
+    "median": 8.5,
+    "low": 3,
+    "high": null
+   },
+   {
+    "group": "C",
+    "subjects": 8,
+    "events": 4,
+    "median": 50,
+    "low": 12,
+    "high": null
+   }
+  ],
+  "comparisons": [
+   {
+    "group1": "A",
+    "group2": "B",
+    "diff": 0.3418037381,
+    "p": 0.02776928361
+   },
+   {
+    "group1": "A",
+    "group2": "C",
+    "diff": 3.488123515,
+    "p": 0.02410302967
+   },
+   {
+    "group1": "B",
+    "group2": "C",
+    "diff": 5.654407252,
+    "p": 0.0005482195003
+   }
+  ],
+  "comparisonsLabel": "Pairwise comparisons (Log-rank (Mantel-Cox) test, uncorrected)",
+  "comparisonsEffect": "Hazard ratio",
+  "notes": "Kaplan-Meier curves (R's survival package). A median survival is the time the curve falls to 50%; its 95% interval (log-log) is open (—) where the band never reaches 50%. The test for trend takes the groups in their table order as equally spaced. A pairwise hazard ratio is the first group's to the second's (log-rank method)."
+ },
+ "survival survival3 {\"curveTest\":\"gehan\",\"correction\":\"fdr\"}": {
+  "testType": "survival",
+  "subtitle": "Gehan-Breslow-Wilcoxon test",
+  "stats": [
+   {
+    "label": "Chi-square",
+    "value": 12.42188265
+   },
+   {
+    "label": "df",
+    "value": 2
+   },
+   {
+    "label": "P value",
+    "value": 0.002007347007,
+    "p": true
+   }
+  ],
+  "groups": [],
+  "survivalGroups": [
+   {
+    "group": "A",
+    "subjects": 8,
+    "events": 6,
+    "median": 20,
+    "low": 5,
+    "high": null
+   },
+   {
+    "group": "B",
+    "subjects": 8,
+    "events": 7,
+    "median": 8.5,
+    "low": 3,
+    "high": null
+   },
+   {
+    "group": "C",
+    "subjects": 8,
+    "events": 4,
+    "median": 50,
+    "low": 12,
+    "high": null
+   }
+  ],
+  "comparisons": [
+   {
+    "group1": "A",
+    "group2": "B",
+    "diff": 0.3418037381,
+    "p": 0.06381578755
+   },
+   {
+    "group1": "A",
+    "group2": "C",
+    "diff": 3.488123515,
+    "p": 0.06381578755
+   },
+   {
+    "group1": "B",
+    "group2": "C",
+    "diff": 5.654407252,
+    "p": 0.004565368524
+   }
+  ],
+  "comparisonsLabel": "Pairwise comparisons (Gehan-Breslow-Wilcoxon test, FDR-corrected (Benjamini-Hochberg))",
+  "comparisonsEffect": "Hazard ratio",
+  "notes": "Kaplan-Meier curves (R's survival package). A median survival is the time the curve falls to 50%; its 95% interval (log-log) is open (—) where the band never reaches 50%. A pairwise hazard ratio is the first group's to the second's (log-rank method)."
+ },
+ "cox freireich {\"reference\":\"6-MP\"}": {
+  "testType": "cox",
+  "subtitle": "Cox proportional hazards regression",
+  "stats": [
+   {
+    "label": "Likelihood ratio chi-square",
+    "value": 16.35169084
+   },
+   {
+    "label": "df",
+    "value": 1
+   },
+   {
+    "label": "P value (likelihood ratio test)",
+    "value": 0.00005260920533,
+    "p": true
+   },
+   {
+    "label": "Wald chi-square",
+    "value": 14.53
+   },
+   {
+    "label": "Wald test P",
+    "value": 0.000137753762,
+    "p": true
+   },
+   {
+    "label": "Score (log-rank) chi-square",
+    "value": 17.2465368
+   },
+   {
+    "label": "Score test P",
+    "value": 0.00003282954131,
+    "p": true
+   },
+   {
+    "label": "Concordance",
+    "value": 0.6900420757
+   },
+   {
+    "label": "Proportional hazards test P",
+    "value": 0.879812895,
+    "p": true
+   }
+  ],
+  "groups": [],
+  "hazardRatios": [
+   {
+    "comparison": "Placebo vs. 6-MP",
+    "ratio": 4.816873898,
+    "low": 2.146508213,
+    "high": 10.80931068,
+    "p": 0.000137753762
+   }
+  ],
+  "notes": "Each group's hazard ratio to 6-MP's (R's survival package, coxph; Efron's method for tied times; Wald 95% intervals). A ratio above 1: that group's events come sooner. A small proportional hazards P (cox.zph, scaled Schoenfeld residuals) warns that a ratio changes over time."
+ },
+ "cox survival3 {}": {
+  "testType": "cox",
+  "subtitle": "Cox proportional hazards regression",
+  "stats": [
+   {
+    "label": "Likelihood ratio chi-square",
+    "value": 14.85197365
+   },
+   {
+    "label": "df",
+    "value": 2
+   },
+   {
+    "label": "P value (likelihood ratio test)",
+    "value": 0.0005955728612,
+    "p": true
+   },
+   {
+    "label": "Wald chi-square",
+    "value": 11.24
+   },
+   {
+    "label": "Wald test P",
+    "value": 0.003617093016,
+    "p": true
+   },
+   {
+    "label": "Score (log-rank) chi-square",
+    "value": 15.72735692
+   },
+   {
+    "label": "Score test P",
+    "value": 0.0003844570573,
+    "p": true
+   },
+   {
+    "label": "Concordance",
+    "value": 0.7635135135
+   },
+   {
+    "label": "Proportional hazards test P",
+    "value": 0.8983539639,
+    "p": true
+   }
+  ],
+  "groups": [],
+  "hazardRatios": [
+   {
+    "comparison": "B vs. A",
+    "ratio": 3.99572831,
+    "low": 1.094594123,
+    "high": 14.58608666,
+    "p": 0.03601349909
+   },
+   {
+    "comparison": "C vs. A",
+    "ratio": 0.1800089185,
+    "low": 0.03521900615,
+    "high": 0.9200489814,
+    "p": 0.03939152146
+   }
+  ],
+  "notes": "Each group's hazard ratio to A's (R's survival package, coxph; Efron's method for tied times; Wald 95% intervals). A ratio above 1: that group's events come sooner. A small proportional hazards P (cox.zph, scaled Schoenfeld residuals) warns that a ratio changes over time."
+ },
+ "cox survival3 {\"reference\":\"C\"}": {
+  "testType": "cox",
+  "subtitle": "Cox proportional hazards regression",
+  "stats": [
+   {
+    "label": "Likelihood ratio chi-square",
+    "value": 14.85197365
+   },
+   {
+    "label": "df",
+    "value": 2
+   },
+   {
+    "label": "P value (likelihood ratio test)",
+    "value": 0.0005955728612,
+    "p": true
+   },
+   {
+    "label": "Wald chi-square",
+    "value": 11.24
+   },
+   {
+    "label": "Wald test P",
+    "value": 0.003617093016,
+    "p": true
+   },
+   {
+    "label": "Score (log-rank) chi-square",
+    "value": 15.72735692
+   },
+   {
+    "label": "Score test P",
+    "value": 0.0003844570573,
+    "p": true
+   },
+   {
+    "label": "Concordance",
+    "value": 0.7635135135
+   },
+   {
+    "label": "Proportional hazards test P",
+    "value": 0.8983539639,
+    "p": true
+   }
+  ],
+  "groups": [],
+  "hazardRatios": [
+   {
+    "comparison": "A vs. C",
+    "ratio": 5.555280308,
+    "low": 1.086898655,
+    "high": 28.39375977,
+    "p": 0.03939152146
+   },
+   {
+    "comparison": "B vs. C",
+    "ratio": 22.1973908,
+    "low": 3.55027321,
+    "high": 138.7848565,
+    "p": 0.0009171308544
+   }
+  ],
+  "notes": "Each group's hazard ratio to C's (R's survival package, coxph; Efron's method for tied times; Wald 95% intervals). A ratio above 1: that group's events come sooner. A small proportional hazards P (cox.zph, scaled Schoenfeld residuals) warns that a ratio changes over time."
+ },
+ "two-way-anova groupedBlankRow {\"design\":\"repeated-measures\",\"posthoc\":\"none\",\"posthocTarget\":\"groups\"}": {
+  "testType": "two-way-anova",
+  "subtitle": "Repeated-measures two-way ANOVA",
+  "stats": [
+   {
+    "label": "Group F",
+    "value": 152.3995232
+   },
+   {
+    "label": "Group DFn",
+    "value": 2
+   },
+   {
+    "label": "Group P value",
+    "value": 0.00003309213745,
+    "p": true
+   },
+   {
+    "label": "Row F",
+    "value": 146.8402778
+   },
+   {
+    "label": "Row DFn",
+    "value": 4
+   },
+   {
+    "label": "Row P value",
+    "value": 1.599643946e-14,
+    "p": true
+   },
+   {
+    "label": "Interaction F",
+    "value": 16.90393519
+   },
+   {
+    "label": "Interaction DFn",
+    "value": 8
+   },
+   {
+    "label": "Interaction P value",
+    "value": 2.48173096e-7,
+    "p": true
+   }
+  ],
+  "groups": [
+   {
+    "name": "A",
+    "mean": 15.6,
+    "sd": 3.775863194,
+    "sem": 0.9749236844,
+    "median": 15,
+    "n": 15
+   },
+   {
+    "name": "B",
+    "mean": 22.53333333,
+    "sd": 6.479270976,
+    "sem": 1.672940572,
+    "median": 22,
+    "n": 15
+   },
+   {
+    "name": "C",
+    "mean": 11.9,
+    "sd": 1.728840331,
+    "sem": 0.5467073156,
+    "median": 12,
+    "n": 10
+   }
+  ],
+  "notes": "Matched by row: each replicate column is treated as the same subject across every row within its group. Assumes sphericity (no Geisser-Greenhouse correction). 1 replicate column excluded (missing a value in at least one row)."
+ },
+ "two-way-anova noReplicates {\"design\":\"ordinary\",\"posthoc\":\"tukey\",\"posthocTarget\":\"groups\"}": {
+  "testType": "two-way-anova",
+  "subtitle": "Ordinary two-way ANOVA",
+  "stats": [
+   {
+    "label": "Group F",
+    "value": 2.285714286
+   },
+   {
+    "label": "Group DFn",
+    "value": 1
+   },
+   {
+    "label": "Group P value",
+    "value": 0.2697032567,
+    "p": true
+   },
+   {
+    "label": "Row F",
+    "value": 3
+   },
+   {
+    "label": "Row DFn",
+    "value": 2
+   },
+   {
+    "label": "Row P value",
+    "value": 0.25,
+    "p": true
+   },
+   {
+    "label": "DFd (residual)",
+    "value": 2
+   }
+  ],
+  "groups": [
+   {
+    "name": "A",
+    "mean": 2.333333333,
+    "sd": 1.527525232,
+    "sem": 0.8819171037,
+    "median": 2,
+    "n": 3
+   },
+   {
+    "name": "B",
+    "mean": 3.666666667,
+    "sd": 1.527525232,
+    "sem": 0.8819171037,
+    "median": 4,
+    "n": 3
+   }
+  ],
+  "notes": "One value per cell (no replicates): the interaction can't be told apart from random scatter, so the model assumes there is none and tests the group and row effects only; if there is an interaction, their P values mean little. Comparisons within rows or groups need replicates. Assumes normal distributions with equal variances."
+ },
+ "two-way-anova noReplicates {\"design\":\"repeated-measures\",\"posthoc\":\"none\",\"posthocTarget\":\"groups\"}": {
+  "error": "With one value per cell (no replicates), only the ordinary two-way ANOVA can run."
+ },
+ "nonlinear-regression inhibition {\"model\":\"sigmoidal-4pl-logx\"}": {
+  "testType": "nonlinear-regression",
+  "subtitle": "Sigmoidal, 4PL, X is log(concentration)",
+  "stats": [],
+  "fit": {
+   "sets": [
+    "Y"
+   ],
+   "rows": [
+    {
+     "label": "EC50",
+     "values": [
+      8.956894083e-8
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       8.077274996e-8,
+       9.932304107e-8
+      ]
+     ]
+    },
+    {
+     "label": "Span",
+     "values": [
+      99.96836663
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       96.30015063,
+       103.6365826
+      ]
+     ]
+    },
+    {
+     "label": "R squared",
+     "values": [
+      0.999679414
+     ]
+    },
+    {
+     "label": "Sy.x",
+     "values": [
+      0.9215109223
+     ]
+    },
+    {
+     "label": "Sum of squares",
+     "values": [
+      4.2459119
+     ]
+    },
+    {
+     "label": "Degrees of freedom",
+     "values": [
+      5
+     ]
+    },
+    {
+     "label": "N",
+     "values": [
+      9
+     ]
+    }
+   ]
+  },
+  "groups": [
+   {
+    "name": "X",
+    "mean": -7,
+    "sd": 1.369306394,
+    "sem": 0.4564354646,
+    "median": -7,
+    "n": 9
+   },
+   {
+    "name": "Y",
+    "mean": 49.55555556,
+    "sd": 40.68817737,
+    "sem": 13.56272579,
+    "median": 48,
+    "n": 9
+   }
+  ],
+  "notes": "Least-squares fit (\"Sigmoidal, 4PL, X is log(concentration)\") of “Y” on “X”. 95% CIs are asymptotic (from each parameter's standard error).",
+  "coefficients": [
+   {
+    "term": "Bottom",
+    "estimate": 0.6174745088,
+    "stdError": 0.8406506469,
+    "t": 0.7345197569,
+    "p": 0.4956133705,
+    "low": -1.543486774,
+    "high": 2.778435792
+   },
+   {
+    "term": "Top",
+    "estimate": 100.5858411,
+    "stdError": 0.8905026819,
+    "t": 112.9540014,
+    "p": 1.031409488e-9,
+    "low": 98.29673112,
+    "high": 102.8749512
+   },
+   {
+    "term": "LogEC50",
+    "estimate": -7.047842561,
+    "stdError": 0.01746397218,
+    "t": -403.5646924,
+    "p": 1.773003022e-12,
+    "low": -7.092735131,
+    "high": -7.002949992
+   },
+   {
+    "term": "Hill slope",
+    "estimate": -0.9250056692,
+    "stdError": 0.03394849857,
+    "t": -27.24732192,
+    "p": 0.000001245768981,
+    "low": -1.012273063,
+    "high": -0.8377382754
+   }
+  ]
+ },
+ "shapiro-wilk sparse {}": {
+  "testType": "shapiro-wilk",
+  "stats": [
+   {
+    "label": "A — W",
+    "value": 0.9713736655
+   },
+   {
+    "label": "A — P value",
+    "value": 0.8499708188
+   },
+   {
+    "label": "B — W",
+    "value": null
+   },
+   {
+    "label": "B — P value",
+    "value": null
+   },
+   {
+    "label": "C — W",
+    "value": null
+   },
+   {
+    "label": "C — P value",
+    "value": null
+   }
+  ],
+  "groups": [
+   {
+    "name": "A",
+    "mean": 1.75,
+    "sd": 1.707825128,
+    "sem": 0.8539125638,
+    "median": 1.5,
+    "n": 4
+   },
+   {
+    "name": "B",
+    "mean": 3,
+    "sd": null,
+    "sem": null,
+    "median": 3,
+    "n": 1
+   },
+   {
+    "name": "C",
+    "mean": 5,
+    "sd": 0,
+    "sem": 0,
+    "median": 5,
+    "n": 4
+   }
+  ],
+  "notes": "Per-column normality. P > 0.05: data are consistent with a normal distribution. P < 0.05: significant departure from normality. Not tested (the test needs 3 to 5000 values that aren't all identical): “B”, “C”."
+ },
+ "friedman sparse {\"posthoc\":\"none\"}": {
+  "error": "This test needs at least 2 rows holding a value in every group; the table has 1."
+ },
+ "rm-anova sparse {\"posthoc\":\"none\"}": {
+  "error": "This test needs at least 2 rows holding a value in every group; the table has 1."
+ },
+ "compare-two-groups sparse {\"paired\":true,\"gaussian\":true,\"equalVariance\":true,\"ratio\":false,\"tails\":\"two-sided\"}": {
+  "error": "This test needs at least 2 rows holding a value in every group; the table has 1."
+ },
+ "compare-two-groups sparse {\"paired\":true,\"gaussian\":true,\"equalVariance\":true,\"ratio\":true,\"tails\":\"two-sided\",\"sets\":[\"A\",\"C\"]}": {
+  "error": "The ratio t test needs values above 0; “A” holds 0."
+ },
+ "compare-two-groups sparse {\"paired\":false,\"gaussian\":true,\"equalVariance\":true,\"ratio\":false,\"tails\":\"two-sided\",\"sets\":[\"B\",\"C\"]}": {
+  "error": "“B” holds 1 value; this test needs at least 2 in each group."
+ },
+ "chi-square decimalCounts {}": {
+  "error": "Counts must be whole numbers; the table holds 3.6."
+ },
+ "cox noEvent {}": {
+  "testType": "cox",
+  "subtitle": "Cox proportional hazards regression",
+  "stats": [
+   {
+    "label": "Likelihood ratio chi-square",
+    "value": 3.218875822
+   },
+   {
+    "label": "df",
+    "value": 1
+   },
+   {
+    "label": "P value (likelihood ratio test)",
+    "value": 0.07279360617,
+    "p": true
+   },
+   {
+    "label": "Wald chi-square",
+    "value": 0
+   },
+   {
+    "label": "Wald test P",
+    "value": 0.9994049611,
+    "p": true
+   },
+   {
+    "label": "Score (log-rank) chi-square",
+    "value": 2.469387755
+   },
+   {
+    "label": "Score test P",
+    "value": 0.1160831337,
+    "p": true
+   },
+   {
+    "label": "Concordance",
+    "value": 0.8333333333
+   },
+   {
+    "label": "Proportional hazards test P",
+    "value": 0.9999943374,
+    "p": true
+   }
+  ],
+  "groups": [],
+  "hazardRatios": [
+   {
+    "comparison": "B vs. A",
+    "ratio": 4.835255817e-10,
+    "low": 0,
+    "high": null,
+    "p": 0.9994049611
+   }
+  ],
+  "notes": "Each group's hazard ratio to A's (R's survival package, coxph; Efron's method for tied times; Wald 95% intervals). A ratio above 1: that group's events come sooner. A small proportional hazards P (cox.zph, scaled Schoenfeld residuals) warns that a ratio changes over time. Warning: the model did not converge (a group without an event, or with only events, has no finite hazard ratio): its ratios, intervals and Wald test can't be relied on."
+ },
+ "cox survival3 {\"reference\":\"Gone\"}": {
+  "error": "The column “Gone” is no longer in the table. Create this analysis again to choose another."
  },
  "linear-regression xyNoX {\"forceOrigin\":false}": {
   "error": "“X”, the X column, is empty. Type the X values (times, doses…) in it."
@@ -4274,6 +8015,7 @@
  },
  "anova column {\"posthoc\":\"tukey\",\"sets\":[\"Control\",\"Low\",\"High\"]}": {
   "testType": "anova",
+  "subtitle": "One-way ANOVA",
   "stats": [
    {
     "label": "F",
@@ -4418,34 +8160,34 @@
     "group1": "A (Day 1)",
     "group2": "C (Day 1)",
     "diff": 1,
-    "p": 0.9679567584
+    "p": 0.2547753405
    },
    {
     "group1": "A (Day 2)",
     "group2": "C (Day 2)",
     "diff": 2,
-    "p": 0.5476708989
+    "p": 0.04924693907
    },
    {
     "group1": "A (Day 3)",
     "group2": "C (Day 3)",
     "diff": 3,
-    "p": 0.05402630731
+    "p": 0.002273665459
    },
    {
     "group1": "A (Day 4)",
     "group2": "C (Day 4)",
     "diff": 5,
-    "p": 0.000395105095
+    "p": 0.00001180448721
    },
    {
     "group1": "A (Day 5)",
     "group2": "C (Day 5)",
     "diff": 7.333333333,
-    "p": 0.000002040964307
+    "p": 5.516292012e-8
    }
   ],
-  "comparisonsLabel": "Tukey's multiple comparisons (groups within each row)"
+  "comparisonsLabel": "Tukey's multiple comparisons (groups within each row, each row a family)"
  },
  "multiple-t-tests grouped {\"paired\":false,\"gaussian\":true,\"pooledSd\":false,\"correction\":\"holm\",\"sets\":[\"C\",\"A\"]}": {
   "testType": "multiple-t-tests",
@@ -6461,169 +10203,12 @@
    }
   }
  },
- "graph dose-response doseLog": {
-  "data": [
-   {
-    "type": "scatter",
-    "mode": "markers",
-    "name": "Response",
-    "x": [
-     -3,
-     -2.5,
-     -2,
-     -1.5,
-     -1,
-     -0.5,
-     0,
-     0.5,
-     1,
-     1.5
-    ],
-    "y": [
-     2.1,
-     3.4,
-     8.2,
-     19.5,
-     41.2,
-     68.9,
-     86.1,
-     94.2,
-     97.8,
-     99.1
-    ],
-    "customdata": [
-     "Response#0",
-     "Response#1",
-     "Response#2",
-     "Response#3",
-     "Response#4",
-     "Response#5",
-     "Response#6",
-     "Response#7",
-     "Response#8",
-     "Response#9"
-    ],
-    "marker": {
-     "color": [
-      "rgba(0,0,0,1)",
-      "rgba(0,0,0,1)",
-      "rgba(0,0,0,1)",
-      "rgba(0,0,0,1)",
-      "rgba(0,0,0,1)",
-      "rgba(0,0,0,1)",
-      "rgba(0,0,0,1)",
-      "rgba(0,0,0,1)",
-      "rgba(0,0,0,1)",
-      "rgba(0,0,0,1)"
-     ],
-     "size": [
-      7,
-      7,
-      7,
-      7,
-      7,
-      7,
-      7,
-      7,
-      7,
-      7
-     ],
-     "symbol": [
-      "circle",
-      "circle",
-      "circle",
-      "circle",
-      "circle",
-      "circle",
-      "circle",
-      "circle",
-      "circle",
-      "circle"
-     ],
-     "line": {
-      "color": [
-       "#000000",
-       "#000000",
-       "#000000",
-       "#000000",
-       "#000000",
-       "#000000",
-       "#000000",
-       "#000000",
-       "#000000",
-       "#000000"
-      ],
-      "width": [
-       1.5,
-       1.5,
-       1.5,
-       1.5,
-       1.5,
-       1.5,
-       1.5,
-       1.5,
-       1.5,
-       1.5
-      ]
-     }
-    },
-    "hoverinfo": "x+y"
-   }
-  ],
-  "layout": {
-   "paper_bgcolor": "#ffffff",
-   "plot_bgcolor": "#ffffff",
-   "dragmode": false,
-   "font": {
-    "color": "#111827",
-    "family": "system-ui, -apple-system, sans-serif",
-    "size": 13
-   },
-   "margin": {
-    "l": 16,
-    "r": 16,
-    "t": 16,
-    "b": 16
-   },
-   "showlegend": false,
-   "legend": {
-    "x": 1.02,
-    "y": 1,
-    "xanchor": "left"
-   },
-   "xaxis": {
-    "type": "linear",
-    "showgrid": false,
-    "zeroline": false,
-    "linecolor": "#111827",
-    "linewidth": 1,
-    "ticks": "outside",
-    "tickwidth": 1,
-    "fixedrange": true,
-    "automargin": true,
-    "title": {
-     "text": "X",
-     "standoff": 12
-    }
-   },
-   "yaxis": {
-    "showgrid": false,
-    "zeroline": false,
-    "linecolor": "#111827",
-    "linewidth": 1,
-    "ticks": "outside",
-    "tickwidth": 1,
-    "fixedrange": true,
-    "automargin": true
-   }
-  }
- },
  "graph survival survival": {
   "data": [
    {
     "type": "scatter",
     "mode": "lines",
-    "name": "Treated",
+    "legendgroup": "Treated",
     "x": [
      0,
      3,
@@ -6639,17 +10224,20 @@
      26.66666667
     ],
     "line": {
+     "shape": "hv",
      "color": "#000000",
      "width": 2,
-     "dash": "solid",
-     "shape": "hv"
+     "dash": "solid"
     },
-    "hoverinfo": "x+y"
+    "hoverinfo": "x+y",
+    "showlegend": true,
+    "name": "Treated"
    },
    {
     "type": "scatter",
     "mode": "markers",
     "name": "Treated",
+    "legendgroup": "Treated",
     "x": [
      7,
      20
@@ -6672,7 +10260,7 @@
    {
     "type": "scatter",
     "mode": "lines",
-    "name": "Placebo",
+    "legendgroup": "Placebo",
     "x": [
      0,
      5,
@@ -6688,17 +10276,20 @@
      0
     ],
     "line": {
+     "shape": "hv",
      "color": "#E69F00",
      "width": 2,
-     "dash": "solid",
-     "shape": "hv"
+     "dash": "solid"
     },
-    "hoverinfo": "x+y"
+    "hoverinfo": "x+y",
+    "showlegend": true,
+    "name": "Placebo"
    },
    {
     "type": "scatter",
     "mode": "markers",
     "name": "Placebo",
+    "legendgroup": "Placebo",
     "x": [
      12
     ],
@@ -6736,7 +10327,8 @@
    "legend": {
     "x": 1.02,
     "y": 1,
-    "xanchor": "left"
+    "xanchor": "left",
+    "traceorder": "normal"
    },
    "xaxis": {
     "type": "linear",
@@ -6750,6 +10342,337 @@
     "automargin": true,
     "title": {
      "text": "Days",
+     "standoff": 12
+    }
+   },
+   "yaxis": {
+    "showgrid": false,
+    "zeroline": false,
+    "linecolor": "#111827",
+    "linewidth": 1,
+    "ticks": "outside",
+    "tickwidth": 1,
+    "fixedrange": true,
+    "automargin": true,
+    "rangemode": "tozero",
+    "title": {
+     "text": "Percent survival",
+     "standoff": 2
+    }
+   }
+  }
+ },
+ "graph survival freireich": {
+  "data": [
+   {
+    "type": "scatter",
+    "mode": "lines",
+    "legendgroup": "6-MP",
+    "x": [
+     0,
+     6,
+     7,
+     10,
+     13,
+     16,
+     22,
+     23,
+     35
+    ],
+    "y": [
+     100,
+     61.97179553,
+     56.31465646,
+     50.31995108,
+     43.16102225,
+     36.7510856,
+     26.77789368,
+     18.8052006,
+     18.8052006
+    ],
+    "line": {
+     "shape": "hv",
+     "width": 0
+    },
+    "hoverinfo": "skip",
+    "showlegend": false
+   },
+   {
+    "type": "scatter",
+    "mode": "lines",
+    "legendgroup": "6-MP",
+    "x": [
+     0,
+     6,
+     7,
+     10,
+     13,
+     16,
+     22,
+     23,
+     35
+    ],
+    "y": [
+     100,
+     95.15517476,
+     92.28090192,
+     88.93618352,
+     84.90659633,
+     80.49121895,
+     74.67907176,
+     68.01426285,
+     68.01426285
+    ],
+    "line": {
+     "shape": "hv",
+     "width": 0
+    },
+    "hoverinfo": "skip",
+    "showlegend": false,
+    "fill": "tonexty",
+    "fillcolor": "rgba(0,0,0,0.2)"
+   },
+   {
+    "type": "scatter",
+    "mode": "lines",
+    "legendgroup": "6-MP",
+    "x": [
+     0,
+     6,
+     7,
+     10,
+     13,
+     16,
+     22,
+     23,
+     35
+    ],
+    "y": [
+     100,
+     85.71428571,
+     80.67226891,
+     75.29411765,
+     69.01960784,
+     62.74509804,
+     53.78151261,
+     44.81792717,
+     44.81792717
+    ],
+    "line": {
+     "shape": "hv",
+     "color": "#000000",
+     "width": 2,
+     "dash": "solid"
+    },
+    "hoverinfo": "x+y",
+    "showlegend": true,
+    "name": "6-MP"
+   },
+   {
+    "type": "scatter",
+    "mode": "markers",
+    "name": "6-MP",
+    "legendgroup": "6-MP",
+    "x": [
+     6,
+     9,
+     10,
+     11,
+     17,
+     19,
+     20,
+     25,
+     32,
+     34,
+     35
+    ],
+    "y": [
+     85.71428571,
+     80.67226891,
+     75.29411765,
+     75.29411765,
+     62.74509804,
+     62.74509804,
+     62.74509804,
+     44.81792717,
+     44.81792717,
+     44.81792717,
+     44.81792717
+    ],
+    "marker": {
+     "color": "#000000",
+     "size": 9,
+     "symbol": "line-ns-open",
+     "line": {
+      "width": 1.5
+     }
+    },
+    "showlegend": false,
+    "hoverinfo": "skip"
+   },
+   {
+    "type": "scatter",
+    "mode": "lines",
+    "legendgroup": "Placebo",
+    "x": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     8,
+     11,
+     12,
+     15,
+     17,
+     22,
+     23
+    ],
+    "y": [
+     100,
+     67.00458822,
+     56.89050599,
+     51.93914153,
+     42.53504356,
+     33.79769539,
+     18.30665488,
+     11.65613264,
+     5.948170136,
+     3.565735519,
+     1.625926021,
+     0.3324463043,
+     0
+    ],
+    "line": {
+     "shape": "hv",
+     "width": 0
+    },
+    "hoverinfo": "skip",
+    "showlegend": false
+   },
+   {
+    "type": "scatter",
+    "mode": "lines",
+    "legendgroup": "Placebo",
+    "x": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     8,
+     11,
+     12,
+     15,
+     17,
+     22,
+     23
+    ],
+    "y": [
+     100,
+     97.5294149,
+     92.38888286,
+     89.32571098,
+     82.50440088,
+     74.92407099,
+     57.77886777,
+     48.1819648,
+     37.74348906,
+     32.11615747,
+     26.1249982,
+     19.70449057,
+     0
+    ],
+    "line": {
+     "shape": "hv",
+     "width": 0
+    },
+    "hoverinfo": "skip",
+    "showlegend": false,
+    "fill": "tonexty",
+    "fillcolor": "rgba(230,159,0,0.2)"
+   },
+   {
+    "type": "scatter",
+    "mode": "lines",
+    "legendgroup": "Placebo",
+    "x": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     8,
+     11,
+     12,
+     15,
+     17,
+     22,
+     23
+    ],
+    "y": [
+     100,
+     90.47619048,
+     80.95238095,
+     76.19047619,
+     66.66666667,
+     57.14285714,
+     38.0952381,
+     28.57142857,
+     19.04761905,
+     14.28571429,
+     9.523809524,
+     4.761904762,
+     0
+    ],
+    "line": {
+     "shape": "hv",
+     "color": "#E69F00",
+     "width": 2,
+     "dash": "solid"
+    },
+    "hoverinfo": "x+y",
+    "showlegend": true,
+    "name": "Placebo"
+   }
+  ],
+  "layout": {
+   "paper_bgcolor": "#ffffff",
+   "plot_bgcolor": "#ffffff",
+   "dragmode": false,
+   "font": {
+    "color": "#111827",
+    "family": "system-ui, -apple-system, sans-serif",
+    "size": 13
+   },
+   "margin": {
+    "l": 16,
+    "r": 16,
+    "t": 16,
+    "b": 16
+   },
+   "showlegend": true,
+   "legend": {
+    "x": 1.02,
+    "y": 1,
+    "xanchor": "left",
+    "traceorder": "normal"
+   },
+   "xaxis": {
+    "type": "linear",
+    "showgrid": false,
+    "zeroline": false,
+    "linecolor": "#111827",
+    "linewidth": 1,
+    "ticks": "outside",
+    "tickwidth": 1,
+    "fixedrange": true,
+    "automargin": true,
+    "title": {
+     "text": "Weeks",
      "standoff": 12
     }
    },
@@ -8221,6 +12144,2009 @@
    "bargroupgap": 0.1
   }
  },
+ "graph heatmap grouped": {
+  "data": [
+   {
+    "type": "heatmap",
+    "x": [
+     "A",
+     "B",
+     "C"
+    ],
+    "y": [
+     "Day 1",
+     "Day 2",
+     "Day 3",
+     "Day 4",
+     "Day 5"
+    ],
+    "z": [
+     [
+      11,
+      14,
+      10
+     ],
+     [
+      13,
+      18,
+      11
+     ],
+     [
+      15,
+      22,
+      12
+     ],
+     [
+      18,
+      27,
+      13
+     ],
+     [
+      21,
+      31,
+      13
+     ]
+    ],
+    "colorscale": [
+     [
+      0,
+      "#440154"
+     ],
+     [
+      0.003921568627,
+      "#440256"
+     ],
+     [
+      0.007843137255,
+      "#450457"
+     ],
+     [
+      0.01176470588,
+      "#450559"
+     ],
+     [
+      0.01568627451,
+      "#46075A"
+     ],
+     [
+      0.01960784314,
+      "#46085C"
+     ],
+     [
+      0.02352941176,
+      "#460A5D"
+     ],
+     [
+      0.02745098039,
+      "#460B5E"
+     ],
+     [
+      0.03137254902,
+      "#470D60"
+     ],
+     [
+      0.03529411765,
+      "#470E61"
+     ],
+     [
+      0.03921568627,
+      "#471063"
+     ],
+     [
+      0.0431372549,
+      "#471164"
+     ],
+     [
+      0.04705882353,
+      "#471365"
+     ],
+     [
+      0.05098039216,
+      "#481467"
+     ],
+     [
+      0.05490196078,
+      "#481668"
+     ],
+     [
+      0.05882352941,
+      "#481769"
+     ],
+     [
+      0.06274509804,
+      "#48186A"
+     ],
+     [
+      0.06666666667,
+      "#481A6C"
+     ],
+     [
+      0.07058823529,
+      "#481B6D"
+     ],
+     [
+      0.07450980392,
+      "#481C6E"
+     ],
+     [
+      0.07843137255,
+      "#481D6F"
+     ],
+     [
+      0.08235294118,
+      "#481F70"
+     ],
+     [
+      0.0862745098,
+      "#482071"
+     ],
+     [
+      0.09019607843,
+      "#482173"
+     ],
+     [
+      0.09411764706,
+      "#482374"
+     ],
+     [
+      0.09803921569,
+      "#482475"
+     ],
+     [
+      0.1019607843,
+      "#482576"
+     ],
+     [
+      0.1058823529,
+      "#482677"
+     ],
+     [
+      0.1098039216,
+      "#482878"
+     ],
+     [
+      0.1137254902,
+      "#482979"
+     ],
+     [
+      0.1176470588,
+      "#472A7A"
+     ],
+     [
+      0.1215686275,
+      "#472C7A"
+     ],
+     [
+      0.1254901961,
+      "#472D7B"
+     ],
+     [
+      0.1294117647,
+      "#472E7C"
+     ],
+     [
+      0.1333333333,
+      "#472F7D"
+     ],
+     [
+      0.137254902,
+      "#46307E"
+     ],
+     [
+      0.1411764706,
+      "#46327E"
+     ],
+     [
+      0.1450980392,
+      "#46337F"
+     ],
+     [
+      0.1490196078,
+      "#463480"
+     ],
+     [
+      0.1529411765,
+      "#453581"
+     ],
+     [
+      0.1568627451,
+      "#453781"
+     ],
+     [
+      0.1607843137,
+      "#453882"
+     ],
+     [
+      0.1647058824,
+      "#443983"
+     ],
+     [
+      0.168627451,
+      "#443A83"
+     ],
+     [
+      0.1725490196,
+      "#443B84"
+     ],
+     [
+      0.1764705882,
+      "#433D84"
+     ],
+     [
+      0.1803921569,
+      "#433E85"
+     ],
+     [
+      0.1843137255,
+      "#423F85"
+     ],
+     [
+      0.1882352941,
+      "#424086"
+     ],
+     [
+      0.1921568627,
+      "#424186"
+     ],
+     [
+      0.1960784314,
+      "#414287"
+     ],
+     [
+      0.2,
+      "#414487"
+     ],
+     [
+      0.2039215686,
+      "#404588"
+     ],
+     [
+      0.2078431373,
+      "#404688"
+     ],
+     [
+      0.2117647059,
+      "#3F4788"
+     ],
+     [
+      0.2156862745,
+      "#3F4889"
+     ],
+     [
+      0.2196078431,
+      "#3E4989"
+     ],
+     [
+      0.2235294118,
+      "#3E4A89"
+     ],
+     [
+      0.2274509804,
+      "#3E4C8A"
+     ],
+     [
+      0.231372549,
+      "#3D4D8A"
+     ],
+     [
+      0.2352941176,
+      "#3D4E8A"
+     ],
+     [
+      0.2392156863,
+      "#3C4F8A"
+     ],
+     [
+      0.2431372549,
+      "#3C508B"
+     ],
+     [
+      0.2470588235,
+      "#3B518B"
+     ],
+     [
+      0.2509803922,
+      "#3B528B"
+     ],
+     [
+      0.2549019608,
+      "#3A538B"
+     ],
+     [
+      0.2588235294,
+      "#3A548C"
+     ],
+     [
+      0.262745098,
+      "#39558C"
+     ],
+     [
+      0.2666666667,
+      "#39568C"
+     ],
+     [
+      0.2705882353,
+      "#38588C"
+     ],
+     [
+      0.2745098039,
+      "#38598C"
+     ],
+     [
+      0.2784313725,
+      "#375A8C"
+     ],
+     [
+      0.2823529412,
+      "#375B8D"
+     ],
+     [
+      0.2862745098,
+      "#365C8D"
+     ],
+     [
+      0.2901960784,
+      "#365D8D"
+     ],
+     [
+      0.2941176471,
+      "#355E8D"
+     ],
+     [
+      0.2980392157,
+      "#355F8D"
+     ],
+     [
+      0.3019607843,
+      "#34608D"
+     ],
+     [
+      0.3058823529,
+      "#34618D"
+     ],
+     [
+      0.3098039216,
+      "#33628D"
+     ],
+     [
+      0.3137254902,
+      "#33638D"
+     ],
+     [
+      0.3176470588,
+      "#32648E"
+     ],
+     [
+      0.3215686275,
+      "#32658E"
+     ],
+     [
+      0.3254901961,
+      "#31668E"
+     ],
+     [
+      0.3294117647,
+      "#31678E"
+     ],
+     [
+      0.3333333333,
+      "#31688E"
+     ],
+     [
+      0.337254902,
+      "#30698E"
+     ],
+     [
+      0.3411764706,
+      "#306A8E"
+     ],
+     [
+      0.3450980392,
+      "#2F6B8E"
+     ],
+     [
+      0.3490196078,
+      "#2F6C8E"
+     ],
+     [
+      0.3529411765,
+      "#2E6D8E"
+     ],
+     [
+      0.3568627451,
+      "#2E6E8E"
+     ],
+     [
+      0.3607843137,
+      "#2E6F8E"
+     ],
+     [
+      0.3647058824,
+      "#2D708E"
+     ],
+     [
+      0.368627451,
+      "#2D718E"
+     ],
+     [
+      0.3725490196,
+      "#2C718E"
+     ],
+     [
+      0.3764705882,
+      "#2C728E"
+     ],
+     [
+      0.3803921569,
+      "#2C738E"
+     ],
+     [
+      0.3843137255,
+      "#2B748E"
+     ],
+     [
+      0.3882352941,
+      "#2B758E"
+     ],
+     [
+      0.3921568627,
+      "#2A768E"
+     ],
+     [
+      0.3960784314,
+      "#2A778E"
+     ],
+     [
+      0.4,
+      "#2A788E"
+     ],
+     [
+      0.4039215686,
+      "#29798E"
+     ],
+     [
+      0.4078431373,
+      "#297A8E"
+     ],
+     [
+      0.4117647059,
+      "#297B8E"
+     ],
+     [
+      0.4156862745,
+      "#287C8E"
+     ],
+     [
+      0.4196078431,
+      "#287D8E"
+     ],
+     [
+      0.4235294118,
+      "#277E8E"
+     ],
+     [
+      0.4274509804,
+      "#277F8E"
+     ],
+     [
+      0.431372549,
+      "#27808E"
+     ],
+     [
+      0.4352941176,
+      "#26818E"
+     ],
+     [
+      0.4392156863,
+      "#26828E"
+     ],
+     [
+      0.4431372549,
+      "#26828E"
+     ],
+     [
+      0.4470588235,
+      "#25838E"
+     ],
+     [
+      0.4509803922,
+      "#25848E"
+     ],
+     [
+      0.4549019608,
+      "#25858E"
+     ],
+     [
+      0.4588235294,
+      "#24868E"
+     ],
+     [
+      0.462745098,
+      "#24878E"
+     ],
+     [
+      0.4666666667,
+      "#23888E"
+     ],
+     [
+      0.4705882353,
+      "#23898E"
+     ],
+     [
+      0.4745098039,
+      "#238A8D"
+     ],
+     [
+      0.4784313725,
+      "#228B8D"
+     ],
+     [
+      0.4823529412,
+      "#228C8D"
+     ],
+     [
+      0.4862745098,
+      "#228D8D"
+     ],
+     [
+      0.4901960784,
+      "#218E8D"
+     ],
+     [
+      0.4941176471,
+      "#218F8D"
+     ],
+     [
+      0.4980392157,
+      "#21908D"
+     ],
+     [
+      0.5019607843,
+      "#21918C"
+     ],
+     [
+      0.5058823529,
+      "#20928C"
+     ],
+     [
+      0.5098039216,
+      "#20928C"
+     ],
+     [
+      0.5137254902,
+      "#20938C"
+     ],
+     [
+      0.5176470588,
+      "#1F948C"
+     ],
+     [
+      0.5215686275,
+      "#1F958B"
+     ],
+     [
+      0.5254901961,
+      "#1F968B"
+     ],
+     [
+      0.5294117647,
+      "#1F978B"
+     ],
+     [
+      0.5333333333,
+      "#1F988B"
+     ],
+     [
+      0.537254902,
+      "#1F998A"
+     ],
+     [
+      0.5411764706,
+      "#1F9A8A"
+     ],
+     [
+      0.5450980392,
+      "#1E9B8A"
+     ],
+     [
+      0.5490196078,
+      "#1E9C89"
+     ],
+     [
+      0.5529411765,
+      "#1E9D89"
+     ],
+     [
+      0.5568627451,
+      "#1F9E89"
+     ],
+     [
+      0.5607843137,
+      "#1F9F88"
+     ],
+     [
+      0.5647058824,
+      "#1FA088"
+     ],
+     [
+      0.568627451,
+      "#1FA188"
+     ],
+     [
+      0.5725490196,
+      "#1FA187"
+     ],
+     [
+      0.5764705882,
+      "#1FA287"
+     ],
+     [
+      0.5803921569,
+      "#20A386"
+     ],
+     [
+      0.5843137255,
+      "#20A486"
+     ],
+     [
+      0.5882352941,
+      "#21A585"
+     ],
+     [
+      0.5921568627,
+      "#21A685"
+     ],
+     [
+      0.5960784314,
+      "#22A785"
+     ],
+     [
+      0.6,
+      "#22A884"
+     ],
+     [
+      0.6039215686,
+      "#23A983"
+     ],
+     [
+      0.6078431373,
+      "#24AA83"
+     ],
+     [
+      0.6117647059,
+      "#25AB82"
+     ],
+     [
+      0.6156862745,
+      "#25AC82"
+     ],
+     [
+      0.6196078431,
+      "#26AD81"
+     ],
+     [
+      0.6235294118,
+      "#27AD81"
+     ],
+     [
+      0.6274509804,
+      "#28AE80"
+     ],
+     [
+      0.631372549,
+      "#29AF7F"
+     ],
+     [
+      0.6352941176,
+      "#2AB07F"
+     ],
+     [
+      0.6392156863,
+      "#2CB17E"
+     ],
+     [
+      0.6431372549,
+      "#2DB27D"
+     ],
+     [
+      0.6470588235,
+      "#2EB37C"
+     ],
+     [
+      0.6509803922,
+      "#2FB47C"
+     ],
+     [
+      0.6549019608,
+      "#31B57B"
+     ],
+     [
+      0.6588235294,
+      "#32B67A"
+     ],
+     [
+      0.662745098,
+      "#34B679"
+     ],
+     [
+      0.6666666667,
+      "#35B779"
+     ],
+     [
+      0.6705882353,
+      "#37B878"
+     ],
+     [
+      0.6745098039,
+      "#38B977"
+     ],
+     [
+      0.6784313725,
+      "#3ABA76"
+     ],
+     [
+      0.6823529412,
+      "#3BBB75"
+     ],
+     [
+      0.6862745098,
+      "#3DBC74"
+     ],
+     [
+      0.6901960784,
+      "#3FBC73"
+     ],
+     [
+      0.6941176471,
+      "#40BD72"
+     ],
+     [
+      0.6980392157,
+      "#42BE71"
+     ],
+     [
+      0.7019607843,
+      "#44BF70"
+     ],
+     [
+      0.7058823529,
+      "#46C06F"
+     ],
+     [
+      0.7098039216,
+      "#48C16E"
+     ],
+     [
+      0.7137254902,
+      "#4AC16D"
+     ],
+     [
+      0.7176470588,
+      "#4CC26C"
+     ],
+     [
+      0.7215686275,
+      "#4EC36B"
+     ],
+     [
+      0.7254901961,
+      "#50C46A"
+     ],
+     [
+      0.7294117647,
+      "#52C569"
+     ],
+     [
+      0.7333333333,
+      "#54C568"
+     ],
+     [
+      0.737254902,
+      "#56C667"
+     ],
+     [
+      0.7411764706,
+      "#58C765"
+     ],
+     [
+      0.7450980392,
+      "#5AC864"
+     ],
+     [
+      0.7490196078,
+      "#5CC863"
+     ],
+     [
+      0.7529411765,
+      "#5EC962"
+     ],
+     [
+      0.7568627451,
+      "#60CA60"
+     ],
+     [
+      0.7607843137,
+      "#63CB5F"
+     ],
+     [
+      0.7647058824,
+      "#65CB5E"
+     ],
+     [
+      0.768627451,
+      "#67CC5C"
+     ],
+     [
+      0.7725490196,
+      "#69CD5B"
+     ],
+     [
+      0.7764705882,
+      "#6CCD5A"
+     ],
+     [
+      0.7803921569,
+      "#6ECE58"
+     ],
+     [
+      0.7843137255,
+      "#70CF57"
+     ],
+     [
+      0.7882352941,
+      "#73D056"
+     ],
+     [
+      0.7921568627,
+      "#75D054"
+     ],
+     [
+      0.7960784314,
+      "#77D153"
+     ],
+     [
+      0.8,
+      "#7AD151"
+     ],
+     [
+      0.8039215686,
+      "#7CD250"
+     ],
+     [
+      0.8078431373,
+      "#7FD34E"
+     ],
+     [
+      0.8117647059,
+      "#81D34D"
+     ],
+     [
+      0.8156862745,
+      "#84D44B"
+     ],
+     [
+      0.8196078431,
+      "#86D549"
+     ],
+     [
+      0.8235294118,
+      "#89D548"
+     ],
+     [
+      0.8274509804,
+      "#8BD646"
+     ],
+     [
+      0.831372549,
+      "#8ED645"
+     ],
+     [
+      0.8352941176,
+      "#90D743"
+     ],
+     [
+      0.8392156863,
+      "#93D741"
+     ],
+     [
+      0.8431372549,
+      "#95D840"
+     ],
+     [
+      0.8470588235,
+      "#98D83E"
+     ],
+     [
+      0.8509803922,
+      "#9BD93C"
+     ],
+     [
+      0.8549019608,
+      "#9DD93B"
+     ],
+     [
+      0.8588235294,
+      "#A0DA39"
+     ],
+     [
+      0.862745098,
+      "#A2DA37"
+     ],
+     [
+      0.8666666667,
+      "#A5DB36"
+     ],
+     [
+      0.8705882353,
+      "#A8DB34"
+     ],
+     [
+      0.8745098039,
+      "#AADC32"
+     ],
+     [
+      0.8784313725,
+      "#ADDC30"
+     ],
+     [
+      0.8823529412,
+      "#B0DD2F"
+     ],
+     [
+      0.8862745098,
+      "#B2DD2D"
+     ],
+     [
+      0.8901960784,
+      "#B5DE2B"
+     ],
+     [
+      0.8941176471,
+      "#B8DE29"
+     ],
+     [
+      0.8980392157,
+      "#BADE28"
+     ],
+     [
+      0.9019607843,
+      "#BDDF26"
+     ],
+     [
+      0.9058823529,
+      "#C0DF25"
+     ],
+     [
+      0.9098039216,
+      "#C2DF23"
+     ],
+     [
+      0.9137254902,
+      "#C5E021"
+     ],
+     [
+      0.9176470588,
+      "#C8E020"
+     ],
+     [
+      0.9215686275,
+      "#CAE11F"
+     ],
+     [
+      0.9254901961,
+      "#CDE11D"
+     ],
+     [
+      0.9294117647,
+      "#D0E11C"
+     ],
+     [
+      0.9333333333,
+      "#D2E21B"
+     ],
+     [
+      0.937254902,
+      "#D5E21A"
+     ],
+     [
+      0.9411764706,
+      "#D8E219"
+     ],
+     [
+      0.9450980392,
+      "#DAE319"
+     ],
+     [
+      0.9490196078,
+      "#DDE318"
+     ],
+     [
+      0.9529411765,
+      "#DFE318"
+     ],
+     [
+      0.9568627451,
+      "#E2E418"
+     ],
+     [
+      0.9607843137,
+      "#E5E419"
+     ],
+     [
+      0.9647058824,
+      "#E7E419"
+     ],
+     [
+      0.968627451,
+      "#EAE51A"
+     ],
+     [
+      0.9725490196,
+      "#ECE51B"
+     ],
+     [
+      0.9764705882,
+      "#EFE51C"
+     ],
+     [
+      0.9803921569,
+      "#F1E51D"
+     ],
+     [
+      0.9843137255,
+      "#F4E61E"
+     ],
+     [
+      0.9882352941,
+      "#F6E620"
+     ],
+     [
+      0.9921568627,
+      "#F8E621"
+     ],
+     [
+      0.9960784314,
+      "#FBE723"
+     ],
+     [
+      1,
+      "#FDE725"
+     ]
+    ],
+    "showscale": true,
+    "hoverongaps": false,
+    "texttemplate": "%{z}",
+    "textfont": {
+     "size": 10
+    }
+   }
+  ],
+  "layout": {
+   "paper_bgcolor": "#ffffff",
+   "plot_bgcolor": "#ffffff",
+   "dragmode": false,
+   "font": {
+    "color": "#111827",
+    "family": "system-ui, -apple-system, sans-serif",
+    "size": 13
+   },
+   "margin": {
+    "l": 16,
+    "r": 16,
+    "t": 16,
+    "b": 16
+   },
+   "showlegend": false,
+   "xaxis": {
+    "type": "category",
+    "categoryorder": "array",
+    "categoryarray": [
+     "A",
+     "B",
+     "C"
+    ],
+    "autotickangles": [
+     0,
+     90
+    ],
+    "showgrid": false,
+    "zeroline": false,
+    "linecolor": "#111827",
+    "linewidth": 1,
+    "ticks": "outside",
+    "tickwidth": 1,
+    "fixedrange": true,
+    "automargin": true
+   },
+   "yaxis": {
+    "type": "category",
+    "categoryorder": "array",
+    "categoryarray": [
+     "Day 1",
+     "Day 2",
+     "Day 3",
+     "Day 4",
+     "Day 5"
+    ],
+    "autorange": "reversed",
+    "showgrid": false,
+    "zeroline": false,
+    "linecolor": "#111827",
+    "linewidth": 1,
+    "ticks": "outside",
+    "tickwidth": 1,
+    "fixedrange": true,
+    "automargin": true
+   }
+  }
+ },
+ "graph grouped-box grouped": {
+  "data": [
+   {
+    "type": "box",
+    "name": "A",
+    "x": [
+     -0.28,
+     -0.28,
+     -0.28,
+     0.72,
+     0.72,
+     0.72,
+     1.72,
+     1.72,
+     1.72,
+     2.72,
+     2.72,
+     2.72,
+     3.72,
+     3.72,
+     3.72
+    ],
+    "y": [
+     10,
+     11,
+     12,
+     12,
+     13,
+     14,
+     15,
+     14,
+     16,
+     18,
+     19,
+     17,
+     20,
+     21,
+     22
+    ],
+    "width": 0.224,
+    "fillcolor": "rgba(0,0,0,0.5)",
+    "line": {
+     "color": "#000000",
+     "width": 2
+    },
+    "hoverinfo": "y",
+    "boxpoints": false,
+    "whiskerwidth": 0.5
+   },
+   {
+    "type": "scatter",
+    "mode": "markers",
+    "x": [
+     -0.34,
+     -0.274477024,
+     -0.2688000176,
+     0.766383321,
+     0.7144752162,
+     0.6840362027,
+     1.774463146,
+     1.71813108,
+     1.747093602,
+     2.745541608,
+     2.675709823,
+     2.699224752,
+     3.724059791,
+     3.752776642,
+     3.704862134
+    ],
+    "y": [
+     10,
+     11,
+     12,
+     12,
+     13,
+     14,
+     15,
+     14,
+     16,
+     18,
+     19,
+     17,
+     20,
+     21,
+     22
+    ],
+    "customdata": [
+     "A:Y1#0",
+     "A:Y2#0",
+     "A:Y3#0",
+     "A:Y1#1",
+     "A:Y2#1",
+     "A:Y3#1",
+     "A:Y1#2",
+     "A:Y2#2",
+     "A:Y3#2",
+     "A:Y1#3",
+     "A:Y2#3",
+     "A:Y3#3",
+     "A:Y1#4",
+     "A:Y2#4",
+     "A:Y3#4"
+    ],
+    "marker": {
+     "color": [
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)"
+     ],
+     "size": [
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5
+     ],
+     "symbol": [
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle"
+     ],
+     "line": {
+      "color": [
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000"
+      ],
+      "width": [
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5
+      ]
+     }
+    },
+    "hoverinfo": "y",
+    "showlegend": false
+   },
+   {
+    "type": "box",
+    "name": "B",
+    "x": [
+     0,
+     0,
+     0,
+     1,
+     1,
+     1,
+     2,
+     2,
+     2,
+     3,
+     3,
+     3,
+     4,
+     4,
+     4
+    ],
+    "y": [
+     14,
+     15,
+     13,
+     18,
+     19,
+     17,
+     22,
+     24,
+     21,
+     27,
+     26,
+     28,
+     31,
+     30,
+     33
+    ],
+    "width": 0.224,
+    "fillcolor": "rgba(230,159,0,0.5)",
+    "line": {
+     "color": "#E69F00",
+     "width": 2
+    },
+    "hoverinfo": "y",
+    "boxpoints": false,
+    "whiskerwidth": 0.5
+   },
+   {
+    "type": "scatter",
+    "mode": "markers",
+    "x": [
+     0.03739460093,
+     -0.008050505311,
+     -0.048552803,
+     1.025155318,
+     1.01334666,
+     1.049514231,
+     2.00705192,
+     2.028046664,
+     2.055824031,
+     2.978317873,
+     2.999635687,
+     2.998298283,
+     3.989536397,
+     3.958721409,
+     4.028918492
+    ],
+    "y": [
+     14,
+     15,
+     13,
+     18,
+     19,
+     17,
+     22,
+     24,
+     21,
+     27,
+     26,
+     28,
+     31,
+     30,
+     33
+    ],
+    "customdata": [
+     "B:Y1#0",
+     "B:Y2#0",
+     "B:Y3#0",
+     "B:Y1#1",
+     "B:Y2#1",
+     "B:Y3#1",
+     "B:Y1#2",
+     "B:Y2#2",
+     "B:Y3#2",
+     "B:Y1#3",
+     "B:Y2#3",
+     "B:Y3#3",
+     "B:Y1#4",
+     "B:Y2#4",
+     "B:Y3#4"
+    ],
+    "marker": {
+     "color": [
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)"
+     ],
+     "size": [
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5
+     ],
+     "symbol": [
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle"
+     ],
+     "line": {
+      "color": [
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00"
+      ],
+      "width": [
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5
+      ]
+     }
+    },
+    "hoverinfo": "y",
+    "showlegend": false
+   },
+   {
+    "type": "box",
+    "name": "C",
+    "x": [
+     0.28,
+     0.28,
+     0.28,
+     1.28,
+     1.28,
+     2.28,
+     2.28,
+     2.28,
+     3.28,
+     3.28,
+     3.28,
+     4.28,
+     4.28,
+     4.28
+    ],
+    "y": [
+     9,
+     10,
+     11,
+     10,
+     12,
+     11,
+     12,
+     13,
+     12,
+     14,
+     13,
+     13,
+     13,
+     15
+    ],
+    "width": 0.224,
+    "fillcolor": "rgba(86,180,233,0.5)",
+    "line": {
+     "color": "#56B4E9",
+     "width": 2
+    },
+    "hoverinfo": "y",
+    "boxpoints": false,
+    "whiskerwidth": 0.5
+   },
+   {
+    "type": "scatter",
+    "mode": "markers",
+    "x": [
+     0.2424555848,
+     0.2844497176,
+     0.3265223849,
+     1.328454298,
+     1.283743236,
+     2.333782793,
+     2.263204306,
+     2.222356041,
+     3.239733042,
+     3.246913642,
+     3.281794923,
+     4.310841608,
+     4.26952748,
+     4.335851433
+    ],
+    "y": [
+     9,
+     10,
+     11,
+     10,
+     12,
+     11,
+     12,
+     13,
+     12,
+     14,
+     13,
+     13,
+     13,
+     15
+    ],
+    "customdata": [
+     "C:Y1#0",
+     "C:Y2#0",
+     "C:Y3#0",
+     "C:Y1#1",
+     "C:Y3#1",
+     "C:Y1#2",
+     "C:Y2#2",
+     "C:Y3#2",
+     "C:Y1#3",
+     "C:Y2#3",
+     "C:Y3#3",
+     "C:Y1#4",
+     "C:Y2#4",
+     "C:Y3#4"
+    ],
+    "marker": {
+     "color": [
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)",
+      "rgba(86,180,233,1)"
+     ],
+     "size": [
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5
+     ],
+     "symbol": [
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle"
+     ],
+     "line": {
+      "color": [
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9",
+       "#56B4E9"
+      ],
+      "width": [
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5
+      ]
+     }
+    },
+    "hoverinfo": "y",
+    "showlegend": false
+   }
+  ],
+  "layout": {
+   "paper_bgcolor": "#ffffff",
+   "plot_bgcolor": "#ffffff",
+   "dragmode": false,
+   "font": {
+    "color": "#111827",
+    "family": "system-ui, -apple-system, sans-serif",
+    "size": 13
+   },
+   "margin": {
+    "l": 16,
+    "r": 16,
+    "t": 16,
+    "b": 16
+   },
+   "showlegend": true,
+   "legend": {
+    "x": 1.02,
+    "y": 1,
+    "xanchor": "left"
+   },
+   "xaxis": {
+    "tickmode": "array",
+    "tickvals": [
+     0,
+     1,
+     2,
+     3,
+     4
+    ],
+    "ticktext": [
+     "Day 1",
+     "Day 2",
+     "Day 3",
+     "Day 4",
+     "Day 5"
+    ],
+    "range": [
+     -0.5,
+     4.5
+    ],
+    "showgrid": false,
+    "zeroline": false,
+    "linecolor": "#111827",
+    "linewidth": 1,
+    "ticks": "outside",
+    "tickwidth": 1,
+    "fixedrange": true,
+    "automargin": true
+   },
+   "yaxis": {
+    "showgrid": false,
+    "zeroline": false,
+    "linecolor": "#111827",
+    "linewidth": 1,
+    "ticks": "outside",
+    "tickwidth": 1,
+    "fixedrange": true,
+    "automargin": true
+   }
+  }
+ },
+ "graph grouped-box groupedViolin": {
+  "data": [
+   {
+    "type": "violin",
+    "name": "A",
+    "x": [
+     0,
+     0,
+     0,
+     1,
+     1,
+     1,
+     2,
+     2,
+     2,
+     3,
+     3,
+     3,
+     4,
+     4,
+     4
+    ],
+    "y": [
+     10,
+     11,
+     12,
+     12,
+     13,
+     14,
+     15,
+     14,
+     16,
+     18,
+     19,
+     17,
+     20,
+     21,
+     22
+    ],
+    "width": 0.5,
+    "fillcolor": "rgba(0,0,0,0.5)",
+    "line": {
+     "color": "#000000",
+     "width": 2
+    },
+    "hoverinfo": "y",
+    "points": false,
+    "meanline": {
+     "visible": true
+    },
+    "spanmode": "hard"
+   },
+   {
+    "type": "violin",
+    "name": "B",
+    "x": [
+     6,
+     6,
+     6,
+     7,
+     7,
+     7,
+     8,
+     8,
+     8,
+     9,
+     9,
+     9,
+     10,
+     10,
+     10
+    ],
+    "y": [
+     14,
+     15,
+     13,
+     18,
+     19,
+     17,
+     22,
+     24,
+     21,
+     27,
+     26,
+     28,
+     31,
+     30,
+     33
+    ],
+    "width": 0.5,
+    "fillcolor": "rgba(230,159,0,0.5)",
+    "line": {
+     "color": "#E69F00",
+     "width": 2
+    },
+    "hoverinfo": "y",
+    "points": false,
+    "meanline": {
+     "visible": true
+    },
+    "spanmode": "hard"
+   },
+   {
+    "type": "violin",
+    "name": "C",
+    "x": [
+     12,
+     12,
+     12,
+     13,
+     13,
+     14,
+     14,
+     14,
+     15,
+     15,
+     15,
+     16,
+     16,
+     16
+    ],
+    "y": [
+     9,
+     10,
+     11,
+     10,
+     12,
+     11,
+     12,
+     13,
+     12,
+     14,
+     13,
+     13,
+     13,
+     15
+    ],
+    "width": 0.5,
+    "fillcolor": "rgba(86,180,233,0.5)",
+    "line": {
+     "color": "#56B4E9",
+     "width": 2
+    },
+    "hoverinfo": "y",
+    "points": false,
+    "meanline": {
+     "visible": true
+    },
+    "spanmode": "hard"
+   }
+  ],
+  "layout": {
+   "paper_bgcolor": "#ffffff",
+   "plot_bgcolor": "#ffffff",
+   "dragmode": false,
+   "font": {
+    "color": "#111827",
+    "family": "system-ui, -apple-system, sans-serif",
+    "size": 13
+   },
+   "margin": {
+    "l": 16,
+    "r": 16,
+    "t": 16,
+    "b": 16
+   },
+   "showlegend": true,
+   "legend": {
+    "x": 1.02,
+    "y": 1,
+    "xanchor": "left"
+   },
+   "xaxis": {
+    "tickmode": "array",
+    "tickvals": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     6,
+     7,
+     8,
+     9,
+     10,
+     12,
+     13,
+     14,
+     15,
+     16
+    ],
+    "ticktext": [
+     "Day 1",
+     "Day 2",
+     "Day 3",
+     "Day 4",
+     "Day 5",
+     "Day 1",
+     "Day 2",
+     "Day 3",
+     "Day 4",
+     "Day 5",
+     "Day 1",
+     "Day 2",
+     "Day 3",
+     "Day 4",
+     "Day 5"
+    ],
+    "range": [
+     -0.5,
+     16.5
+    ],
+    "showgrid": false,
+    "zeroline": false,
+    "linecolor": "#111827",
+    "linewidth": 1,
+    "ticks": "outside",
+    "tickwidth": 1,
+    "fixedrange": true,
+    "automargin": true
+   },
+   "yaxis": {
+    "showgrid": false,
+    "zeroline": false,
+    "linecolor": "#111827",
+    "linewidth": 1,
+    "ticks": "outside",
+    "tickwidth": 1,
+    "fixedrange": true,
+    "automargin": true
+   }
+  }
+ },
  "graph heatmap multiple": {
   "data": [
    {
@@ -9400,6 +15326,155 @@
    }
   }
  },
+ "graph xy-scatter multiple": {
+  "data": [
+   {
+    "type": "scatter",
+    "mode": "markers",
+    "name": "Weight",
+    "x": [
+     175,
+     181,
+     168,
+     185,
+     172,
+     160,
+     179,
+     170,
+     188
+    ],
+    "y": [
+     70,
+     82,
+     65,
+     90,
+     75,
+     58,
+     88,
+     72,
+     95
+    ],
+    "customdata": [
+     "Weight#0",
+     "Weight#1",
+     "Weight#2",
+     "Weight#3",
+     "Weight#4",
+     "Weight#5",
+     "Weight#6",
+     "Weight#7",
+     "Weight#8"
+    ],
+    "marker": {
+     "color": [
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)"
+     ],
+     "size": [
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7
+     ],
+     "symbol": [
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle"
+     ],
+     "line": {
+      "color": [
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000"
+      ],
+      "width": [
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5
+      ]
+     }
+    },
+    "hoverinfo": "x+y"
+   }
+  ],
+  "layout": {
+   "paper_bgcolor": "#ffffff",
+   "plot_bgcolor": "#ffffff",
+   "dragmode": false,
+   "font": {
+    "color": "#111827",
+    "family": "system-ui, -apple-system, sans-serif",
+    "size": 13
+   },
+   "margin": {
+    "l": 16,
+    "r": 16,
+    "t": 16,
+    "b": 16
+   },
+   "showlegend": false,
+   "legend": {
+    "x": 1.02,
+    "y": 1,
+    "xanchor": "left"
+   },
+   "xaxis": {
+    "type": "linear",
+    "showgrid": false,
+    "zeroline": false,
+    "linecolor": "#111827",
+    "linewidth": 1,
+    "ticks": "outside",
+    "tickwidth": 1,
+    "fixedrange": true,
+    "automargin": true,
+    "title": {
+     "text": "Height",
+     "standoff": 12
+    }
+   },
+   "yaxis": {
+    "showgrid": false,
+    "zeroline": false,
+    "linecolor": "#111827",
+    "linewidth": 1,
+    "ticks": "outside",
+    "tickwidth": 1,
+    "fixedrange": true,
+    "automargin": true
+   }
+  }
+ },
  "graph volcano volcano": {
   "data": [
    {
@@ -9631,6 +15706,468 @@
    ]
   }
  },
+ "graph volcano volcanoXY": {
+  "data": [
+   {
+    "type": "scattergl",
+    "mode": "markers",
+    "x": [
+     2.5,
+     -1.8,
+     0.1,
+     1.2,
+     -0.3
+    ],
+    "y": [
+     4,
+     2.698970004,
+     0.09691001301,
+     1.522878745,
+     0.3010299957
+    ],
+    "marker": {
+     "color": [
+      "rgba(180,4,38,0.75)",
+      "rgba(59,76,192,0.75)",
+      "rgba(184,190,201,0.75)",
+      "rgba(180,4,38,0.75)",
+      "rgba(184,190,201,0.75)"
+     ],
+     "size": [
+      5,
+      5,
+      5,
+      5,
+      5
+     ],
+     "symbol": [
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle"
+     ],
+     "line": {
+      "color": [
+       "#B40426",
+       "#3B4CC0",
+       "#B8BEC9",
+       "#B40426",
+       "#B8BEC9"
+      ],
+      "width": [
+       0,
+       0,
+       0,
+       0,
+       0
+      ]
+     }
+    },
+    "customdata": [
+     "#0",
+     "#1",
+     "#2",
+     "#3",
+     "#4"
+    ],
+    "text": [
+     "TP53<br>Log2 FC: 2.5<br>-log10(P): 4.00",
+     "MYC<br>Log2 FC: -1.8<br>-log10(P): 2.70",
+     "GAPDH<br>Log2 FC: 0.1<br>-log10(P): 0.10",
+     "EGFR<br>Log2 FC: 1.2<br>-log10(P): 1.52",
+     "ACTB<br>Log2 FC: -0.3<br>-log10(P): 0.30"
+    ],
+    "hoverinfo": "text",
+    "showlegend": false
+   }
+  ],
+  "layout": {
+   "paper_bgcolor": "#ffffff",
+   "plot_bgcolor": "#ffffff",
+   "dragmode": false,
+   "font": {
+    "color": "#111827",
+    "family": "system-ui, -apple-system, sans-serif",
+    "size": 13
+   },
+   "margin": {
+    "l": 16,
+    "r": 16,
+    "t": 16,
+    "b": 16
+   },
+   "showlegend": false,
+   "legend": {
+    "x": 1.02,
+    "y": 1,
+    "xanchor": "left"
+   },
+   "xaxis": {
+    "type": "linear",
+    "showgrid": false,
+    "zeroline": false,
+    "linecolor": "#111827",
+    "linewidth": 1,
+    "ticks": "outside",
+    "tickwidth": 1,
+    "fixedrange": true,
+    "automargin": true,
+    "title": {
+     "text": "Log2 FC",
+     "standoff": 12
+    }
+   },
+   "yaxis": {
+    "showgrid": false,
+    "zeroline": false,
+    "linecolor": "#111827",
+    "linewidth": 1,
+    "ticks": "outside",
+    "tickwidth": 1,
+    "fixedrange": true,
+    "automargin": true,
+    "title": {
+     "text": "-log10(P)",
+     "standoff": 2
+    }
+   },
+   "shapes": [
+    {
+     "type": "line",
+     "xref": "x",
+     "yref": "paper",
+     "x0": 1,
+     "x1": 1,
+     "y0": 0,
+     "y1": 1,
+     "line": {
+      "color": "#9CA3AF",
+      "width": 1,
+      "dash": "dash"
+     }
+    },
+    {
+     "type": "line",
+     "xref": "x",
+     "yref": "paper",
+     "x0": -1,
+     "x1": -1,
+     "y0": 0,
+     "y1": 1,
+     "line": {
+      "color": "#9CA3AF",
+      "width": 1,
+      "dash": "dash"
+     }
+    },
+    {
+     "type": "line",
+     "xref": "paper",
+     "yref": "y",
+     "x0": 0,
+     "x1": 1,
+     "y0": 1.3,
+     "y1": 1.3,
+     "line": {
+      "color": "#9CA3AF",
+      "width": 1,
+      "dash": "dash"
+     }
+    }
+   ],
+   "annotations": [
+    {
+     "name": "#0",
+     "x": 2.5,
+     "y": 4,
+     "xref": "x",
+     "yref": "y",
+     "text": "TP53",
+     "showarrow": true,
+     "arrowhead": 0,
+     "arrowwidth": 0.5,
+     "arrowcolor": "#9CA3AF",
+     "standoff": 2.5,
+     "ax": -22,
+     "ay": 0,
+     "font": {
+      "color": "#111827",
+      "size": 10
+     }
+    },
+    {
+     "name": "#1",
+     "x": -1.8,
+     "y": 2.698970004,
+     "xref": "x",
+     "yref": "y",
+     "text": "MYC",
+     "showarrow": true,
+     "arrowhead": 0,
+     "arrowwidth": 0.5,
+     "arrowcolor": "#9CA3AF",
+     "standoff": 2.5,
+     "ax": 19,
+     "ay": -15,
+     "font": {
+      "color": "#111827",
+      "size": 10
+     }
+    },
+    {
+     "name": "#3",
+     "x": 1.2,
+     "y": 1.522878745,
+     "xref": "x",
+     "yref": "y",
+     "text": "EGFR",
+     "showarrow": true,
+     "arrowhead": 0,
+     "arrowwidth": 0.5,
+     "arrowcolor": "#9CA3AF",
+     "standoff": 2.5,
+     "ax": 0,
+     "ay": -15,
+     "font": {
+      "color": "#111827",
+      "size": 10
+     }
+    }
+   ]
+  }
+ },
+ "graph volcano volcanoLog": {
+  "data": [
+   {
+    "type": "scattergl",
+    "mode": "markers",
+    "x": [
+     2.5,
+     -1.8,
+     0.1,
+     1.2,
+     -0.3
+    ],
+    "y": [
+     4,
+     2.698970004,
+     0.09691001301,
+     1.522878745,
+     0.3010299957
+    ],
+    "marker": {
+     "color": [
+      "rgba(180,4,38,0.75)",
+      "rgba(59,76,192,0.75)",
+      "rgba(184,190,201,0.75)",
+      "rgba(180,4,38,0.75)",
+      "rgba(184,190,201,0.75)"
+     ],
+     "size": [
+      5,
+      5,
+      5,
+      5,
+      5
+     ],
+     "symbol": [
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle"
+     ],
+     "line": {
+      "color": [
+       "#B40426",
+       "#3B4CC0",
+       "#B8BEC9",
+       "#B40426",
+       "#B8BEC9"
+      ],
+      "width": [
+       0,
+       0,
+       0,
+       0,
+       0
+      ]
+     }
+    },
+    "customdata": [
+     "#0",
+     "#1",
+     "#2",
+     "#3",
+     "#4"
+    ],
+    "text": [
+     "TP53<br>Log2 FC: 2.5<br>-log10 P: 4.00",
+     "MYC<br>Log2 FC: -1.8<br>-log10 P: 2.70",
+     "GAPDH<br>Log2 FC: 0.1<br>-log10 P: 0.10",
+     "EGFR<br>Log2 FC: 1.2<br>-log10 P: 1.52",
+     "ACTB<br>Log2 FC: -0.3<br>-log10 P: 0.30"
+    ],
+    "hoverinfo": "text",
+    "showlegend": false
+   }
+  ],
+  "layout": {
+   "paper_bgcolor": "#ffffff",
+   "plot_bgcolor": "#ffffff",
+   "dragmode": false,
+   "font": {
+    "color": "#111827",
+    "family": "system-ui, -apple-system, sans-serif",
+    "size": 13
+   },
+   "margin": {
+    "l": 16,
+    "r": 16,
+    "t": 16,
+    "b": 16
+   },
+   "showlegend": false,
+   "legend": {
+    "x": 1.02,
+    "y": 1,
+    "xanchor": "left"
+   },
+   "xaxis": {
+    "type": "linear",
+    "showgrid": false,
+    "zeroline": false,
+    "linecolor": "#111827",
+    "linewidth": 1,
+    "ticks": "outside",
+    "tickwidth": 1,
+    "fixedrange": true,
+    "automargin": true,
+    "title": {
+     "text": "Log2 FC",
+     "standoff": 12
+    }
+   },
+   "yaxis": {
+    "showgrid": false,
+    "zeroline": false,
+    "linecolor": "#111827",
+    "linewidth": 1,
+    "ticks": "outside",
+    "tickwidth": 1,
+    "fixedrange": true,
+    "automargin": true,
+    "title": {
+     "text": "-log10 P",
+     "standoff": 2
+    }
+   },
+   "shapes": [
+    {
+     "type": "line",
+     "xref": "x",
+     "yref": "paper",
+     "x0": 1,
+     "x1": 1,
+     "y0": 0,
+     "y1": 1,
+     "line": {
+      "color": "#9CA3AF",
+      "width": 1,
+      "dash": "dash"
+     }
+    },
+    {
+     "type": "line",
+     "xref": "x",
+     "yref": "paper",
+     "x0": -1,
+     "x1": -1,
+     "y0": 0,
+     "y1": 1,
+     "line": {
+      "color": "#9CA3AF",
+      "width": 1,
+      "dash": "dash"
+     }
+    },
+    {
+     "type": "line",
+     "xref": "paper",
+     "yref": "y",
+     "x0": 0,
+     "x1": 1,
+     "y0": 1.3,
+     "y1": 1.3,
+     "line": {
+      "color": "#9CA3AF",
+      "width": 1,
+      "dash": "dash"
+     }
+    }
+   ],
+   "annotations": [
+    {
+     "name": "#0",
+     "x": 2.5,
+     "y": 4,
+     "xref": "x",
+     "yref": "y",
+     "text": "TP53",
+     "showarrow": true,
+     "arrowhead": 0,
+     "arrowwidth": 0.5,
+     "arrowcolor": "#9CA3AF",
+     "standoff": 2.5,
+     "ax": -22,
+     "ay": 0,
+     "font": {
+      "color": "#111827",
+      "size": 10
+     }
+    },
+    {
+     "name": "#1",
+     "x": -1.8,
+     "y": 2.698970004,
+     "xref": "x",
+     "yref": "y",
+     "text": "MYC",
+     "showarrow": true,
+     "arrowhead": 0,
+     "arrowwidth": 0.5,
+     "arrowcolor": "#9CA3AF",
+     "standoff": 2.5,
+     "ax": 19,
+     "ay": -15,
+     "font": {
+      "color": "#111827",
+      "size": 10
+     }
+    },
+    {
+     "name": "#3",
+     "x": 1.2,
+     "y": 1.522878745,
+     "xref": "x",
+     "yref": "y",
+     "text": "EGFR",
+     "showarrow": true,
+     "arrowhead": 0,
+     "arrowwidth": 0.5,
+     "arrowcolor": "#9CA3AF",
+     "standoff": 2.5,
+     "ax": 0,
+     "ay": -15,
+     "font": {
+      "color": "#111827",
+      "size": 10
+     }
+    }
+   ]
+  }
+ },
  "graph grouped-stacked contingency2": {
   "data": [
    {
@@ -9720,6 +16257,1128 @@
     "rangemode": "tozero"
    },
    "barmode": "stack"
+  }
+ },
+ "graph heatmap contingency3": {
+  "data": [
+   {
+    "type": "heatmap",
+    "x": [
+     "Outcome A",
+     "Outcome B",
+     "Outcome C"
+    ],
+    "y": [
+     "North",
+     "South",
+     "East"
+    ],
+    "z": [
+     [
+      20,
+      15,
+      10
+     ],
+     [
+      12,
+      18,
+      25
+     ],
+     [
+      14,
+      16,
+      15
+     ]
+    ],
+    "colorscale": [
+     [
+      0,
+      "#440154"
+     ],
+     [
+      0.003921568627,
+      "#440256"
+     ],
+     [
+      0.007843137255,
+      "#450457"
+     ],
+     [
+      0.01176470588,
+      "#450559"
+     ],
+     [
+      0.01568627451,
+      "#46075A"
+     ],
+     [
+      0.01960784314,
+      "#46085C"
+     ],
+     [
+      0.02352941176,
+      "#460A5D"
+     ],
+     [
+      0.02745098039,
+      "#460B5E"
+     ],
+     [
+      0.03137254902,
+      "#470D60"
+     ],
+     [
+      0.03529411765,
+      "#470E61"
+     ],
+     [
+      0.03921568627,
+      "#471063"
+     ],
+     [
+      0.0431372549,
+      "#471164"
+     ],
+     [
+      0.04705882353,
+      "#471365"
+     ],
+     [
+      0.05098039216,
+      "#481467"
+     ],
+     [
+      0.05490196078,
+      "#481668"
+     ],
+     [
+      0.05882352941,
+      "#481769"
+     ],
+     [
+      0.06274509804,
+      "#48186A"
+     ],
+     [
+      0.06666666667,
+      "#481A6C"
+     ],
+     [
+      0.07058823529,
+      "#481B6D"
+     ],
+     [
+      0.07450980392,
+      "#481C6E"
+     ],
+     [
+      0.07843137255,
+      "#481D6F"
+     ],
+     [
+      0.08235294118,
+      "#481F70"
+     ],
+     [
+      0.0862745098,
+      "#482071"
+     ],
+     [
+      0.09019607843,
+      "#482173"
+     ],
+     [
+      0.09411764706,
+      "#482374"
+     ],
+     [
+      0.09803921569,
+      "#482475"
+     ],
+     [
+      0.1019607843,
+      "#482576"
+     ],
+     [
+      0.1058823529,
+      "#482677"
+     ],
+     [
+      0.1098039216,
+      "#482878"
+     ],
+     [
+      0.1137254902,
+      "#482979"
+     ],
+     [
+      0.1176470588,
+      "#472A7A"
+     ],
+     [
+      0.1215686275,
+      "#472C7A"
+     ],
+     [
+      0.1254901961,
+      "#472D7B"
+     ],
+     [
+      0.1294117647,
+      "#472E7C"
+     ],
+     [
+      0.1333333333,
+      "#472F7D"
+     ],
+     [
+      0.137254902,
+      "#46307E"
+     ],
+     [
+      0.1411764706,
+      "#46327E"
+     ],
+     [
+      0.1450980392,
+      "#46337F"
+     ],
+     [
+      0.1490196078,
+      "#463480"
+     ],
+     [
+      0.1529411765,
+      "#453581"
+     ],
+     [
+      0.1568627451,
+      "#453781"
+     ],
+     [
+      0.1607843137,
+      "#453882"
+     ],
+     [
+      0.1647058824,
+      "#443983"
+     ],
+     [
+      0.168627451,
+      "#443A83"
+     ],
+     [
+      0.1725490196,
+      "#443B84"
+     ],
+     [
+      0.1764705882,
+      "#433D84"
+     ],
+     [
+      0.1803921569,
+      "#433E85"
+     ],
+     [
+      0.1843137255,
+      "#423F85"
+     ],
+     [
+      0.1882352941,
+      "#424086"
+     ],
+     [
+      0.1921568627,
+      "#424186"
+     ],
+     [
+      0.1960784314,
+      "#414287"
+     ],
+     [
+      0.2,
+      "#414487"
+     ],
+     [
+      0.2039215686,
+      "#404588"
+     ],
+     [
+      0.2078431373,
+      "#404688"
+     ],
+     [
+      0.2117647059,
+      "#3F4788"
+     ],
+     [
+      0.2156862745,
+      "#3F4889"
+     ],
+     [
+      0.2196078431,
+      "#3E4989"
+     ],
+     [
+      0.2235294118,
+      "#3E4A89"
+     ],
+     [
+      0.2274509804,
+      "#3E4C8A"
+     ],
+     [
+      0.231372549,
+      "#3D4D8A"
+     ],
+     [
+      0.2352941176,
+      "#3D4E8A"
+     ],
+     [
+      0.2392156863,
+      "#3C4F8A"
+     ],
+     [
+      0.2431372549,
+      "#3C508B"
+     ],
+     [
+      0.2470588235,
+      "#3B518B"
+     ],
+     [
+      0.2509803922,
+      "#3B528B"
+     ],
+     [
+      0.2549019608,
+      "#3A538B"
+     ],
+     [
+      0.2588235294,
+      "#3A548C"
+     ],
+     [
+      0.262745098,
+      "#39558C"
+     ],
+     [
+      0.2666666667,
+      "#39568C"
+     ],
+     [
+      0.2705882353,
+      "#38588C"
+     ],
+     [
+      0.2745098039,
+      "#38598C"
+     ],
+     [
+      0.2784313725,
+      "#375A8C"
+     ],
+     [
+      0.2823529412,
+      "#375B8D"
+     ],
+     [
+      0.2862745098,
+      "#365C8D"
+     ],
+     [
+      0.2901960784,
+      "#365D8D"
+     ],
+     [
+      0.2941176471,
+      "#355E8D"
+     ],
+     [
+      0.2980392157,
+      "#355F8D"
+     ],
+     [
+      0.3019607843,
+      "#34608D"
+     ],
+     [
+      0.3058823529,
+      "#34618D"
+     ],
+     [
+      0.3098039216,
+      "#33628D"
+     ],
+     [
+      0.3137254902,
+      "#33638D"
+     ],
+     [
+      0.3176470588,
+      "#32648E"
+     ],
+     [
+      0.3215686275,
+      "#32658E"
+     ],
+     [
+      0.3254901961,
+      "#31668E"
+     ],
+     [
+      0.3294117647,
+      "#31678E"
+     ],
+     [
+      0.3333333333,
+      "#31688E"
+     ],
+     [
+      0.337254902,
+      "#30698E"
+     ],
+     [
+      0.3411764706,
+      "#306A8E"
+     ],
+     [
+      0.3450980392,
+      "#2F6B8E"
+     ],
+     [
+      0.3490196078,
+      "#2F6C8E"
+     ],
+     [
+      0.3529411765,
+      "#2E6D8E"
+     ],
+     [
+      0.3568627451,
+      "#2E6E8E"
+     ],
+     [
+      0.3607843137,
+      "#2E6F8E"
+     ],
+     [
+      0.3647058824,
+      "#2D708E"
+     ],
+     [
+      0.368627451,
+      "#2D718E"
+     ],
+     [
+      0.3725490196,
+      "#2C718E"
+     ],
+     [
+      0.3764705882,
+      "#2C728E"
+     ],
+     [
+      0.3803921569,
+      "#2C738E"
+     ],
+     [
+      0.3843137255,
+      "#2B748E"
+     ],
+     [
+      0.3882352941,
+      "#2B758E"
+     ],
+     [
+      0.3921568627,
+      "#2A768E"
+     ],
+     [
+      0.3960784314,
+      "#2A778E"
+     ],
+     [
+      0.4,
+      "#2A788E"
+     ],
+     [
+      0.4039215686,
+      "#29798E"
+     ],
+     [
+      0.4078431373,
+      "#297A8E"
+     ],
+     [
+      0.4117647059,
+      "#297B8E"
+     ],
+     [
+      0.4156862745,
+      "#287C8E"
+     ],
+     [
+      0.4196078431,
+      "#287D8E"
+     ],
+     [
+      0.4235294118,
+      "#277E8E"
+     ],
+     [
+      0.4274509804,
+      "#277F8E"
+     ],
+     [
+      0.431372549,
+      "#27808E"
+     ],
+     [
+      0.4352941176,
+      "#26818E"
+     ],
+     [
+      0.4392156863,
+      "#26828E"
+     ],
+     [
+      0.4431372549,
+      "#26828E"
+     ],
+     [
+      0.4470588235,
+      "#25838E"
+     ],
+     [
+      0.4509803922,
+      "#25848E"
+     ],
+     [
+      0.4549019608,
+      "#25858E"
+     ],
+     [
+      0.4588235294,
+      "#24868E"
+     ],
+     [
+      0.462745098,
+      "#24878E"
+     ],
+     [
+      0.4666666667,
+      "#23888E"
+     ],
+     [
+      0.4705882353,
+      "#23898E"
+     ],
+     [
+      0.4745098039,
+      "#238A8D"
+     ],
+     [
+      0.4784313725,
+      "#228B8D"
+     ],
+     [
+      0.4823529412,
+      "#228C8D"
+     ],
+     [
+      0.4862745098,
+      "#228D8D"
+     ],
+     [
+      0.4901960784,
+      "#218E8D"
+     ],
+     [
+      0.4941176471,
+      "#218F8D"
+     ],
+     [
+      0.4980392157,
+      "#21908D"
+     ],
+     [
+      0.5019607843,
+      "#21918C"
+     ],
+     [
+      0.5058823529,
+      "#20928C"
+     ],
+     [
+      0.5098039216,
+      "#20928C"
+     ],
+     [
+      0.5137254902,
+      "#20938C"
+     ],
+     [
+      0.5176470588,
+      "#1F948C"
+     ],
+     [
+      0.5215686275,
+      "#1F958B"
+     ],
+     [
+      0.5254901961,
+      "#1F968B"
+     ],
+     [
+      0.5294117647,
+      "#1F978B"
+     ],
+     [
+      0.5333333333,
+      "#1F988B"
+     ],
+     [
+      0.537254902,
+      "#1F998A"
+     ],
+     [
+      0.5411764706,
+      "#1F9A8A"
+     ],
+     [
+      0.5450980392,
+      "#1E9B8A"
+     ],
+     [
+      0.5490196078,
+      "#1E9C89"
+     ],
+     [
+      0.5529411765,
+      "#1E9D89"
+     ],
+     [
+      0.5568627451,
+      "#1F9E89"
+     ],
+     [
+      0.5607843137,
+      "#1F9F88"
+     ],
+     [
+      0.5647058824,
+      "#1FA088"
+     ],
+     [
+      0.568627451,
+      "#1FA188"
+     ],
+     [
+      0.5725490196,
+      "#1FA187"
+     ],
+     [
+      0.5764705882,
+      "#1FA287"
+     ],
+     [
+      0.5803921569,
+      "#20A386"
+     ],
+     [
+      0.5843137255,
+      "#20A486"
+     ],
+     [
+      0.5882352941,
+      "#21A585"
+     ],
+     [
+      0.5921568627,
+      "#21A685"
+     ],
+     [
+      0.5960784314,
+      "#22A785"
+     ],
+     [
+      0.6,
+      "#22A884"
+     ],
+     [
+      0.6039215686,
+      "#23A983"
+     ],
+     [
+      0.6078431373,
+      "#24AA83"
+     ],
+     [
+      0.6117647059,
+      "#25AB82"
+     ],
+     [
+      0.6156862745,
+      "#25AC82"
+     ],
+     [
+      0.6196078431,
+      "#26AD81"
+     ],
+     [
+      0.6235294118,
+      "#27AD81"
+     ],
+     [
+      0.6274509804,
+      "#28AE80"
+     ],
+     [
+      0.631372549,
+      "#29AF7F"
+     ],
+     [
+      0.6352941176,
+      "#2AB07F"
+     ],
+     [
+      0.6392156863,
+      "#2CB17E"
+     ],
+     [
+      0.6431372549,
+      "#2DB27D"
+     ],
+     [
+      0.6470588235,
+      "#2EB37C"
+     ],
+     [
+      0.6509803922,
+      "#2FB47C"
+     ],
+     [
+      0.6549019608,
+      "#31B57B"
+     ],
+     [
+      0.6588235294,
+      "#32B67A"
+     ],
+     [
+      0.662745098,
+      "#34B679"
+     ],
+     [
+      0.6666666667,
+      "#35B779"
+     ],
+     [
+      0.6705882353,
+      "#37B878"
+     ],
+     [
+      0.6745098039,
+      "#38B977"
+     ],
+     [
+      0.6784313725,
+      "#3ABA76"
+     ],
+     [
+      0.6823529412,
+      "#3BBB75"
+     ],
+     [
+      0.6862745098,
+      "#3DBC74"
+     ],
+     [
+      0.6901960784,
+      "#3FBC73"
+     ],
+     [
+      0.6941176471,
+      "#40BD72"
+     ],
+     [
+      0.6980392157,
+      "#42BE71"
+     ],
+     [
+      0.7019607843,
+      "#44BF70"
+     ],
+     [
+      0.7058823529,
+      "#46C06F"
+     ],
+     [
+      0.7098039216,
+      "#48C16E"
+     ],
+     [
+      0.7137254902,
+      "#4AC16D"
+     ],
+     [
+      0.7176470588,
+      "#4CC26C"
+     ],
+     [
+      0.7215686275,
+      "#4EC36B"
+     ],
+     [
+      0.7254901961,
+      "#50C46A"
+     ],
+     [
+      0.7294117647,
+      "#52C569"
+     ],
+     [
+      0.7333333333,
+      "#54C568"
+     ],
+     [
+      0.737254902,
+      "#56C667"
+     ],
+     [
+      0.7411764706,
+      "#58C765"
+     ],
+     [
+      0.7450980392,
+      "#5AC864"
+     ],
+     [
+      0.7490196078,
+      "#5CC863"
+     ],
+     [
+      0.7529411765,
+      "#5EC962"
+     ],
+     [
+      0.7568627451,
+      "#60CA60"
+     ],
+     [
+      0.7607843137,
+      "#63CB5F"
+     ],
+     [
+      0.7647058824,
+      "#65CB5E"
+     ],
+     [
+      0.768627451,
+      "#67CC5C"
+     ],
+     [
+      0.7725490196,
+      "#69CD5B"
+     ],
+     [
+      0.7764705882,
+      "#6CCD5A"
+     ],
+     [
+      0.7803921569,
+      "#6ECE58"
+     ],
+     [
+      0.7843137255,
+      "#70CF57"
+     ],
+     [
+      0.7882352941,
+      "#73D056"
+     ],
+     [
+      0.7921568627,
+      "#75D054"
+     ],
+     [
+      0.7960784314,
+      "#77D153"
+     ],
+     [
+      0.8,
+      "#7AD151"
+     ],
+     [
+      0.8039215686,
+      "#7CD250"
+     ],
+     [
+      0.8078431373,
+      "#7FD34E"
+     ],
+     [
+      0.8117647059,
+      "#81D34D"
+     ],
+     [
+      0.8156862745,
+      "#84D44B"
+     ],
+     [
+      0.8196078431,
+      "#86D549"
+     ],
+     [
+      0.8235294118,
+      "#89D548"
+     ],
+     [
+      0.8274509804,
+      "#8BD646"
+     ],
+     [
+      0.831372549,
+      "#8ED645"
+     ],
+     [
+      0.8352941176,
+      "#90D743"
+     ],
+     [
+      0.8392156863,
+      "#93D741"
+     ],
+     [
+      0.8431372549,
+      "#95D840"
+     ],
+     [
+      0.8470588235,
+      "#98D83E"
+     ],
+     [
+      0.8509803922,
+      "#9BD93C"
+     ],
+     [
+      0.8549019608,
+      "#9DD93B"
+     ],
+     [
+      0.8588235294,
+      "#A0DA39"
+     ],
+     [
+      0.862745098,
+      "#A2DA37"
+     ],
+     [
+      0.8666666667,
+      "#A5DB36"
+     ],
+     [
+      0.8705882353,
+      "#A8DB34"
+     ],
+     [
+      0.8745098039,
+      "#AADC32"
+     ],
+     [
+      0.8784313725,
+      "#ADDC30"
+     ],
+     [
+      0.8823529412,
+      "#B0DD2F"
+     ],
+     [
+      0.8862745098,
+      "#B2DD2D"
+     ],
+     [
+      0.8901960784,
+      "#B5DE2B"
+     ],
+     [
+      0.8941176471,
+      "#B8DE29"
+     ],
+     [
+      0.8980392157,
+      "#BADE28"
+     ],
+     [
+      0.9019607843,
+      "#BDDF26"
+     ],
+     [
+      0.9058823529,
+      "#C0DF25"
+     ],
+     [
+      0.9098039216,
+      "#C2DF23"
+     ],
+     [
+      0.9137254902,
+      "#C5E021"
+     ],
+     [
+      0.9176470588,
+      "#C8E020"
+     ],
+     [
+      0.9215686275,
+      "#CAE11F"
+     ],
+     [
+      0.9254901961,
+      "#CDE11D"
+     ],
+     [
+      0.9294117647,
+      "#D0E11C"
+     ],
+     [
+      0.9333333333,
+      "#D2E21B"
+     ],
+     [
+      0.937254902,
+      "#D5E21A"
+     ],
+     [
+      0.9411764706,
+      "#D8E219"
+     ],
+     [
+      0.9450980392,
+      "#DAE319"
+     ],
+     [
+      0.9490196078,
+      "#DDE318"
+     ],
+     [
+      0.9529411765,
+      "#DFE318"
+     ],
+     [
+      0.9568627451,
+      "#E2E418"
+     ],
+     [
+      0.9607843137,
+      "#E5E419"
+     ],
+     [
+      0.9647058824,
+      "#E7E419"
+     ],
+     [
+      0.968627451,
+      "#EAE51A"
+     ],
+     [
+      0.9725490196,
+      "#ECE51B"
+     ],
+     [
+      0.9764705882,
+      "#EFE51C"
+     ],
+     [
+      0.9803921569,
+      "#F1E51D"
+     ],
+     [
+      0.9843137255,
+      "#F4E61E"
+     ],
+     [
+      0.9882352941,
+      "#F6E620"
+     ],
+     [
+      0.9921568627,
+      "#F8E621"
+     ],
+     [
+      0.9960784314,
+      "#FBE723"
+     ],
+     [
+      1,
+      "#FDE725"
+     ]
+    ],
+    "showscale": true,
+    "hoverongaps": false,
+    "texttemplate": "%{z}",
+    "textfont": {
+     "size": 10
+    }
+   }
+  ],
+  "layout": {
+   "paper_bgcolor": "#ffffff",
+   "plot_bgcolor": "#ffffff",
+   "dragmode": false,
+   "font": {
+    "color": "#111827",
+    "family": "system-ui, -apple-system, sans-serif",
+    "size": 13
+   },
+   "margin": {
+    "l": 16,
+    "r": 16,
+    "t": 16,
+    "b": 16
+   },
+   "showlegend": false,
+   "xaxis": {
+    "type": "category",
+    "categoryorder": "array",
+    "categoryarray": [
+     "Outcome A",
+     "Outcome B",
+     "Outcome C"
+    ],
+    "autotickangles": [
+     0,
+     90
+    ],
+    "showgrid": false,
+    "zeroline": false,
+    "linecolor": "#111827",
+    "linewidth": 1,
+    "ticks": "outside",
+    "tickwidth": 1,
+    "fixedrange": true,
+    "automargin": true
+   },
+   "yaxis": {
+    "type": "category",
+    "categoryorder": "array",
+    "categoryarray": [
+     "North",
+     "South",
+     "East"
+    ],
+    "autorange": "reversed",
+    "showgrid": false,
+    "zeroline": false,
+    "linecolor": "#111827",
+    "linewidth": 1,
+    "ticks": "outside",
+    "tickwidth": 1,
+    "fixedrange": true,
+    "automargin": true
+   }
   }
  },
  "graph xy-scatter xyNoX": {

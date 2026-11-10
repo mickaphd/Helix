@@ -19,32 +19,52 @@ export type AnalysisType =
   | "correlation-matrix"
   | "multiple-regression"
   | "outliers"
-  | "chi-square";
+  | "chi-square"
+  | "survival"
+  | "cox";
 
 /** What the New Analysis picker offers: a test, or "Compare more than two groups",
  *  which its wizard resolves to one-way ANOVA, Kruskal-Wallis, repeated-measures ANOVA
  *  or Friedman (as Prism does). */
-export type AnalysisPickerValue = AnalysisType | "compare-many-groups";
+export type AnalysisPickerValue = AnalysisType | "compare-many-groups" | "interpolate";
 
 // The choices of the params, one list each: wizards ask among them, the types come from
 // them, and a file's value outside them is left out (the test takes its default).
 export const TAILS = ["two-sided", "less", "greater"] as const;
-export const POSTHOCS = ["none", "tukey", "bonferroni"] as const;
+const POSTHOCS = ["none", "tukey", "bonferroni"] as const;
+/** A one-way ANOVA's comparisons: every pair (Tukey, Bonferroni; with unequal SDs Games-Howell,
+ *  Dunnett's T3), or each group against a control (Dunnett). */
+export const ANOVA_POSTHOCS = [...POSTHOCS, "dunnett", "games-howell", "t3"] as const;
 export const RANK_POSTHOCS = ["none", "dunn"] as const;
-export const NONLINEAR_MODELS = [
-  "line",
+/** The dose-response (sigmoidal) models: what the Dose-response graph draws, and what can
+ *  compare two data sets' curves. */
+export const DOSE_MODELS = [
   "sigmoidal-4pl-logx",
   "sigmoidal-4pl-x",
+  "agonist-3pl-logx",
+  "inhibitor-3pl-logx",
+  "asymmetric-5pl-logx",
+  "asymmetric-5pl-x",
+] as const;
+/** Curves of growth, decay and enzyme kinetics: not standard curves to interpolate. */
+export const KINETIC_MODELS = ["exponential-growth", "one-phase-decay", "michaelis-menten"] as const;
+export const NONLINEAR_MODELS = [
+  ...DOSE_MODELS,
+  "line",
   "semilog-line",
   "hyperbola",
   "quadratic",
   "cubic",
+  ...KINETIC_MODELS,
 ] as const;
+/** What comparing two curves asks: is the EC50 different, or does one curve fit both. */
+export const CURVE_COMPARISONS = ["ec50", "all"] as const;
 export const CORRELATION_METHODS = ["pearson", "spearman"] as const;
 export const CORRELATION_MODES = ["x-vs-every-y", "two-datasets", "matrix"] as const;
 export const TWO_WAY_DESIGNS = ["ordinary", "repeated-measures", "nonparametric"] as const;
 export const POSTHOC_TARGETS = ["groups", "rows"] as const;
 export const CORRECTIONS = ["holm", "fdr", "none"] as const;
+export const CURVE_TESTS = ["logrank", "trend", "gehan"] as const;
 /** ROUT's Q, in percent. */
 export const ROUT_Q = { min: 0.01, max: 50 };
 
@@ -72,7 +92,18 @@ export interface OneSampleTParams {
 
 /** Params for "anova": optional post-hoc pairwise comparisons between groups. */
 export interface AnovaParams {
+  posthoc: (typeof ANOVA_POSTHOCS)[number];
+  /** false: Welch's ANOVA (the groups' SDs differ); absent or true, the ordinary one. */
+  equalSd?: boolean;
+  /** Dunnett's control group, by name. */
+  control?: string;
+}
+
+/** Params for "rm-anova": Tukey or Bonferroni comparisons of every pair, or none. */
+export interface RmAnovaParams {
   posthoc: (typeof POSTHOCS)[number];
+  /** false: not assumed, the Geisser-Greenhouse correction applies; absent or true, assumed. */
+  sphericity?: boolean;
 }
 
 /** Params for "kruskal-wallis": optional Dunn's post-hoc pairwise comparisons between groups. */
@@ -101,18 +132,21 @@ export interface AreaUnderCurveParams {
   baseline: number;
 }
 
-/** Curated "Standard curves to interpolate" models (Prism's first category) that
- *  fit reliably in WebR. `-logx`/`-x` note whether X is log(concentration) or the
- *  raw concentration. Line/semilog/quadratic/cubic are linear-in-parameters (lm);
- *  the sigmoidal + hyperbola forms are nonlinear (nls). */
+/** The curves a nonlinear regression fits. `-logx`/`-x` say whether X is log(concentration)
+ *  or the concentration. Line, semilog and polynomials are linear in their parameters (lm);
+ *  the others nonlinear (nls). */
 export type NonlinearModel = (typeof NONLINEAR_MODELS)[number];
 
-/** Params for "nonlinear-regression" (XY table): which Y series to fit, and which
- *  curated standard curve. */
+/** Params for "nonlinear-regression" (XY table): which Y data set to fit, and which curve. */
 export interface NonlinearRegressionParams {
   /** Omitted defaults to the first Y data column. */
   y?: string;
   model: NonlinearModel;
+  /** A dose-response curve compared with this other Y data set's (an extra sum-of-squares F test). */
+  compareWith?: string;
+  compare?: (typeof CURVE_COMPARISONS)[number];
+  /** Interpolate the unknowns: the rows holding a Y but no X get the X the curve gives them. */
+  interpolate?: boolean;
 }
 
 /** Params for "correlation-matrix": Pearson (parametric) vs. Spearman
@@ -149,6 +183,10 @@ export interface TwoWayAnovaParams {
   design: (typeof TWO_WAY_DESIGNS)[number];
   posthoc: (typeof POSTHOCS)[number];
   posthocTarget: (typeof POSTHOC_TARGETS)[number];
+  /** Repeated measures: false (new analyses) corrects the row and interaction effects by the
+   *  Geisser-Greenhouse epsilon, and compares on each comparison's own error; absent (older
+   *  files) or true, sphericity is assumed. */
+  sphericity?: boolean;
 }
 
 /** Params for "multiple-t-tests": a per-row t test (or Wilcoxon/Mann-Whitney)
@@ -184,6 +222,7 @@ export type AnalysisParams = DataSetsParam &
     | CompareTwoGroupsParams
     | OneSampleTParams
     | AnovaParams
+    | RmAnovaParams
     | KruskalWallisParams
     | FriedmanParams
     | CorrelationParams
@@ -195,7 +234,24 @@ export type AnalysisParams = DataSetsParam &
     | MultipleTTestsParams
     | MultipleRegressionParams
     | OutliersParams
+    | SurvivalParams
+    | CoxParams
   );
+
+/** Params for "survival" (Survival table): the test comparing the curves — log-rank,
+ *  log-rank for trend (groups in a meaningful order, 3 or more), or Gehan-Breslow-Wilcoxon
+ *  (more weight on early events) — and, with 3 groups or more, how the pairwise
+ *  comparisons are corrected. */
+export interface SurvivalParams {
+  curveTest: (typeof CURVE_TESTS)[number];
+  correction: (typeof CORRECTIONS)[number];
+}
+
+/** Params for "cox" (Survival table): the group the others' hazards are compared to;
+ *  omitted, the first holding subjects. */
+export interface CoxParams {
+  reference?: string;
+}
 
 /** What every test reads: the table's data columns, parsed once (see lib/dataset.ts). */
 export type { Column } from "../lib/dataset";
@@ -243,6 +299,27 @@ interface CorrelationMatrix {
   label?: string;
 }
 
+/** One group of a survival analysis: its subjects, its events, and its median survival with
+ *  the median's 95% interval (null where the curve, or the band's edge, never reaches 50%). */
+export interface SurvivalGroupRow {
+  group: string;
+  subjects: number;
+  events: number;
+  median: number | null;
+  low: number | null;
+  high: number | null;
+}
+
+/** A Cox regression's hazard ratio of a group to the reference group ("A vs. B"), its 95%
+ *  interval and P. */
+export interface HazardRatioRow {
+  comparison: string;
+  ratio: number | null;
+  low: number | null;
+  high: number | null;
+  p: number | null;
+}
+
 /** One row of a regression coefficients table (intercept or a predictor). */
 export interface RegressionCoefficient {
   term: string;
@@ -250,6 +327,27 @@ export interface RegressionCoefficient {
   stdError: number | null;
   t: number | null;
   p: number | null;
+  /** Its 95% confidence interval (asymptotic for a nonlinear fit). */
+  low?: number | null;
+  high?: number | null;
+}
+
+/** One row of best-fit values: a value per data set, or an interval (`ranges`, low and high). */
+export interface FitRow {
+  label: string;
+  values?: (number | null)[];
+  ranges?: [number | null, number | null][];
+}
+
+/** An unknown read off a standard curve: its row, its Y, the X the curve gives it (null when
+ *  the curve never reaches that Y), 10^X when X is a log, and whether X lies beyond the
+ *  standards' X. */
+export interface InterpolatedRow {
+  label: string;
+  y: number;
+  x: number | null;
+  concentration?: number | null;
+  extrapolated: boolean;
 }
 
 /** One row of "correlation" results in "x-vs-every-y" mode: X vs. one Y series. */
@@ -267,7 +365,7 @@ export interface AreaUnderCurveRow {
 }
 
 /** One row of "outliers" results: one column's outlier count + robust mean. */
-export interface OutlierGroupRow {
+interface OutlierGroupRow {
   group: string;
   points: number;
   outliers: number;
@@ -292,12 +390,22 @@ export interface AnalysisResult {
   matrix?: CorrelationMatrix;
   /** Optional regression coefficients table (multiple regression). */
   coefficients?: RegressionCoefficient[];
+  /** A curve fit's best-fit values, one column per data set (two when curves are compared). */
+  fit?: { sets: string[]; rows: FitRow[] };
+  /** A standard curve's unknowns, interpolated. */
+  interpolated?: InterpolatedRow[];
   /** Optional per-Y correlations table ("correlation", "x-vs-every-y" mode). */
   correlations?: CorrelationRow[];
   /** Optional per-Y area-under-curve table ("area-under-curve"). */
   areas?: AreaUnderCurveRow[];
   /** Optional per-column outlier summary ("outliers"). */
   outlierGroups?: OutlierGroupRow[];
+  /** Optional per-group survival summary ("survival"). */
+  survivalGroups?: SurvivalGroupRow[];
+  /** What the comparisons table's second column holds, when not a difference of means. */
+  comparisonsEffect?: string;
+  /** Optional hazard ratios of a Cox regression, each group's to the reference's. */
+  hazardRatios?: HazardRatioRow[];
 }
 
 /** A test returns either a result or a user-facing error message. */

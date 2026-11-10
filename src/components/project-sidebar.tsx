@@ -1,12 +1,12 @@
 import * as React from "react";
 import { ChartLineIcon, GridNineIcon, PlusCircleIcon, SidebarSimpleIcon, SigmaIcon } from "@phosphor-icons/react";
-import { Button, IconButton } from "../../ui/controls";
-import { SidePanel, SidebarItem } from "../../ui/layout";
-import { popupMenu } from "../../native";
-import { useOutline, useProjectActions, type OutlineNode } from "../../store/use-project-store";
-import { removeWithConfirm } from "../../store/use-document";
-import { NODE_NAMES } from "../../store/types";
-import { clampWidth, SIDEBAR_WIDTH, useLayout } from "../../store/use-layout";
+import { Button, IconButton } from "../ui/controls";
+import { SidePanel, SidebarItem } from "../ui/layout";
+import { popupMenu } from "../native";
+import { useOutline, useProjectActions, type OutlineNode } from "../store/use-project-store";
+import { removeWithConfirm } from "../store/use-document";
+import { NODE_NAMES } from "../store/types";
+import { clampWidth, SIDEBAR_WIDTH, useLayout } from "../store/use-layout";
 
 /** What's currently being dragged. Tables reorder among tables; children reorder
  *  only among siblings of the same table (never across tables, never into a table). */
@@ -194,7 +194,12 @@ export function ProjectSidebar() {
       { text: "New Graph…", action: () => openSelector({ kind: "new-graph", tableId: table.id }) },
       { item: "Separator" },
       { text: "Rename", action: () => setRenaming(table.id) },
-      { text: `Delete ${NODE_NAMES.table}…`, action: () => removeWithConfirm(table, removeNode) },
+      // The last table stays: a project is never empty.
+      {
+        text: `Delete ${NODE_NAMES.table}…`,
+        enabled: tables.length > 1,
+        action: () => removeWithConfirm(table, removeNode),
+      },
     ]);
 
   const childMenu = (child: OutlineNode) =>

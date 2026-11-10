@@ -15,7 +15,7 @@ import {
   TextTIcon,
 } from "@phosphor-icons/react";
 import { Button } from "../../ui/controls";
-import { Section, Stepper } from "../../components/common/inspector";
+import { Section, Stepper } from "../../components/inspector";
 import { paletteColor, paletteOf, reversedPalette, savedPalette, withoutColors } from "../../lib/palettes";
 import { GRAPH_LIMITS, type GraphOptions, type PointStyle, type SeriesStyle } from "../../store/types";
 import { GRAPHS, newGraphOptions } from ".";
@@ -81,6 +81,7 @@ const STYLE_OPTIONS: (keyof GraphOptions)[] = [
   "errorColor",
   "errorDirection",
   "survivalShowCensors",
+  "survivalShowBand",
   "pieShowPercent",
   "heatmapShowValues",
   "heatmapShowScale",

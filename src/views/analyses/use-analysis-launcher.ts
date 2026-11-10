@@ -61,7 +61,7 @@ export function useStartAnalysis() {
     const ready =
       picked === "compare-many-groups"
         ? columnsPrecheck(tableId, ANALYSES.anova.minColumns, "Compare more than two groups")
-        : precheck(tableId, picked);
+        : precheck(tableId, picked === "interpolate" ? "nonlinear-regression" : picked);
     if (!ready) return false;
     // A wizard with nothing to ask of this table (one data set, say) runs at once.
     const wizard = WIZARDS[picked];

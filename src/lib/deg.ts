@@ -6,7 +6,6 @@ import type { GraphOptions, TableData } from "../store/types";
 import { groupsOf, readTable, type Column } from "./dataset";
 import { tTwoSidedP } from "./student-t";
 import { mean } from "./summary";
-import { adjustPValues } from "../stats/grouped/base";
 
 interface DEGRow {
   /** The table row it comes from (rows lacking data are skipped, so not its place here). */
@@ -18,6 +17,18 @@ interface DEGRow {
 }
 
 const log2 = (x: number) => Math.log(x) / Math.LN2;
+
+/** Benjamini-Hochberg's FDR of each P value (step-up), as R's `p.adjust(p, "BH")`. */
+function fdr(p: number[]): number[] {
+  const order = p.map((_, i) => i).sort((a, b) => p[a] - p[b]);
+  const out = new Array<number>(p.length);
+  let least = 1;
+  for (let k = order.length - 1; k >= 0; k--) {
+    least = Math.min(least, (p.length / (k + 1)) * p[order[k]]);
+    out[order[k]] = least;
+  }
+  return out;
+}
 const variance = (v: number[]) => {
   const m = mean(v);
   return v.reduce((s, x) => s + (x - m) ** 2, 0) / (v.length - 1);
@@ -76,9 +87,6 @@ export function computeGroupedDEG(
     rows.push({ row: r, label: String(title ?? "").trim(), log2FC, p, padj: 1 });
   });
   // Benjamini-Hochberg FDR across the genes, as the grouped tests correct theirs.
-  const padj = adjustPValues(
-    rows.map((r) => r.p),
-    "fdr",
-  );
-  return rows.map((r, i) => ({ ...r, padj: padj[i]! }));
+  const padj = fdr(rows.map((r) => r.p));
+  return rows.map((r, i) => ({ ...r, padj: padj[i] }));
 }

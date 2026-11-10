@@ -2,7 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { ProjectProvider } from "./store/use-project-store";
 import { LayoutProvider } from "./store/use-layout";
-import { AppShell } from "./components/layout/app-shell";
+import { AppShell } from "./components/app-shell";
 import { connectR } from "./stats/webr";
 import { accentColor, evalR, isNative, onFocusChange } from "./native";
 import { checkForUpdatesDaily } from "./updates";

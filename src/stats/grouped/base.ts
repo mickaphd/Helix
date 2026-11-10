@@ -4,6 +4,7 @@
 // observation tagged by BOTH its group and its row.
 import type { Column } from "../types";
 import { groupsOf } from "../../lib/dataset";
+import { seriesKeyOf } from "../../lib/columns";
 
 const rowCount = (columns: Column[]) => columns[0]?.byRow.length ?? 0;
 
@@ -72,11 +73,21 @@ export function pairedGroupRows(
   return { name1: a.name, name2: b.name, rowsA, rowsB };
 }
 
-/** Flattened (Group × Row × Subject) observations for a repeated-measures
- *  (row-matched) two-way ANOVA: each replicate column is treated as one subject,
- *  the same subject measured at every row within its group. Subjects (replicate
- *  columns) missing any row are dropped entirely — kept-complete-only, mirroring
- *  the Friedman test's auto-drop-incomplete behavior — `dropped` reports how many. */
+/** The subjects of a repeated-measures (row-matched) two-way ANOVA: each replicate
+ *  column is one subject, measured at every row within its group. Those missing a row are
+ *  left out whole (`dropped` counts them), as the Friedman test leaves out incomplete rows.
+ *  Only the rows holding a value count: an empty row is no row of the design. */
+export function completeSubjects(columns: Column[]): { subjects: Column[]; rows: number[]; dropped: number } {
+  const rows = Array.from({ length: rowCount(columns) }, (_, r) => r).filter((r) =>
+    columns.some((c) => c.byRow[r] != null),
+  );
+  const all = groupsOf(columns).flatMap((g) => g.columns);
+  const subjects = all.filter((c) => rows.every((r) => c.byRow[r] != null));
+  return { subjects, rows, dropped: all.length - subjects.length };
+}
+
+/** Flattened (Group × Row × Subject) observations of the complete subjects, subject by
+ *  subject, rows in order. */
 export function flattenRepeated(columns: Column[]): {
   values: number[];
   group: string[];
@@ -84,54 +95,19 @@ export function flattenRepeated(columns: Column[]): {
   subject: string[];
   dropped: number;
 } {
-  const rows = rowCount(columns);
+  const { subjects, rows, dropped } = completeSubjects(columns);
   const values: number[] = [];
   const group: string[] = [];
   const row: string[] = [];
   const subject: string[] = [];
-  let totalCols = 0;
-  let keptCols = 0;
-  for (const g of groupsOf(columns)) {
-    for (const col of g.columns) {
-      totalCols++;
-      if (rows === 0 || col.values.length !== rows) continue;
-      keptCols++;
-      col.values.forEach((v, r) => {
-        values.push(v);
-        group.push(g.name);
-        row.push(`R${r + 1}`);
-        subject.push(`${g.name}:${col.name}`);
-      });
-    }
-  }
-  return { values, group, row, subject, dropped: totalCols - keptCols };
-}
-
-/** Holm (step-down) and Benjamini-Hochberg/FDR (step-up) multiple-comparison
- *  corrections — plain textbook formulas done in JS rather than round-tripping
- *  to R for something this simple. "none" passes P values through unchanged. */
-export function adjustPValues(pvals: (number | null)[], method: "holm" | "fdr" | "none"): (number | null)[] {
-  if (method === "none") return pvals;
-  const ranked = pvals
-    .map((p, i) => ({ p, i }))
-    .filter((x): x is { p: number; i: number } => x.p != null)
-    .sort((a, b) => a.p - b.p);
-  const m = ranked.length;
-  const adjusted: number[] = new Array(m);
-  if (method === "holm") {
-    let runningMax = 0;
-    ranked.forEach(({ p }, k) => {
-      runningMax = Math.max(runningMax, Math.min(1, (m - k) * p));
-      adjusted[k] = runningMax;
+  for (const col of subjects) {
+    const g = seriesKeyOf(col.name);
+    rows.forEach((r) => {
+      values.push(col.byRow[r]!);
+      group.push(g);
+      row.push(`R${r + 1}`);
+      subject.push(`${g}:${col.name}`);
     });
-  } else {
-    let runningMin = 1;
-    for (let k = m - 1; k >= 0; k--) {
-      runningMin = Math.min(runningMin, Math.min(1, (m / (k + 1)) * ranked[k].p));
-      adjusted[k] = runningMin;
-    }
   }
-  const out: (number | null)[] = [...pvals];
-  ranked.forEach(({ i }, k) => (out[i] = adjusted[k]));
-  return out;
+  return { values, group, row, subject, dropped };
 }

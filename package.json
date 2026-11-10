@@ -1,6 +1,6 @@
 {
   "name": "helix",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Scientific data analysis, simplified — an open-source alternative to GraphPad Prism.",
   "private": true,
   "license": "GPL-3.0-or-later",
@@ -10,6 +10,7 @@
     "build": "tauri build --target aarch64-apple-darwin && tauri build --target x86_64-apple-darwin",
     "install-app": "tauri build --bundles app && rm -rf /Applications/Helix.app && ditto src-tauri/target/release/bundle/macos/Helix.app /Applications/Helix.app",
     "web": "vite",
+    "postinstall": "node scripts/r-packages.mjs",
     "check": "tsc --noEmit",
     "sample": "node --import tsx tests/sample-project.ts",
     "test": "node --import tsx tests/checks.ts && node --import tsx tests/reference.ts",

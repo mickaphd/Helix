@@ -66,10 +66,11 @@ Every item has `id`, `type` (`"table"`, `"analysis"` or `"graph"`), `name`, and
 }
 ```
 
-- `tableType`: `"column"`, `"xy"`, `"grouped"`, `"multiple"` (Multiple Variables)
-  or `"contingency"`.
+- `tableType`: `"column"`, `"xy"`, `"grouped"`, `"multiple"` (Multiple Variables),
+  `"contingency"` or `"survival"` (Helix 1.0.7 and later).
 - `columns`: the column names. The first is always the row-title column (`Title`);
-  in an XY table the second is X.
+  in an XY table the second is X, in a Survival table the time (each subject's row then
+  holds 1, event, or 0, censored, in its group's column).
 - `rows`: one list per row, one cell per column, as typed: text, or `null` for an
   empty cell. Numbers are written as text (`"2.5"`), exactly as entered. A row may
   be shorter than `columns`: the missing cells are empty.
@@ -93,7 +94,7 @@ colors of the table's graphs (see Graph).
 
 ```json
 {
-  "id": "analysis_k3m4", "type": "analysis", "name": "Analysis 1", "parentId": "table_x1y2",
+  "id": "analysis_k3m4", "type": "analysis", "name": "Two-way ANOVA", "parentId": "table_x1y2",
   "analysisType": "two-way-anova",
   "analysisParams": { "design": "ordinary", "posthoc": "tukey", "posthocTarget": "groups", "sets": ["A", "C"] }
 }
@@ -110,7 +111,7 @@ them (a two-group test: the first two holding data).
 
 ```json
 {
-  "id": "graph_p5q6", "type": "graph", "name": "Graph 1", "parentId": "table_x1y2",
+  "id": "graph_p5q6", "type": "graph", "name": "Interleaved bars", "parentId": "table_x1y2",
   "graphType": "grouped-bars",
   "graphOptions": { "center": "mean", "error": "sem", "width": 640, "height": 460, … }
 }
@@ -172,6 +173,10 @@ A graph's colors and style are its own:
   each sits in its usual place.
 - `xTitleGap`, `yTitleGap`: the space in pixels between each axis title and its tick
   labels, 0 to 40.
+
+A `"dose-response"` graph (before Helix 1.0.7) fitted its own curve, from `doseY` (its data
+set) and `doseModel`. It opens as an `"xy-scatter"` drawing the curve of a new
+`"nonlinear-regression"` analysis of the same data set and model, placed just before it.
 
 A graph without `palette` comes from Helix 1.0.2 or before: it takes the Helix
 palette, its table's `seriesColors`, its old `heatmapColorScale` or

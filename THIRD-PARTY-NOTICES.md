@@ -10,6 +10,9 @@ license; the full texts come with each package's source.
 | --- | --- | --- | --- |
 | [R](https://www.r-project.org) | 4.6.0 | GPL-2 or GPL-3 | Every statistical test |
 | [webR](https://github.com/r-wasm/webr) | 0.6.0 | Binaries: GPL-3; JavaScript: MIT | Runs R inside the app (R compiled to WebAssembly) |
+| [survival](https://github.com/therneau/survival) (R package) | 3.8-12 | LGPL-2 or later | Survival analysis and Cox regression |
+| [Matrix](https://cran.r-project.org/package=Matrix) (R package, needed by survival) | 1.7-6 | GPL-2 or later | — |
+| [lattice](https://cran.r-project.org/package=lattice) (R package, needed by Matrix) | 0.23-1 | GPL-2 or later | — |
 | [Plotly.js](https://github.com/plotly/plotly.js) | 4.1.2 | MIT | Drawing the graphs |
 | [React](https://react.dev) and React DOM | 19.3.0 | MIT | The interface |
 | [Tauri](https://tauri.app) (with its dialog and window-state plugins) | 2.11 | MIT or Apache-2.0 | The native macOS app around the interface |

@@ -15,6 +15,7 @@ import {
   type TableData,
 } from "../src/store/types";
 import {
+  columnsBeyond,
   deleteColumns,
   freshColumnNames,
   newGroupedTable,
@@ -42,7 +43,7 @@ import { deletePalette, keepPalette, loadMyPalettes } from "../src/store/my-pale
 import { GRAPHS, newGraphOptions, type GraphFigure } from "../src/views/graphs";
 import { readTable, setColumns } from "../src/lib/dataset";
 import { incompleteRows, missingColumn } from "../src/stats/column/base";
-import { WIZARDS } from "../src/views/analyses/wizards";
+import { toggled, WIZARDS } from "../src/views/analyses/wizards";
 import { addNote, movedText, paintOf, vectorTraces, visibleOutline, withCaps } from "../src/views/graphs/plot-helpers";
 import {
   drawnKeys,
@@ -406,6 +407,29 @@ check("cell colors from older files become their graphs' point colors", () => {
   ok(!("pointColors" in JSON.parse(serializeProjectFile(project)).project.nodes.t1.data));
 });
 
+check("a dose-response graph from an older Helix becomes a scatter drawing a new analysis's curve", () => {
+  const file = JSON.parse(serializeProjectFile(payload));
+  file.project.nodes.g1.graphType = "dose-response";
+  Object.assign(file.project.nodes.g1.graphOptions, {
+    doseY: "Y1",
+    doseModel: "sigmoidal-4pl-logx",
+    doseShowCurve: true,
+    doseShowEquation: false,
+  });
+  const { project, issues, updated } = read(JSON.stringify(file));
+  const fit = project.nodes.analysis_fit_g1;
+  deepStrictEqual(fit.analysisParams, { y: "Y1", model: "sigmoidal-4pl-logx" });
+  strictEqual(fit.parentId, "t1");
+  const o = project.nodes.g1.graphOptions!;
+  strictEqual(project.nodes.g1.graphType, "xy-scatter");
+  strictEqual(o.regAnalysisId, "analysis_fit_g1");
+  ok(o.regShowLine && !o.regShowEquation && o.xyStyle === "points" && !("doseModel" in o));
+  // The fit comes just before its graph, and the project opens to be saved, said nothing else.
+  const children = project.childOrder.t1;
+  strictEqual(children.indexOf("analysis_fit_g1") + 1, children.indexOf("g1"));
+  ok(updated && issues.length === 0);
+});
+
 check("a broken item is left out alone, and said so", () => {
   const file = JSON.parse(serializeProjectFile(payload));
   file.project.nodes.bad = { type: "graph" };
@@ -453,6 +477,24 @@ check("a file is never trusted: unknown types, R code in params, a huge graph", 
   const o = project.nodes.g1.graphOptions!;
   deepStrictEqual([o.width, o.height], [2400, 120]);
   ok("error" in (await runAnalysis("constructor" as never, project.nodes.t1.data!)));
+});
+
+check("an item can't be named __proto__, and an id names one of the file's own items", () => {
+  const file = JSON.parse(serializeProjectFile(payload));
+  file.project.nodes = JSON.parse(
+    JSON.stringify(file.project.nodes).replace(
+      "{",
+      '{"__proto__":{"type":"table","name":"P","data":{"columns":["Title"],"rows":[]}},',
+    ),
+  );
+  file.project.activeNodeId = "constructor";
+  file.project.nodes.g1.graphOptions.sigAnalysisId = "toString";
+  const { project, issues } = read(JSON.stringify(file));
+  strictEqual(Object.getPrototypeOf(project.nodes), Object.prototype);
+  deepStrictEqual(Object.keys(project.nodes).sort(), ["a1", "g1", "t1"]);
+  strictEqual(project.activeNodeId, "t1");
+  ok(issues.some((i) => i.message.includes("1 unreadable item")));
+  ok(issues.some((i) => i.message.includes("no longer exists")));
 });
 
 check("a file's choices and numbers stay within what Helix offers", () => {
@@ -532,6 +574,12 @@ check("an XY table with a renamed X gets Y columns, not a second X", () => {
   deepStrictEqual(freshColumnNames(["Title"], "xy", 2), ["X", "Y1"]);
 });
 
+check("a new column is named for its place: a renamed one never frees its name", () => {
+  deepStrictEqual(freshColumnNames(["Title", "Control", "B", "C"], "column", 2), ["D", "E"]);
+  deepStrictEqual(freshColumnNames(["Title", "A", "C"], "column", 2), ["D", "E"]); // C, the 3rd's, is taken
+  deepStrictEqual(freshColumnNames(["Title", "Time", "Vehicle"], "survival", 1), ["Group B"]);
+});
+
 check("too large a number to be one is text", () => {
   deepStrictEqual(
     readTable({
@@ -546,6 +594,118 @@ check("too large a number to be one is text", () => {
 });
 
 // ── Renamed columns and moved rows ───────────────────────────────────────
+
+check("a column whose name holds ':' keeps its points' styles when renamed", () => {
+  const node: ProjectNode = {
+    id: "g",
+    type: "graph",
+    name: "G",
+    parentId: "t",
+    graphType: "individual",
+    graphOptions: { ...DEFAULT_GRAPH_OPTIONS, points: { "Dose: 5#0": { color: "#ff0000" } } },
+  };
+  const o = followTable(node, { renamed: { "Dose: 5": "Low" } }, ["Title", "Low"]).graphOptions!;
+  deepStrictEqual(o.points, { "Low#0": { color: "#ff0000" } });
+  const kept = followTable(node, { renamed: { Dose: "X" } }, ["Title", "Dose: 5", "X"]).graphOptions!;
+  deepStrictEqual(kept.points, { "Dose: 5#0": { color: "#ff0000" } });
+});
+
+check("comparing groups asks equal SDs, then offers the comparisons that fit and a control", () => {
+  const wizard = WIZARDS["compare-many-groups"]!;
+  const table = readTable({ columns: ["Title", "A", "B", "C"], rows: [["", "1", "2", "3"]] });
+  const asked = (a: Record<string, string>) => wizard.questions(a, table).flatMap((q) => (q ? [q] : []));
+  const offered = (a: Record<string, string>) => {
+    const q = asked(a).find((q) => q.id === "posthoc");
+    return q?.kind === "choice" ? q.options.map((o) => o.value) : [];
+  };
+  const unpaired = { paired: "unpaired", gaussian: "yes" };
+  deepStrictEqual(offered({ ...unpaired, equalSd: "yes" }), ["none", "tukey", "bonferroni", "dunnett"]);
+  deepStrictEqual(offered({ ...unpaired, equalSd: "no" }), ["none", "games-howell", "t3"]);
+  deepStrictEqual(offered({ paired: "paired", gaussian: "yes" }), ["none", "tukey", "bonferroni"]);
+  ok(!asked({ paired: "paired", gaussian: "yes" }).some((q) => q.id === "equalSd"));
+  ok(asked({ paired: "paired", gaussian: "yes" }).some((q) => q.id === "sphericity"));
+  ok(!asked({ ...unpaired }).some((q) => q.id === "sphericity"));
+  deepStrictEqual(wizard.finish({ paired: "paired", gaussian: "yes", sphericity: "no", posthoc: "tukey" }, table), {
+    type: "rm-anova",
+    params: { posthoc: "tukey", sphericity: false },
+  });
+  ok(asked({ ...unpaired, equalSd: "yes", posthoc: "dunnett" }).some((q) => q.id === "control"));
+  deepStrictEqual(wizard.finish({ ...unpaired, equalSd: "yes", posthoc: "dunnett", control: "B" }, table), {
+    type: "anova",
+    params: { posthoc: "dunnett", equalSd: true, control: "B" },
+  });
+  deepStrictEqual(wizard.finish({ ...unpaired, equalSd: "no", posthoc: "t3", control: "B" }, table).params, {
+    posthoc: "t3",
+    equalSd: false,
+  });
+});
+
+check("a two-way ANOVA of one value per cell asks nothing and runs the ordinary one", () => {
+  const wizard = WIZARDS["two-way-anova"]!;
+  const single = readTable({
+    columns: ["Title", "A:Y1", "A:Y2", "B:Y1", "B:Y2"],
+    rows: [["a", "1", null, "2", null]],
+    groups: 2,
+    replicates: 2,
+  });
+  deepStrictEqual(wizard.questions({}, single).filter(Boolean), []);
+  deepStrictEqual(wizard.finish({}, single).params, { design: "ordinary", posthoc: "none", posthocTarget: "groups" });
+  const replicated = readTable({
+    columns: ["Title", "A:Y1", "A:Y2", "B:Y1", "B:Y2"],
+    rows: [["a", "1", "3", "2", null]],
+    groups: 2,
+    replicates: 2,
+  });
+  ok(wizard.questions({}, replicated).some((q) => q && q.id === "design"));
+  // Repeated measures ask about sphericity; not assuming it is what new analyses take.
+  ok(wizard.questions({ design: "repeated-measures" }, replicated).some((q) => q && q.id === "sphericity"));
+  ok(!wizard.questions({ design: "ordinary" }, replicated).some((q) => q && q.id === "sphericity"));
+  deepStrictEqual(wizard.finish({ design: "repeated-measures", sphericity: "no" }, replicated).params, {
+    design: "repeated-measures",
+    posthoc: "none",
+    posthocTarget: "groups",
+    sphericity: false,
+  });
+});
+
+check("fitting a curve asks its kind, then its model, then what to compare", () => {
+  const wizard = WIZARDS["nonlinear-regression"]!;
+  const table = readTable({ columns: ["Title", "X", "A", "B"], rows: [["", "1", "2", "3"]] });
+  const asked = (a: Record<string, string>) => wizard.questions(a, table).flatMap((q) => (q ? [q] : []));
+  const options = (a: Record<string, string>, id: string) => {
+    const q = asked(a).find((q) => q.id === id);
+    return q?.kind === "choice" ? q.options.map((o) => o.value) : [];
+  };
+  ok(options({ kind: "dose" }, "model").includes("asymmetric-5pl-logx"));
+  ok(!options({ kind: "other" }, "model").includes("sigmoidal-4pl-logx"));
+  deepStrictEqual(options({ y: "A", kind: "dose" }, "compareWith"), ["none", "B"]);
+  ok(!asked({ y: "A", kind: "other" }).some((q) => q.id === "compareWith"));
+  ok(!asked({ y: "A", kind: "dose", compareWith: "none" }).some((q) => q.id === "compare"));
+  deepStrictEqual(
+    wizard.finish({ y: "A", kind: "dose", model: "inhibitor-3pl-logx", compareWith: "B", compare: "ec50" }, table),
+    {
+      type: "nonlinear-regression",
+      params: { y: "A", model: "inhibitor-3pl-logx", compareWith: "B", compare: "ec50" },
+    },
+  );
+  deepStrictEqual(wizard.finish({ y: "A", kind: "other", model: "line", compareWith: "B" }, table).params, {
+    y: "A",
+    model: "line",
+  });
+});
+
+check("data sets ticked again keep the table's order", () => {
+  const options = ["A", "B", "C"];
+  deepStrictEqual(toggled(options, ["A", "C"], "B", true), ["A", "B", "C"]);
+  deepStrictEqual(toggled(options, ["A", "B", "C"], "A", false), ["B", "C"]);
+});
+
+check("a paste wider than a grouped table says how many columns didn't fit", () => {
+  const grouped = newGroupedTable(2, 2); // Title + 4 sub-columns
+  strictEqual(columnsBeyond(grouped, 3, [["1", "2", "3", "4"]]), 2);
+  strictEqual(columnsBeyond(grouped, 1, [["1", "2"]]), 0);
+  strictEqual(columnsBeyond({ columns: ["Title", "A"], rows: [] }, 1, [["1", "2", "3"]]), 0);
+});
 
 check("analyses follow renamed columns", () => {
   const regression = followTable(analysis, { renamed: { Y1: "Response" } }, []);
@@ -573,7 +733,7 @@ check("graphs follow renamed columns, groups, compared pairs and colors", () => 
     ...graph,
     graphOptions: {
       ...DEFAULT_GRAPH_OPTIONS,
-      doseY: "Y1",
+      xVariable: "Y1",
       volcanoGroupA: "A",
       sigPairs: [pairKey("Y1", "Y2"), pairKey("Y2", "Y3")],
       title: "Y1",
@@ -581,7 +741,7 @@ check("graphs follow renamed columns, groups, compared pairs and colors", () => 
     },
   };
   const o = followTable(node, { renamed: { Y1: "Drug", A: "Control" } }, ["Title", "Drug", "Y2", "Y3"]).graphOptions!;
-  strictEqual(o.doseY, "Drug");
+  strictEqual(o.xVariable, "Drug");
   strictEqual(o.volcanoGroupA, "Control");
   deepStrictEqual(o.sigPairs, [pairKey("Drug", "Y2"), pairKey("Y2", "Y3")]);
   deepStrictEqual(o.series, { Drug: { color: "#D55E00" }, Y2: { color: "#0072B2" } });

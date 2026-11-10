@@ -11,7 +11,7 @@ import { useProjectStore } from "../../store/use-project-store";
 import { checkNormality } from "./normality-check";
 import { useAnalysisLauncher } from "./use-analysis-launcher";
 import { analysisLabel } from ".";
-import { chosenSets, WIZARDS, type Answer, type Answers, type Question, type Wizard } from "./wizards";
+import { chosenSets, toggled, WIZARDS, type Answer, type Answers, type Question, type Wizard } from "./wizards";
 
 const NOT_SURE = { value: "check", label: "Not sure — check for normality first (Shapiro-Wilk)" };
 
@@ -154,10 +154,7 @@ function AnswerField({
     <div className="flex flex-col gap-2">
       {q.options.map((name) => (
         <label key={name} className="flex items-center gap-2 text-regular">
-          <Checkbox
-            checked={ticked.includes(name)}
-            onChange={(on) => onChange(on ? [...ticked, name] : ticked.filter((n) => n !== name))}
-          />
+          <Checkbox checked={ticked.includes(name)} onChange={(on) => onChange(toggled(q.options, ticked, name, on))} />
           {name}
         </label>
       ))}

@@ -16,6 +16,8 @@ export async function runChiSquare(columns: Column[]): Promise<AnalysisOutcome> 
   const groups = pairedGroups(columns);
   const matrix = (groups[0]?.values ?? []).map((_, r) => groups.map((g) => g.values[r]));
   if (matrix.flat().some((v) => v < 0)) return { error: "Counts can't be negative." };
+  const part = matrix.flat().find((v) => !Number.isInteger(v));
+  if (part !== undefined) return { error: `Counts must be whole numbers; the table holds ${part}.` };
   if (matrix.length < 2) {
     return { error: "A contingency table needs at least 2 rows with a count in every group column." };
   }
@@ -37,8 +39,8 @@ export async function runChiSquare(columns: Column[]): Promise<AnalysisOutcome> 
   const stats: StatRow[] = [];
   if (is2x2) {
     stats.push({ label: "P value (Fisher's exact test)", value: v.p ?? null, p: true });
-    stats.push({ label: "Odds ratio", value: v.odds ?? null });
-    stats.push({ label: "Chi-square (for reference)", value: v.chisq ?? null });
+    stats.push({ label: "Odds ratio (conditional estimate)", value: v.odds ?? null });
+    stats.push({ label: "Chi-square (Yates' correction, for reference)", value: v.chisq ?? null });
     stats.push({ label: "df", value: v.df ?? null });
   } else {
     stats.push({ label: "Chi-square", value: v.chisq ?? null });
@@ -51,7 +53,7 @@ export async function runChiSquare(columns: Column[]): Promise<AnalysisOutcome> 
     `Contingency table ${rows}×${cols}, N = ${num(v.n ?? null)}. ` +
     (is2x2
       ? `Fisher's exact test (2×2). Odds ratio 95% CI: ${num(v.oddsLo ?? null)} to ${num(v.oddsHi ?? null)} ` +
-        `for the table as entered (rows × columns).`
+        `for the table as entered (rows × columns); it is the test's conditional estimate, close to but not a·d / b·c.`
       : `Pearson's chi-square test.`) +
     (lowExpected
       ? " Warning: some expected counts are below 5, so the chi-square approximation may be unreliable — consider combining categories."

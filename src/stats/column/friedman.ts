@@ -18,6 +18,8 @@ const DEFAULTS: FriedmanParams = { posthoc: "none" };
 export const friedmanSpec: ColumnTestSpec<FriedmanParams> = {
   testType: "friedman",
   minGroups: 3,
+  minValues: 2,
+  matched: () => true,
   parseGroups: (columns) => pairedGroups(columns),
   rCode: (groups, params) => {
     const k = groups.length;

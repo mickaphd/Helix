@@ -13,11 +13,12 @@ import type { EditCommand } from "../../app-menu";
 import { parseCell } from "../../lib/numeric";
 import { seriesKeyOf } from "../../lib/columns";
 import { isGrouped } from "../../lib/dataset";
-import { popupMenu } from "../../native";
+import { alert, popupMenu } from "../../native";
 import { XIcon } from "@phosphor-icons/react";
 import { cn, IconButton } from "../../ui/controls";
 import { gridMenu, type MenuZone } from "./grid-menu";
 import {
+  columnsBeyond,
   dataEdge,
   fillRange,
   findCells,
@@ -341,6 +342,12 @@ export function Grid({ data, type, update, showGroups }: GridProps) {
       );
     } else {
       write(range.r0, range.c0, block, "Paste");
+      const beyond = columnsBeyond(data, range.c0, block);
+      if (beyond)
+        void alert(
+          "Some Values Weren't Pasted",
+          `${beyond === 1 ? "1 column" : `${beyond} columns`} didn't fit in the table. Add groups or sub-columns in the Groups panel, then paste again.`,
+        );
       setSel({
         anchor: { r: range.r0, c: range.c0 },
         focus: clampPoint({ r: range.r0 + block.length - 1, c: range.c0 + block[0].length - 1 }),

@@ -2,7 +2,7 @@
 import * as React from "react";
 import { CaretUpDownIcon, PaletteIcon } from "@phosphor-icons/react";
 import { Input, Segmented, Select, Switch, cn } from "../../ui/controls";
-import { Row, Stepper } from "../../components/common/inspector";
+import { Row, Stepper } from "../../components/inspector";
 import { colorName, paletteBackground, paletteNamed } from "../../lib/palettes";
 import { TINT, visibleOutline } from "./plot-helpers";
 import { PaletteDialog, draftFrom, type PaletteDraft } from "./palette-dialog";

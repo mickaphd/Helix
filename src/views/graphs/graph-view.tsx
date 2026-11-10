@@ -5,25 +5,26 @@
 // redraws once on release. Ctrl+scroll or a pinch zooms the view only, round the pointer.
 import * as React from "react";
 import { cn } from "../../ui/controls";
-import { WithInspector } from "../../components/common/inspector";
+import { WithInspector } from "../../components/inspector";
 import {
   clamp,
   DEFAULT_GRAPH_OPTIONS,
   GRAPH_LIMITS,
+  hasXColumn,
   SAME_AS_FILL,
   type GraphOptions,
   type PointStyle,
   type ProjectNode,
   type SeriesStyle,
 } from "../../store/types";
-import type { LinearRegressionParams } from "../../stats/types";
+import type { LinearRegressionParams, NonlinearRegressionParams } from "../../stats/types";
 import { useProjectStore } from "../../store/use-project-store";
 import { groupsOf, readTable, xyProblem } from "../../lib/dataset";
 import { paletteOf } from "../../lib/palettes";
 import { computeGroupedDEG } from "../../lib/deg";
 import { useAnalysis } from "../analyses/use-analysis";
 import { GRAPHS, graphSeries, plotColumns } from ".";
-import { addDoseCurve } from "./dose-response-curve";
+import { addFittedCurve } from "./fitted-curve";
 import { FormatPanel } from "./format-panel";
 import { copyGraphImage, saveGraphImage } from "./graph-export";
 import { INK, MOVABLE, marginsFor, movedText, paintOf, withCaps } from "./plot-helpers";
@@ -94,9 +95,15 @@ export function GraphView({ node }: { node: ProjectNode }) {
   // ── Data ─────────────────────────────────────────────────────────────
 
   const dataset = data ? readTable(data) : null;
-  const columns = React.useMemo(() => (dataset ? plotColumns(dataset, type) : []), [dataset, type]);
-  // An XY graph needs numbers in X and in a Y column, and says which it lacks.
-  const xyLack = family === "xy" && dataset ? xyProblem(dataset.columns) : undefined;
+  const columns = React.useMemo(
+    () => (dataset && parent?.tableType ? plotColumns(dataset, type, options, parent.tableType) : []),
+    [dataset, type, options.center, options.xVariable, options.yVariable, parent?.tableType],
+  );
+  // A graph of a table with an X needs numbers in X and in a Y column, and says which it lacks.
+  const xyLack =
+    family === "xy" && parent?.tableType && hasXColumn(parent.tableType) && dataset
+      ? xyProblem(dataset.columns)
+      : undefined;
   const hasData = !xyLack && columns.some((c) => c.values.length > 0);
 
   // A volcano on a grouped table: Helix computes the DEGs between two of its groups
@@ -116,15 +123,16 @@ export function GraphView({ node }: { node: ProjectNode }) {
   }, [columns, data, volcanoGroups?.join("\n"), options.volcanoGroupA, options.volcanoGroupB, options.volcanoEffect]);
 
   // The series drawn, one row each in the Series section.
-  const seriesNames = data && parent?.tableType ? graphSeries(type, data, parent.tableType) : [];
+  const seriesNames = data && parent?.tableType ? graphSeries(type, data, parent.tableType, options) : [];
 
-  // The grouped volcano maps the computed DEG columns onto its axes.
+  // The grouped volcano maps the computed DEG columns (P values) onto its axes.
   const buildOptions = volcanoGroups
     ? {
         ...options,
         volcanoLabel: "Gene",
         volcanoX: "Log2 FC",
         volcanoY: options.volcanoSignificance === "fdr" ? "FDR" : "P",
+        volcanoYIsPValue: true,
       }
     : options;
 
@@ -150,7 +158,7 @@ export function GraphView({ node }: { node: ProjectNode }) {
 
   // The genes named in the Find gene field become the selection; returns the names no gene has.
   const findGenes = (query: string) => {
-    const { keys, missing } = genesNamed(volcanoColumns, buildOptions, query);
+    const { keys, missing } = genesNamed(volcanoColumns, buildOptions, query, dataset?.titles);
     setSelected(new Set(keys));
     return missing;
   };
@@ -232,15 +240,20 @@ export function GraphView({ node }: { node: ProjectNode }) {
     () => (sigAnalysis && !sigOutcome ? null : deriveComparisons(sigOutcome)),
     [sigAnalysis, sigOutcome],
   );
-  const regParams = (options.regAnalysisId ? nodes[options.regAnalysisId]?.analysisParams : undefined) as
-    LinearRegressionParams | undefined;
-  // A dose-response graph fits its own curve (no analysis node needed).
-  const doseY = options.doseY ?? columns[1]?.name;
-  const doseOutcome = useAnalysis(type === "dose-response" && doseY ? "nonlinear-regression" : undefined, data, {
-    y: doseY,
-    model: options.doseModel,
-  });
-  const doseFit = doseOutcome && !("error" in doseOutcome) ? doseOutcome : null;
+  // An XY scatter draws a regression of its table: a linear one's line and band it computes
+  // itself; a nonlinear one's curve, from its result.
+  const regNode = options.regAnalysisId ? nodes[options.regAnalysisId] : undefined;
+  const regParams = regNode?.analysisParams as LinearRegressionParams | undefined;
+  const curveParams =
+    regNode?.analysisType === "nonlinear-regression"
+      ? (regNode.analysisParams as NonlinearRegressionParams)
+      : undefined;
+  const curveOutcome = useAnalysis(
+    type === "xy-scatter" && curveParams ? "nonlinear-regression" : undefined,
+    data,
+    curveParams,
+  );
+  const curveFit = curveOutcome && !("error" in curveOutcome) ? curveOutcome : null;
 
   // ── Drawing ──────────────────────────────────────────────────────────
 
@@ -314,8 +327,12 @@ export function GraphView({ node }: { node: ProjectNode }) {
       const fig = GRAPHS[type].build(volcanoColumns, buildOptions, paint, dataset?.titles);
       fig.data = withCaps(fig.data, options);
       if (family === "column" && options.sigAnalysisId) addSignificance(fig, columns, type, options, comparisons ?? []);
-      if (type === "xy-scatter" && options.regAnalysisId) addRegression(fig, columns, options, regParams, paint);
-      if (doseFit) addDoseCurve(fig, columns, options, doseFit, paint);
+      if (type === "xy-scatter" && curveParams) {
+        const [x, ...ys] = columns;
+        const y = ys.find((c) => c.name === curveParams.y) ?? ys[0];
+        if (curveFit && x && y && options.regShowLine)
+          addFittedCurve(fig, x, y, ys, curveParams.model, curveFit, options.regShowEquation, options, paint);
+      } else if (type === "xy-scatter" && regNode) addRegression(fig, columns, options, regParams, paint);
       // The points' names are part of the figure (the volcano places its own, among the
       // genes it names); the selection ring only of the view.
       const labels =
@@ -352,7 +369,8 @@ export function GraphView({ node }: { node: ProjectNode }) {
     node.graphOptions,
     comparisons,
     regParams,
-    doseFit,
+    curveParams,
+    curveFit,
     seriesNames.length,
     selected,
     glRatio,
@@ -437,7 +455,7 @@ export function GraphView({ node }: { node: ProjectNode }) {
           onFindGenes={findGenes}
           numericNames={dataset?.numeric.map((c) => c.name) ?? []}
           allNames={dataset?.columns.map((c) => c.name) ?? []}
-          doseError={doseOutcome && "error" in doseOutcome ? doseOutcome.error : null}
+          fitError={curveOutcome && "error" in curveOutcome ? curveOutcome.error : null}
           onNewAnalysis={(test) => {
             if (!node.parentId) return;
             if (test) startAnalysis(node.parentId, test);

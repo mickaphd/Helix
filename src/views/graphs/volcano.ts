@@ -1,9 +1,12 @@
 // "Volcano plot": a large scatter of effect size (X) vs. significance (Y). On a
 // Multiple Variables table it plots columns the user already has (DESeq2/edgeR
 // output…): which column is X (log2 fold change), which is Y (a P value, adjusted P
-// or FDR), and an optional gene-name column. On a grouped table, graph-view first
-// computes them from two groups (lib/deg.ts). `volcanoYIsPValue` applies the usual
-// -log10 transform so a P/FDR column becomes the vertical axis.
+// or FDR), and an optional gene-name column. On an XY table, X is the X column and Y
+// a chosen Y column. On a grouped table, graph-view first computes them from two
+// groups (lib/deg.ts). Genes are named by the gene-name column, else by their row
+// titles. Y holds P values (`volcanoYIsPValue`: plotted as their -log10) or values that
+// are -log10 already (plotted as they are): either way, the higher a gene, the more
+// significant.
 //
 // Rendered as a `scattergl` (WebGL) trace with per-point arrays so tens of thousands
 // of genes stay smooth (an export draws them as plain shapes, `vectorTraces`); points
@@ -23,19 +26,22 @@ const NS = "#B8BEC9"; // not significant (fixed muted grey)
 /** A gene's key: its row, whatever columns its values come from (see `pointKeyOf`). */
 const geneKey = (row: number) => pointKeyOf("", row);
 
+/** Each row's gene name: from the gene-name column, else the row's title. */
+function geneNames(columns: Column[], options: GraphOptions, titles?: (string | null)[]) {
+  const labelCol = columns.find((c) => c.name === options.volcanoLabel);
+  return (labelCol?.cells ?? titles ?? []).map((cell) => String(cell ?? "").trim());
+}
+
 /** The keys of the genes named in `query`: names separated by commas, matched whole
  *  and in any case. `missing`: the names no gene has. */
-export function genesNamed(columns: Column[], options: GraphOptions, query: string) {
-  const labelCol = columns.find((c) => c.name === options.volcanoLabel);
+export function genesNamed(columns: Column[], options: GraphOptions, query: string, titles?: (string | null)[]) {
   const wanted = query
     .split(",")
     .map((n) => n.trim())
     .filter(Boolean);
   const rowsOf = new Map<string, number[]>();
-  labelCol?.cells.forEach((cell, r) => {
-    const name = String(cell ?? "")
-      .trim()
-      .toLowerCase();
+  geneNames(columns, options, titles).forEach((gene, r) => {
+    const name = gene.toLowerCase();
     if (name) rowsOf.set(name, [...(rowsOf.get(name) ?? []), r]);
   });
   return {
@@ -55,11 +61,11 @@ export function volcanoPair(groups: string[], options: GraphOptions): [string | 
 /** A volcano's two colored series, by key: what it calls them. */
 export const VOLCANO_SERIES: Record<string, string> = { down: "Down-regulated", up: "Up-regulated" };
 
-function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFigure {
+function build(columns: Column[], options: GraphOptions, paint: Paint, titles?: (string | null)[]): GraphFigure {
   const byName = (name?: string) => columns.find((c) => c.name === name);
   const xCol = byName(options.volcanoX) ?? columns[0];
   const yCol = byName(options.volcanoY) ?? columns[1];
-  const labelCol = byName(options.volcanoLabel);
+  const names = geneNames(columns, options, titles);
   const yIsP = options.volcanoYIsPValue;
 
   const xName = xCol?.name ?? "Log2 fold change";
@@ -74,10 +80,8 @@ function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFig
   const fc = options.volcanoFcThreshold;
   const down = paint.color("down", 0);
   const up = paint.color("up", 1);
-  // Significance cutoff entered on the PLOTTED Y scale (what the axis shows), so
-  // "what you type = where the line sits". With -log10 on, higher Y = more
-  // significant (pass when Y ≥ cutoff); with it off (raw p/FDR), lower = more
-  // significant (pass when Y ≤ cutoff).
+  // The significance cutoff, on the plotted (-log10) scale: "what you type = where the
+  // line sits", and a gene at or above it passes.
   const sigY = options.volcanoPThreshold;
 
   const genes: {
@@ -105,12 +109,11 @@ function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFig
       if (yv <= 0) continue; // a p / FDR must be > 0 to take -log10
       yv = -Math.log10(yv);
     }
-    const passSig = yIsP ? yv >= sigY : yv <= sigY;
-    const sig = Math.abs(xv) >= fc && passSig;
+    const sig = Math.abs(xv) >= fc && yv >= sigY;
     // A gene is its row; its own style wins over its up / down / not significant look.
     const key = geneKey(r);
     const own = options.points?.[key];
-    const name = labelCol ? String(labelCol.cells[r] ?? "").trim() : "";
+    const name = names[r] ?? "";
     const color = own?.color ?? (!sig ? NS : xv >= 0 ? up : down);
     genes.push({
       x: xv,

@@ -40,7 +40,7 @@ export async function runMultipleRegression(
   );
   const code =
     `${decls.join(";")};m<-lm(${formula});s<-summary(m);co<-s$coefficients;f<-s$fstatistic;` +
-    `c(r2=s$r.squared,adjr2=s$adj.r.squared,fstat=unname(f[1]),` +
+    `c(r2=s$r.squared,adjr2=s$adj.r.squared,fstat=unname(f[1]),n=length(y),` +
     `fp=unname(pf(f[1],f[2],f[3],lower.tail=FALSE)),${coefAssigns.join(",")})`;
 
   const v = await evalNamedVector(code);
@@ -52,7 +52,7 @@ export async function runMultipleRegression(
     t: v[`t${t}`] ?? null,
     p: v[`pv${t}`] ?? null,
   }));
-  const described = used.map(describe);
+  const { groups: described } = await describe(used);
   return {
     testType: "multiple-regression",
     subtitle: "Multiple linear regression",
@@ -61,7 +61,7 @@ export async function runMultipleRegression(
       { label: "Adjusted R squared", value: v.adjr2 },
       { label: "F", value: v.fstat },
       pRow("P value (model)", v.fp ?? null),
-      { label: "Complete rows (n)", value: n },
+      { label: "Complete rows (n)", value: v.n },
       { label: "Predictors", value: p },
     ],
     groups: described,

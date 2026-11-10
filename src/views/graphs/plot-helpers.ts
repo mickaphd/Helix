@@ -9,7 +9,7 @@ import {
   type PointShape,
   type PointStyle,
 } from "../../store/types";
-import type { Column } from "../../lib/dataset";
+import type { Column, DataSet } from "../../lib/dataset";
 import type { GraphFigure } from ".";
 import { paletteColor, paletteOf, withOpacity } from "../../lib/palettes";
 import { mean, median, sd, sem } from "../../lib/summary";
@@ -542,6 +542,21 @@ export function perRowStats(
     if (e) e.push(v.length < 2 ? null : errorOf(v, error));
   }
   return { center: c, error: e };
+}
+
+/** A data set as one column: on each row, the center (mean or median) of its values.
+ *  A set of one column is that column. */
+export function centerColumn({ name, columns }: DataSet, center: GraphOptions["center"]): Column {
+  if (columns.length === 1 && columns[0].name === name) return columns[0];
+  const byRow = perRowStats(columns, rowCountOf(columns), center, "none").center;
+  const rows = byRow.flatMap((v, r) => (v == null ? [] : [r]));
+  return {
+    name,
+    cells: byRow.map((v) => (v == null ? null : String(v))),
+    byRow,
+    values: rows.map((r) => byRow[r]!),
+    rows,
+  };
 }
 
 /** Horizontal offset of group `g` within a row's slot, so interleaved scatter

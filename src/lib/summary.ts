@@ -1,4 +1,5 @@
-// The mean, SD, SEM and median of numbers, one way for the stats and the graphs alike.
+// The mean, SD, SEM and median of numbers, for what the graphs draw at once (error bars,
+// centers); analyses take theirs from R.
 
 export const mean = (v: number[]) => v.reduce((a, b) => a + b, 0) / v.length;
 

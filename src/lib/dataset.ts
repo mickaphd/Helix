@@ -2,7 +2,7 @@
 // share, so they always agree on the data: excluded cells read as blank, each cell
 // is parsed once (numeric.ts decides what a number is), and the reading is cached
 // per table version. An edit makes a new TableData, so the cache is never stale.
-import type { TableData, TableType } from "../store/types";
+import { hasXColumn, type TableData, type TableType } from "../store/types";
 import { excludedKey, seriesKeyOf } from "./columns";
 import { parseCell } from "./numeric";
 
@@ -32,7 +32,7 @@ export interface Dataset {
 }
 
 /** A column, or a grouped table's group with its sub-columns. */
-interface DataSet {
+export interface DataSet {
   name: string;
   columns: Column[];
 }
@@ -114,12 +114,12 @@ export function setColumns(table: Dataset, names: string[]): Column[] {
   return names.flatMap((name) => table.sets.find((s) => s.name === name)?.columns ?? []);
 }
 
-/** The series a table's graphs draw, in order: an XY table's Y series, a grouped
+/** The series a table's graphs draw, in order: the Y series of a table with an X, a grouped
  *  table's groups, else its columns holding numbers. A series' default color is
  *  the palette color at its position here, in the table and in every graph. */
 export function seriesOf(data: TableData, type: TableType): string[] {
   const { columns, numeric } = readTable(data);
-  if (type === "xy") return splitXY(columns).ys.map((c) => c.name);
+  if (hasXColumn(type)) return splitXY(columns).ys.map((c) => c.name);
   if (type === "grouped") return groupsOf(numeric).map((g) => g.name);
   return numeric.map((c) => c.name);
 }

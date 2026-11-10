@@ -1,94 +1,237 @@
-// Nonlinear regression for an XY table — Prism's "Standard curves to interpolate"
-// category: a curated set of standard curves that fit reliably in WebR. Linear-in-
-// parameters models (line, semilog, polynomials) fit with lm(); the sigmoidal and
-// hyperbola forms fit with nls(). Each model reports its coefficients plus a
-// goodness-of-fit block (R², degrees of freedom, sum of squares, Sy.x) and, where
-// meaningful, derived quantities (e.g. a 4PL's EC50 and Span).
+// Nonlinear regression for an XY table — Prism's dose-response and standard curves, fitted by
+// R: models linear in their parameters (line, semilog, polynomials) with lm(), the others
+// (sigmoidal 3PL, 4PL and 5PL, hyperbola, exponential growth and decay, Michaelis-Menten)
+// with nls(). Each model reports its coefficients
+// with their 95% CI (asymptotic, as Prism's default), a goodness-of-fit block (R², df, sum
+// of squares, Sy.x) and, where meaningful, derived quantities with their CI (EC50, Span, half-life…).
+// A dose-response curve can be compared with another data set's: is the EC50 different, or
+// does one curve fit both (the extra sum-of-squares F test). A standard curve interpolates
+// its unknowns: the rows holding a Y but no X.
 import type {
   AnalysisOutcome,
   Column,
+  FitRow,
+  InterpolatedRow,
   NonlinearModel,
   NonlinearRegressionParams,
   RegressionCoefficient,
-  StatRow,
 } from "../types";
-import { describe, rVec } from "../column/base";
+import { describe, pRow, rVec } from "../column/base";
 import { pairUp, splitXY, xyProblem } from "../../lib/dataset";
 import { evalNamedVector } from "../webr";
+import { rowName } from "../grouped/base";
 
-const MODEL_LABEL: Record<NonlinearModel, string> = {
-  line: "Line",
+export const MODEL_LABEL: Record<NonlinearModel, string> = {
   "sigmoidal-4pl-logx": "Sigmoidal, 4PL, X is log(concentration)",
   "sigmoidal-4pl-x": "Sigmoidal, 4PL, X is concentration",
+  "agonist-3pl-logx": "log(agonist) vs. response, standard slope (3PL)",
+  "inhibitor-3pl-logx": "log(inhibitor) vs. response, standard slope (3PL)",
+  "asymmetric-5pl-logx": "Asymmetric sigmoidal, 5PL, X is log(concentration)",
+  "asymmetric-5pl-x": "Asymmetric sigmoidal, 5PL, X is concentration",
+  line: "Line",
   "semilog-line": "Semilog line",
   hyperbola: "Hyperbola (X is concentration)",
   quadratic: "Second order polynomial (quadratic)",
   cubic: "Third order polynomial (cubic)",
+  "exponential-growth": "Exponential growth",
+  "one-phase-decay": "One-phase decay",
+  "michaelis-menten": "Michaelis-Menten",
+};
+
+/** A parameter as results name it (its name in the equations otherwise). */
+const TERM_LABEL: Record<string, string> = { HillSlope: "Hill slope", S: "Asymmetry (S)" };
+export const termLabel = (term: string) => TERM_LABEL[term] ?? term;
+
+/** A derived quantity, as R expressions of the fit (`cf`, its coefficients; `pci(p)`, a
+ *  coefficient's 95% CI; `V`, their covariance; `q`, the t critical value). */
+type Derived = { label: string; value: string; low: string; high: string };
+
+/** 10 to a log coefficient, its CI 10 to the coefficient's. */
+const tenTo = (label: string, p: string): Derived => ({
+  label,
+  value: `10^cf[["${p}"]]`,
+  low: `10^pci("${p}")[1]`,
+  high: `10^pci("${p}")[2]`,
+});
+/** `a` − `b`, its CI from both and their covariance. */
+const difference = (a: string, b: string): Derived => {
+  const se = `sqrt(V["${a}","${a}"]+V["${b}","${b}"]-2*V["${a}","${b}"])`;
+  const value = `cf[["${a}"]]-cf[["${b}"]]`;
+  return { label: "Span", value, low: `${value}-q*${se}`, high: `${value}+q*${se}` };
+};
+const span = difference("Top", "Bottom");
+/** `c` / K (a half-life, a doubling time, tau), its CI `c` over K's: none when K's
+ *  includes 0, the time then unbounded. */
+const overK = (label: string, c: string): Derived => {
+  const ends = `sort(${c}/pci("K"))`;
+  return {
+    label,
+    value: `${c}/cf[["K"]]`,
+    low: `if(prod(pci("K"))>0)${ends}[1] else NA`,
+    high: `if(prod(pci("K"))>0)${ends}[2] else NA`,
+  };
 };
 
 interface ModelSpec {
-  /** Which R fitter to use — lm() (linear in params) or nls() (nonlinear). */
-  kind: "lm" | "nls";
-  /** R that assigns `m<-lm(...)` or `m<-nls(...,start=...)`; `x`/`y` are in scope. */
+  /** R: the body of `fit(x, y)`, which returns the fitted model. */
   fit: string;
-  /** Coefficient display names, in the order lm/nls reports them (positional extraction). */
+  /** Coefficient names, in the order the fit reports them. */
   terms: string[];
-  /** Derived quantities computed from the fit's named coefficients (`cf[["Name"]]`). */
-  derived?: { label: string; expr: string }[];
+  derived?: Derived[];
   /** Curves of log or ratio forms fit the points with X > 0 only. */
   positiveX?: boolean;
+  /** A dose-response curve's formula (its right side) and midpoint, which comparing two
+   *  curves shares. */
+  dose?: { expr: string; midpoint: string };
 }
+
+// The 4PL's starting slope takes the curve's own sign, so a falling curve keeps Bottom under Top.
+const SIGN = "if(isTRUE(cor(x,y)<0))-1 else 1";
+const FOUR_LOG = "Bottom+(Top-Bottom)/(1+10^((LogEC50-x)*HillSlope))";
+const FOUR_X = "Bottom+(Top-Bottom)/(1+(EC50/x)^HillSlope)";
+const START_LOG = `list(Bottom=min(y),Top=max(y),LogEC50=median(x),HillSlope=${SIGN})`;
+const START_X = `list(Bottom=min(y),Top=max(y),EC50=median(x),HillSlope=${SIGN})`;
+const nls = (expr: string, start: string) => `nls(y~${expr},start=${start},control=nls.control(maxiter=200))`;
 
 function modelSpec(model: NonlinearModel): ModelSpec {
   switch (model) {
     case "line":
-      return { kind: "lm", fit: "m<-lm(y~x)", terms: ["Intercept", "Slope"] };
+      return { fit: "lm(y~x)", terms: ["Intercept", "Slope"] };
     case "quadratic":
-      return { kind: "lm", fit: "m<-lm(y~x+I(x^2))", terms: ["B0", "B1", "B2"] };
+      return { fit: "lm(y~x+I(x^2))", terms: ["B0", "B1", "B2"] };
     case "cubic":
-      return { kind: "lm", fit: "m<-lm(y~x+I(x^2)+I(x^3))", terms: ["B0", "B1", "B2", "B3"] };
-    case "semilog-line":
-      // Y = intercept + slope * ln(X).
+      return { fit: "lm(y~x+I(x^2)+I(x^3))", terms: ["B0", "B1", "B2", "B3"] };
+    case "semilog-line": // Y = intercept + slope * ln(X)
+      return { fit: "lm(y~log(x))", terms: ["Intercept", "Slope"], positiveX: true };
+    case "hyperbola": // Y = Bmax * X / (Kd + X)
       return {
-        kind: "lm",
-        fit: "m<-lm(y~log(x))",
-        terms: ["Intercept", "Slope"],
-        positiveX: true,
-      };
-    case "sigmoidal-4pl-logx":
-      // X is already log10(dose). EC50 = 10^LogEC50.
-      return {
-        kind: "nls",
-        fit: "m<-nls(y~Bottom+(Top-Bottom)/(1+10^((LogEC50-x)*HillSlope)),start=list(Bottom=min(y),Top=max(y),LogEC50=median(x),HillSlope=1))",
-        terms: ["Bottom", "Top", "LogEC50", "HillSlope"],
-        derived: [
-          { label: "EC50", expr: '10^cf[["LogEC50"]]' },
-          { label: "Span", expr: 'cf[["Top"]]-cf[["Bottom"]]' },
-        ],
-      };
-    case "sigmoidal-4pl-x":
-      // X is the raw concentration; EC50 is fitted directly.
-      return {
-        kind: "nls",
-        fit: "m<-nls(y~Bottom+(Top-Bottom)/(1+(EC50/x)^HillSlope),start=list(Bottom=min(y),Top=max(y),EC50=median(x[x>0]),HillSlope=1))",
-        terms: ["Bottom", "Top", "EC50", "HillSlope"],
-        derived: [{ label: "Span", expr: 'cf[["Top"]]-cf[["Bottom"]]' }],
-        positiveX: true,
-      };
-    case "hyperbola":
-      // Y = Bmax * X / (Kd + X).
-      return {
-        kind: "nls",
-        fit: "m<-nls(y~Bmax*x/(Kd+x),start=list(Bmax=max(y)*1.1,Kd=median(x[x>0])))",
+        fit: nls("Bmax*x/(Kd+x)", "list(Bmax=max(y)*1.1,Kd=median(x))"),
         terms: ["Bmax", "Kd"],
         positiveX: true,
       };
+    case "exponential-growth": // Y = Y0 * exp(K * X); it starts from a line through log(Y)
+      return {
+        fit: nls("Y0*exp(K*x)", "local({k<-y>0;c0<-coef(lm(log(y[k])~x[k]));list(Y0=exp(c0[[1]]),K=c0[[2]])})"),
+        terms: ["Y0", "K"],
+        derived: [overK("Doubling time", "log(2)"), overK("Tau", "1")],
+      };
+    case "one-phase-decay": // Y = (Y0 − Plateau) * exp(−K * X) + Plateau
+      return {
+        fit: nls(
+          "(Y0-Plateau)*exp(-K*x)+Plateau",
+          "list(Y0=y[which.min(x)],Plateau=y[which.max(x)],K=3/diff(range(x)))",
+        ),
+        terms: ["Y0", "Plateau", "K"],
+        derived: [overK("Half-life", "log(2)"), overK("Tau", "1"), difference("Y0", "Plateau")],
+      };
+    case "michaelis-menten": // Y = Vmax * X / (Km + X)
+      return {
+        fit: nls("Vmax*x/(Km+x)", "list(Vmax=max(y)*1.1,Km=median(x))"),
+        terms: ["Vmax", "Km"],
+        positiveX: true,
+      };
+    case "sigmoidal-4pl-logx": // X is already log10(dose)
+      return {
+        fit: nls(FOUR_LOG, START_LOG),
+        terms: ["Bottom", "Top", "LogEC50", "HillSlope"],
+        derived: [tenTo("EC50", "LogEC50"), span],
+        dose: { expr: FOUR_LOG, midpoint: "LogEC50" },
+      };
+    case "sigmoidal-4pl-x": // X is the concentration; EC50 is fitted directly
+      return {
+        fit: nls(FOUR_X, START_X),
+        terms: ["Bottom", "Top", "EC50", "HillSlope"],
+        derived: [span],
+        positiveX: true,
+        dose: { expr: FOUR_X, midpoint: "EC50" },
+      };
+    case "agonist-3pl-logx": {
+      // The Hill slope is 1: a rising curve.
+      const expr = "Bottom+(Top-Bottom)/(1+10^(LogEC50-x))";
+      return {
+        fit: nls(expr, "list(Bottom=min(y),Top=max(y),LogEC50=median(x))"),
+        terms: ["Bottom", "Top", "LogEC50"],
+        derived: [tenTo("EC50", "LogEC50"), span],
+        dose: { expr, midpoint: "LogEC50" },
+      };
+    }
+    case "inhibitor-3pl-logx": {
+      // The Hill slope is −1: a falling curve.
+      const expr = "Bottom+(Top-Bottom)/(1+10^(x-LogIC50))";
+      return {
+        fit: nls(expr, "list(Bottom=min(y),Top=max(y),LogIC50=median(x))"),
+        terms: ["Bottom", "Top", "LogIC50"],
+        derived: [tenTo("IC50", "LogIC50"), span],
+        dose: { expr, midpoint: "LogIC50" },
+      };
+    }
+    case "asymmetric-5pl-logx": {
+      // Prism's 5PL: the curve's asymmetry S (1 = the 4PL); it starts from the 4PL's fit.
+      const expr = "Bottom+(Top-Bottom)/(1+10^((LogEC50+log10(2^(1/S)-1)/HillSlope-x)*HillSlope))^S";
+      return {
+        fit: nls(expr, `c(as.list(coef(${nls(FOUR_LOG, START_LOG)})),S=1)`),
+        terms: ["Bottom", "Top", "LogEC50", "HillSlope", "S"],
+        derived: [tenTo("EC50", "LogEC50"), span],
+        dose: { expr, midpoint: "LogEC50" },
+      };
+    }
+    case "asymmetric-5pl-x": {
+      const expr = "Bottom+(Top-Bottom)/(1+(EC50*(2^(1/S)-1)^(1/HillSlope)/x)^HillSlope)^S";
+      return {
+        fit: nls(expr, `c(as.list(coef(${nls(FOUR_X, START_X)})),S=1)`),
+        terms: ["Bottom", "Top", "EC50", "HillSlope", "S"],
+        derived: [span],
+        positiveX: true,
+        dose: { expr, midpoint: "EC50" },
+      };
+    }
   }
 }
+
+/** Whether a model fits only the points with X > 0 (its curve too). */
+export const positiveXOnly = (model: NonlinearModel) => modelSpec(model).positiveX === true;
+
+/** R: `out(m, y, k)`, a fit's results as a named vector, each name prefixed `k`: R², df,
+ *  sum of squares, Sy.x and n; each coefficient's estimate, SE, t, P and 95% CI (`b_i`,
+ *  `se_i`, `t_i`, `pv_i`, `lo_i`, `hi_i`); each derived quantity and its CI (`d_i`…). */
+function rOut(derived: Derived[]): string {
+  const d = derived.map((x, i) => `d_${i}=${x.value},dlo_${i}=${x.low},dhi_${i}=${x.high}`).join(",");
+  return (
+    `out<-function(m,y,k){s<-summary(m);co<-s$coefficients;df<-df.residual(m);q<-qt(0.975,df);V<-vcov(m);cf<-coef(m)\n` +
+    `pci<-function(p)cf[[p]]+c(-1,1)*q*sqrt(V[p,p]);ss<-sum(residuals(m)^2)\n` +
+    // S (a 5PL's asymmetry) is above 0: its CI is taken on its log, so it stays there.
+    `ci<-cbind(co[,1]-q*co[,2],co[,1]+q*co[,2]);if("S"%in%rownames(co))ci["S",]<-co["S",1]*exp(c(-1,1)*q*co["S",2]/co["S",1])\n` +
+    `v<-c(r2=if(inherits(m,"lm"))s$r.squared else 1-ss/sum((y-mean(y))^2),df=df,ss=ss,syx=sqrt(ss/df),n=length(y),` +
+    `setNames(as.vector(t(cbind(co,ci))),` +
+    `paste0(rep(c("b_","se_","t_","pv_","lo_","hi_"),nrow(co)),rep(seq_len(nrow(co))-1,each=6)))${d ? "," + d : ""})\n` +
+    `setNames(v,paste0(k,names(v)))}`
+  );
+}
+
+/** The points a model fits: X and the Y series, on the rows where both hold a number (X > 0
+ *  for the curves that need it: a vehicle at X = 0 is left out, as these curves usually are). */
+function points(x: Column, y: Column, spec: ModelSpec) {
+  const pairs = pairUp(x, y);
+  const keep = pairs.x.map((v) => !spec.positiveX || v > 0);
+  return { x: pairs.x.filter((_, i) => keep[i]), y: pairs.y.filter((_, i) => keep[i]) };
+}
+
+/** R: `interp(m, yu, lo, hi, pos)`, the X the fitted curve `m` gives each Y of `yu` (`ix_i`):
+ *  the lowest one within the standards' X (`lo` to `hi`), else below them, else above them, as
+ *  far again as their width (for a curve of X > 0, `pos`, a tenth of `lo` and ten times `hi`);
+ *  NA when the curve never reaches that Y there. */
+const R_INTERP =
+  `interp<-function(m,yu,lo,hi,pos){fx<-function(x)as.numeric(predict(m,newdata=data.frame(x=x)))\n` +
+  `root<-function(v,a,b){g<-seq(a,b,length.out=401);d<-fx(g)-v;i<-which(d[-1]*d[-length(d)]<=0)[1]\n` +
+  `if(is.na(i))NA else if(d[i]==0)g[i] else uniroot(function(x)fx(x)-v,g[c(i,i+1)],tol=(b-a)*1e-12)$root}\n` +
+  `w<-hi-lo;x<-sapply(yu,function(v){r<-root(v,lo,hi)\n` +
+  `if(is.na(r))r<-root(v,if(pos)lo/10 else lo-w,lo);if(is.na(r))r<-root(v,hi,if(pos)hi*10 else hi+w);r})\n` +
+  `setNames(x,paste0("ix_",seq_along(x)-1))}`;
 
 export async function runNonlinearRegression(
   columns: Column[],
   params: NonlinearRegressionParams | undefined,
+  titles: (string | null)[] = [],
 ): Promise<AnalysisOutcome> {
   const model = params?.model;
   if (!model || !Object.hasOwn(MODEL_LABEL, model)) return { error: "Choose a standard curve to fit." };
@@ -96,74 +239,162 @@ export async function runNonlinearRegression(
   const { x: xCol, ys: yCols } = splitXY(columns);
   const yCol = params?.y === undefined ? yCols[0] : yCols.find((c) => c.name === params.y);
   if (!xCol || !yCol) return { error: xyProblem(columns, params?.y)! };
-
-  const complete = pairUp(xCol, yCol);
   const spec = modelSpec(model);
+  const other = params?.compareWith === undefined ? undefined : yCols.find((c) => c.name === params.compareWith);
+  if (params?.compareWith !== undefined && !other) return { error: xyProblem(columns, params.compareWith)! };
+  if (other && !spec.dose) return { error: "Only dose-response curves can be compared." };
+
+  const sets = [yCol, ...(other ? [other] : [])].map((y) => ({ name: y.name, ...points(xCol, y, spec) }));
   const nParams = spec.terms.length;
-
-  // Curves that need X > 0 (log/ratio forms) commonly get a X=0 vehicle/control
-  // point in real dose-response data — drop it from the fit rather than
-  // rejecting the whole curve, mirroring how these curves are conventionally fit.
-  let xs = complete.x;
-  let ys = complete.y;
-  if (spec.positiveX) {
-    xs = [];
-    ys = [];
-    complete.x.forEach((x, i) => {
-      if (x > 0) {
-        xs.push(x);
-        ys.push(complete.y[i]);
-      }
-    });
-  }
-  if (xs.length < nParams + 1) {
-    const scope = spec.positiveX ? " with X > 0" : "";
-    return {
-      error: `Not enough complete points${scope} (${xs.length}) to fit this curve; need at least ${nParams + 1}.`,
-    };
+  for (const s of sets) {
+    if (s.x.length < nParams + 1) {
+      const scope = spec.positiveX ? " with X > 0" : "";
+      return {
+        error:
+          `Not enough complete points${scope} in “${s.name}” (${s.x.length}) to fit this curve; ` +
+          `need at least ${nParams + 1}.`,
+      };
+    }
   }
 
-  // Positional coefficient extraction (co has one row per term, in fit order).
-  const coefAssigns = spec.terms
-    .map((_, i) => `b${i}=co[${i + 1},1],se${i}=co[${i + 1},2],t${i}=co[${i + 1},3],pv${i}=co[${i + 1},4]`)
-    .join(",");
-  const derived = spec.derived ?? [];
-  const derivedAssigns = derived.map((d, i) => `d${i}=${d.expr}`).join(",");
-  // R² for lm comes from summary(); for nls we compute it from residual/total SS.
-  const r2 = spec.kind === "lm" ? "s$r.squared" : "1-ss/sst";
-  const rCode =
-    `x<-${rVec(xs)};y<-${rVec(ys)};${spec.fit};s<-summary(m);co<-s$coefficients;cf<-coef(m);` +
-    `df<-df.residual(m);ss<-sum(residuals(m)^2);sst<-sum((y-mean(y))^2);r2<-${r2};syx<-sqrt(ss/df);` +
-    `c(r2=r2,df=df,ss=ss,syx=syx,${coefAssigns}${derivedAssigns ? "," + derivedAssigns : ""})`;
+  // The unknowns: the rows holding a Y but no X. A log X's is given as a concentration too.
+  const unknowns = params?.interpolate && !other ? yCol.rows.filter((r) => xCol.byRow[r] == null) : [];
+  const logX = model.endsWith("-logx");
+  const [lo, hi] = [Math.min(...sets[0].x), Math.max(...sets[0].x)];
 
+  const fit = `fit<-function(x,y)${spec.fit}\n${rOut(spec.derived ?? [])}`;
+  const data = sets.map((s, i) => `x${i}<-${rVec(s.x)};y${i}<-${rVec(s.y)}`).join(";");
+  const interpolate = unknowns.length
+    ? `\n${R_INTERP}\nix<-interp(m,${rVec(unknowns.map((r) => yCol.byRow[r]!))},${lo},${hi},${spec.positiveX ? "TRUE" : "FALSE"})\n` +
+      `c(out(m,y0,""),ix${logX ? ',setNames(10^ix,sub("ix","ic",names(ix)))' : ""})`
+    : `\nout(m,y0,"")`;
+  const rCode = other
+    ? `${fit}\n${data}\n${comparison(spec, params!.compare ?? "ec50")}`
+    : `${fit}\n${data}\nm<-fit(x0,y0)${interpolate}`;
+
+  let v: Record<string, number | null>;
   try {
-    const v = await evalNamedVector(rCode);
-    const coefficients: RegressionCoefficient[] = spec.terms.map((term, i) => ({
-      term,
-      estimate: v[`b${i}`] ?? null,
-      stdError: v[`se${i}`] ?? null,
-      t: v[`t${i}`] ?? null,
-      p: v[`pv${i}`] ?? null,
-    }));
-    const stats: StatRow[] = [
-      ...derived.map((d, i) => ({ label: d.label, value: v[`d${i}`] ?? null })),
-      { label: "R squared", value: v.r2 },
-      { label: "Sy.x", value: v.syx },
-      { label: "Sum of squares", value: v.ss },
-      { label: "Degrees of freedom", value: v.df },
-      { label: "N", value: xs.length },
-    ];
-    return {
-      testType: "nonlinear-regression",
-      subtitle: MODEL_LABEL[model],
-      stats,
-      groups: [xCol, yCol].map(describe),
-      notes: `Nonlinear least-squares fit ("${MODEL_LABEL[model]}") of "${yCol.name}" on "${xCol.name}".`,
-      coefficients,
-    };
+    v = await evalNamedVector(rCode);
   } catch (err) {
+    // R found no best fit (nls stops on its own terms): said plainly, with the likeliest reason.
+    if (String(err).includes("shared midpoint")) {
+      const midpoint = spec.dose!.midpoint.replace(/^Log/, "");
+      return {
+        error:
+          `These two curves can't be fitted with one ${midpoint}: they are too far apart, or their slopes too ` +
+          `different. Ask whether one curve fits both instead, or compare them with a standard-slope (3PL) model.`,
+      };
+    }
+    const logHint = model.endsWith("-logx")
+      ? " This model takes X as log(concentration): if X holds concentrations, choose one where X is concentration."
+      : "";
     return {
-      error: `This curve could not be fitted to these data (${err instanceof Error ? err.message : String(err)}). Try another model or Y data set.`,
+      error: `This curve could not be fitted to these data: they may not follow its shape.${logHint} Try another model or Y data set.`,
     };
   }
+
+  // Each data set's coefficients, named after it when two are compared, and its best-fit
+  // values in a column of its own.
+  const prefix = other ? ["a_", "b_"] : [""];
+  const coefficients: RegressionCoefficient[] = sets.flatMap((s, i) =>
+    spec.terms.map((term, t) => ({
+      term: other ? `${s.name} — ${termLabel(term)}` : termLabel(term),
+      estimate: v[`${prefix[i]}b_${t}`] ?? null,
+      stdError: v[`${prefix[i]}se_${t}`] ?? null,
+      t: v[`${prefix[i]}t_${t}`] ?? null,
+      p: v[`${prefix[i]}pv_${t}`] ?? null,
+      low: v[`${prefix[i]}lo_${t}`] ?? null,
+      high: v[`${prefix[i]}hi_${t}`] ?? null,
+    })),
+  );
+  const each = (key: string) => prefix.map((k) => v[`${k}${key}`] ?? null);
+  const fitRows: FitRow[] = [
+    ...(spec.derived ?? []).flatMap((d, j): FitRow[] => [
+      { label: d.label, values: each(`d_${j}`) },
+      { label: "95% CI", ranges: prefix.map((k) => [v[`${k}dlo_${j}`] ?? null, v[`${k}dhi_${j}`] ?? null]) },
+    ]),
+    { label: "R squared", values: each("r2") },
+    { label: "Sy.x", values: each("syx") },
+    { label: "Sum of squares", values: each("ss") },
+    { label: "Degrees of freedom", values: each("df") },
+    { label: "N", values: each("n") },
+  ];
+  const midpoint = spec.dose?.midpoint.replace(/^Log/, "") ?? "EC50";
+  const question =
+    params?.compare === "all" ? "Does one curve fit both data sets?" : `Is the ${midpoint} different between them?`;
+  const differ = v.p != null && v.p < 0.05;
+  const answer =
+    params?.compare === "all"
+      ? differ
+        ? "The curves differ: one curve doesn't fit both."
+        : "One curve fits both data sets."
+      : differ
+        ? `The ${midpoint}s differ.`
+        : `One ${midpoint} fits both data sets.`;
+
+  const interpolated: InterpolatedRow[] = unknowns.map((r, i) => {
+    const x = v[`ix_${i}`] ?? null;
+    return {
+      label: rowName(titles, r),
+      y: yCol.byRow[r]!,
+      x,
+      ...(logX ? { concentration: v[`ic_${i}`] ?? null } : {}),
+      extrapolated: x != null && (x < lo || x > hi),
+    };
+  });
+  const interpolation = !params?.interpolate
+    ? ""
+    : !unknowns.length
+      ? " No unknowns to interpolate: enter their Y with X left blank."
+      : ` Each unknown's X is read off the curve (the lowest, if the curve reaches its Y twice); “extrapolated”: beyond the standards' X.` +
+        (interpolated.some((u) => u.x == null) ? " “—”: the curve never reaches that Y." : "");
+
+  return {
+    testType: "nonlinear-regression",
+    subtitle: MODEL_LABEL[model],
+    stats: other
+      ? [
+          { label: "F", value: v.F ?? null },
+          { label: "DFn", value: v.dfn ?? null },
+          { label: "DFd", value: v.dfd ?? null },
+          pRow("P value", v.p ?? null),
+        ]
+      : [],
+    fit: { sets: sets.map((s) => s.name), rows: fitRows },
+    groups: (await describe([xCol, yCol, ...(other ? [other] : [])])).groups,
+    notes:
+      `Least-squares fit ("${MODEL_LABEL[model]}") of ${sets.map((s) => `“${s.name}”`).join(" and ")} on “${xCol.name}”. ` +
+      `95% CIs are asymptotic (from each parameter's standard error${spec.terms.includes("S") ? "; the asymmetry S's, on its log" : ""}).` +
+      (other ? ` Extra sum-of-squares F test: ${question} ${answer}` : "") +
+      interpolation,
+    coefficients,
+    ...(params?.interpolate ? { interpolated } : {}),
+  };
+}
+
+/** R comparing two data sets' curves (`x0`, `y0` and `x1`, `y1`): each fitted on its own
+ *  (the full model), then the reduced one — the midpoint shared, or one curve for both —
+ *  and the extra sum-of-squares F test between them. */
+function comparison(spec: ModelSpec, compare: "ec50" | "all"): string {
+  const { expr, midpoint } = spec.dose!;
+  // Every parameter but the shared midpoint, one per data set (`g`).
+  const own = spec.terms.filter((t) => t !== midpoint);
+  const indexed = own.reduce((e, t) => e.replace(new RegExp(`\\b${t}\\b`, "g"), `${t}[g]`), expr);
+  const start = own.map((t) => `${t}=c(c0[["${t}"]],c1[["${t}"]])`).join(",");
+  // The shared midpoint starts between the two, else at either one's (curves far apart
+  // may converge only from there); the best of the fits that converge is kept.
+  const reduced =
+    compare === "all"
+      ? "m<-fit(c(x0,x1),c(y0,y1))"
+      : `x<-c(x0,x1);y<-c(y0,y1);g<-rep(1:2,c(length(x0),length(x1)));c0<-coef(m0);c1<-coef(m1)\n` +
+        `ms<-lapply(c(mean(c(c0[["${midpoint}"]],c1[["${midpoint}"]])),c0[["${midpoint}"]],c1[["${midpoint}"]]),` +
+        `function(s)tryCatch(nls(y~${indexed},start=list(${start},${midpoint}=s),control=nls.control(maxiter=200)),error=function(e)NULL))\n` +
+        `ms<-Filter(Negate(is.null),ms);if(!length(ms))stop("no fit with a shared midpoint")\n` +
+        `m<-ms[[which.min(sapply(ms,function(f)sum(residuals(f)^2)))]]`;
+  return (
+    `m0<-fit(x0,y0);m1<-fit(x1,y1)\n${reduced}\n` +
+    `ssf<-sum(residuals(m0)^2)+sum(residuals(m1)^2);dff<-df.residual(m0)+df.residual(m1)\n` +
+    `ssr<-sum(residuals(m)^2);dfr<-df.residual(m);Fc<-((ssr-ssf)/(dfr-dff))/(ssf/dff)\n` +
+    `c(out(m0,y0,"a_"),out(m1,y1,"b_"),F=Fc,dfn=dfr-dff,dfd=dff,p=pf(Fc,dfr-dff,dff,lower.tail=FALSE))`
+  );
 }

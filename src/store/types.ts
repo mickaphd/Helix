@@ -6,7 +6,9 @@ import type { AnalysisParams, AnalysisType } from "../stats/types";
 export type NodeType = "table" | "analysis" | "graph";
 /** What an item is, as menus name it ("Delete Graph…"). */
 export const NODE_NAMES: Record<NodeType, string> = { table: "Table", analysis: "Analysis", graph: "Graph" };
-export type TableType = "column" | "xy" | "grouped" | "multiple" | "contingency";
+export type TableType = "column" | "xy" | "grouped" | "multiple" | "contingency" | "survival";
+/** Tables whose first data column is X (a Survival table's is the time). */
+export const hasXColumn = (type: TableType) => type === "xy" || type === "survival";
 // Every graph type; views/graphs/index.ts says what each draws and for which tables.
 export type GraphType =
   | "individual"
@@ -17,12 +19,12 @@ export type GraphType =
   | "xy-area"
   | "grouped-bars"
   | "grouped-scatter"
+  | "grouped-box"
   | "grouped-lines"
   | "grouped-stacked"
   | "grouped-hbars"
   | "pie"
   | "donut"
-  | "dose-response"
   | "heatmap"
   | "survival"
   | "volcano";
@@ -38,7 +40,6 @@ export const GRAPH_CHOICES = {
   pieValue: ["sum", "mean"],
   groupLayout: ["interleaved", "separated"],
   sigDisplay: ["stars", "pvalue"],
-  doseModel: ["sigmoidal-4pl-logx", "sigmoidal-4pl-x"],
   survivalMode: ["codes", "counts"],
   volcanoEffect: ["log2ratio", "difference"],
   volcanoSignificance: ["pvalue", "fdr"],
@@ -125,27 +126,22 @@ export interface GraphOptions {
   sigAnalysisId?: string;
   sigPairs?: string[];
   sigDisplay: Choice<"sigDisplay">;
-  // Linear-regression overlay (XY scatter only): draw a sibling "Linear regression"
-  // analysis's OLS fit line + 95% confidence band, computed directly from the plotted
-  // x/y pairs (see regression-overlay.ts) — no WebR round-trip, since OLS has one
-  // unique solution and always matches the sibling analysis's R-computed fit exactly.
+  // A regression of the table drawn on an XY scatter: a linear one's line and 95% band,
+  // computed from the plotted pairs (regression-overlay.ts, checked against R's), or a
+  // nonlinear one's curve from its result (fitted-curve.ts); and its note.
   regAnalysisId?: string;
   regShowLine: boolean;
   regShowBand: boolean;
   regShowEquation: boolean;
-  // Dose-response curve (XY family only): a one-click sigmoidal 4PL fit of the
-  // chosen Y series against X, run via WebR (see dose-response-curve.ts) — no
-  // sibling analysis node needed, unlike the Linear-regression overlay above.
-  // `doseY` omitted defaults to the first Y data column.
-  doseY?: string;
-  doseModel: Choice<"doseModel">;
-  doseShowCurve: boolean;
-  doseShowEquation: boolean;
-  // Heatmap (Multiple Variables only): each column is a variable, each row a
-  // subject; cell color encodes magnitude along the graph's gradient palette.
+  // A Multiple Variables table's scatter: its X and Y variables (column names); omitted,
+  // the first two holding numbers.
+  xVariable?: string;
+  yVariable?: string;
+  // Heatmap: each cell's value colored along the graph's gradient palette (a Grouped
+  // table's cells, each group's center on its row).
   heatmapShowValues: boolean;
   heatmapShowScale: boolean;
-  // Survival curve (XY family only) — see survival.ts. Two data entry modes:
+  // Survival curve (Survival and XY tables) — see survival.ts. Two data entry modes:
   // "codes" = one row per subject, cell is an event code (1 = event, 0 = censored)
   // at the paired X (time); computed via Kaplan-Meier. "counts" = cell is the
   // number of survivors remaining in that group at the paired X; plotted directly
@@ -153,19 +149,21 @@ export interface GraphOptions {
   // mark subjects removed from a group without an event.
   survivalMode: Choice<"survivalMode">;
   survivalShowCensors: boolean;
-  // Volcano plot of a Multiple Variables table: it plots columns the user already
+  survivalShowBand: boolean; // each Kaplan-Meier curve's 95% confidence band (event codes)
+  // Volcano plot of a Multiple Variables or XY table: it plots columns the user already
   // has. `volcanoX`/`volcanoY`/`volcanoLabel` are column names:
-  // X = effect size (e.g. log2 fold change), Y = a significance value (raw p,
-  // adjusted p, FDR, …), label = optional gene-name column. `volcanoYIsPValue`
-  // applies a -log10 transform to Y (default on, so a p/FDR column becomes the
-  // usual vertical axis). Thresholds color points up/down/NS + draw dashed guides;
+  // X = effect size (e.g. log2 fold change; an XY table's X column), Y = a significance
+  // value (raw p, adjusted p, FDR, …), label = optional gene-name column (else the row
+  // titles name the genes). `volcanoYIsPValue`:
+  // Y holds P values (or FDR…), plotted as their -log10; off, values that are -log10
+  // already, plotted as they are. Higher is more significant either way. Thresholds color points up/down/NS + draw dashed guides;
   // `volcanoLabelCount` annotates that many of the most significant genes.
   volcanoX?: string;
   volcanoY?: string;
   volcanoLabel?: string;
   volcanoYIsPValue: boolean;
   volcanoFcThreshold: number; // |X| cutoff (log2FC scale)
-  volcanoPThreshold: number; // cutoff on the PLOTTED Y scale (e.g. 1.3 when Y is −log10)
+  volcanoPThreshold: number; // cutoff on the plotted (−log10) scale: 1.3 is P = 0.05
   volcanoShowThresholds: boolean;
   volcanoLabelCount: number;
   // Grouped-table volcano (Helix computes the DEGs): compare two groups (by column
@@ -242,13 +240,11 @@ export const DEFAULT_GRAPH_OPTIONS: GraphOptions = {
   regShowLine: true,
   regShowBand: true,
   regShowEquation: true,
-  doseModel: "sigmoidal-4pl-x",
-  doseShowCurve: true,
-  doseShowEquation: true,
   heatmapShowValues: false,
   heatmapShowScale: true,
   survivalMode: "codes",
   survivalShowCensors: true,
+  survivalShowBand: false,
   volcanoYIsPValue: true,
   volcanoFcThreshold: 1,
   volcanoPThreshold: 1.3,

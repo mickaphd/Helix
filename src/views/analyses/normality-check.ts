@@ -17,8 +17,16 @@ export async function checkNormality(data: TableData, sets?: string[]): Promise<
   const pValues = outcome.groups.map(
     (g) => outcome.stats.find((s) => s.label === `${g.name} — P value`)?.value ?? null,
   );
-  const gaussian = pValues.every((p) => p != null && !Number.isNaN(p) && p > 0.05);
-  const summary = outcome.groups.map((g, i) => `${g.name}: ${pText(pValues[i])}`).join("\n");
+  // A data set the test can't take (too few values, or all identical) is said, not judged.
+  const tested = pValues.filter((p) => p != null);
+  const summary = outcome.groups
+    .map((g, i) => `${g.name}: ${pValues[i] == null ? "not tested (too few or identical values)" : pText(pValues[i])}`)
+    .join("\n");
+  if (!tested.length) {
+    await alert("Couldn't Run the Shapiro-Wilk Test", summary, "error");
+    return null;
+  }
+  const gaussian = tested.every((p) => p > 0.05);
   await alert(
     gaussian ? "Consistent with a Normal Distribution" : "Not Consistent with a Normal Distribution",
     `Shapiro-Wilk test\n${summary}`,

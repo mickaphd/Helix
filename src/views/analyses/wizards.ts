@@ -2,7 +2,10 @@
 // step, each answer choosing the next question. A wizard only declares its questions
 // and how the answers make the test's params; analysis-wizard.tsx asks them.
 // A test without an entry here runs as soon as it is picked.
-import { ROUT_Q } from "../../stats/types";
+import { DOSE_MODELS, KINETIC_MODELS, NONLINEAR_MODELS, ROUT_Q } from "../../stats/types";
+import { MODEL_LABEL } from "../../stats/xy/nonlinear-regression";
+
+const isDoseModel = (m: string) => (DOSE_MODELS as readonly string[]).includes(m);
 import type {
   AnalysisParams,
   AnalysisPickerValue,
@@ -12,6 +15,8 @@ import type {
   MultipleTTestsParams,
   NonlinearRegressionParams,
   OneSampleTParams,
+  SurvivalParams,
+  CoxParams,
   TwoWayAnovaParams,
   XYCorrelationParams,
 } from "../../stats/types";
@@ -61,8 +66,8 @@ const twoSets = (a: Answers, table: Dataset): Question[] => {
   const sets = setNames(table);
   if (sets.length <= 2) return [];
   return [
-    choice("set1", "Choose the first data set.", names(sets)),
-    choice("set2", "Choose the second data set.", names(sets.filter((n) => n !== a.set1))),
+    choice("set1", "Which is the first data set?", names(sets)),
+    choice("set2", "Which is the second data set?", names(sets.filter((n) => n !== a.set1))),
   ];
 };
 
@@ -73,6 +78,15 @@ const someSets = (table: Dataset, min: number): Question[] => {
   const ask = min > 1 ? `Choose the data sets to analyze (at least ${min}).` : "Choose the data sets to analyze.";
   return [{ id: "sets", ask, kind: "names", options: sets, min }];
 };
+
+/** The names ticked once `name` is ticked (`on`) or not: always in `options`' order,
+ *  the table's, whatever order they were clicked in. */
+export const toggled = (options: string[], ticked: string[], name: string, on: boolean) =>
+  options.filter((n) => (n === name ? on : ticked.includes(n)));
+
+/** Whether a grouped table holds replicates: a group with 2 values or more at a row. */
+const replicated = (table: Dataset) =>
+  table.sets.some((s) => s.columns[0]?.byRow.some((_, r) => s.columns.filter((c) => c.byRow[r] != null).length > 1));
 
 /** The data sets answered, if they were asked. */
 export const chosenSets = (a: Answers): string[] | undefined =>
@@ -85,7 +99,7 @@ const withSets = <P extends object>(a: Answers, params?: P) => {
 };
 
 const GAUSSIAN = "Assume the data are sampled from Gaussian (normal) distributions?";
-const PAIRED = "How was the data collected?";
+const PAIRED = "How were the data collected?";
 
 export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
   "descriptive-statistics": {
@@ -147,6 +161,28 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
     questions: (a, table) => {
       const paired = a.paired === "paired";
       const nonParametric = paired ? "Friedman test" : "Kruskal-Wallis test";
+      // Independent groups sampled from Gaussian distributions: equal SDs or not.
+      const anova = !paired && a.gaussian === "yes";
+      const posthocs: [string, string][] =
+        a.gaussian !== "yes"
+          ? [
+              ["none", `No — only the overall ${nonParametric}`],
+              ["dunn", "Yes — Dunn's multiple comparisons test (Bonferroni-corrected)"],
+            ]
+          : anova && a.equalSd === "no"
+            ? [
+                ["none", "No — only the overall Welch's ANOVA"],
+                ["games-howell", "Yes, every pair — Games-Howell test"],
+                ["t3", "Yes, every pair — Dunnett's T3 test (fewer than 50 values per group)"],
+              ]
+            : [
+                ["none", "No — only the overall ANOVA"],
+                ["tukey", "Yes, every pair — Tukey's multiple comparisons test"],
+                ["bonferroni", "Yes, every pair — Bonferroni-corrected comparisons"],
+                ...(anova
+                  ? [["dunnett", "Yes, each group against a control — Dunnett's test"] as [string, string]]
+                  : []),
+              ];
       return [
         ...someSets(table, 3),
         choice("paired", PAIRED, [
@@ -162,26 +198,31 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
           ],
           true,
         ),
-        choice(
-          "posthoc",
-          paired ? "Compare each pair of matched groups?" : "Compare each pair of groups?",
-          a.gaussian === "yes"
-            ? [
-                ["none", "No — only the overall ANOVA"],
-                ["tukey", "Yes — Tukey's multiple comparisons test"],
-                ["bonferroni", "Yes — Bonferroni-corrected comparisons"],
-              ]
-            : [
-                ["none", `No — only the overall ${nonParametric}`],
-                ["dunn", "Yes — Dunn's multiple comparisons test (Bonferroni-corrected)"],
-              ],
-        ),
+        anova &&
+          choice("equalSd", "Assume the groups have equal SDs?", [
+            ["yes", "Yes — ordinary one-way ANOVA"],
+            ["no", "No — Welch's ANOVA"],
+          ]),
+        paired &&
+          a.gaussian === "yes" &&
+          choice("sphericity", "Assume sphericity (equal variability of the differences between groups)?", [
+            ["no", "No — Geisser-Greenhouse correction (recommended)"],
+            ["yes", "Yes — no correction"],
+          ]),
+        choice("posthoc", paired ? "Compare the matched groups?" : "Compare the groups?", posthocs),
+        a.posthoc === "dunnett" &&
+          choice("control", "Which group is the control?", names(chosenSets(a) ?? setNames(table))),
       ];
     },
     finish: (a) => {
       const paired = a.paired === "paired";
       const type = a.gaussian === "yes" ? (paired ? "rm-anova" : "anova") : paired ? "friedman" : "kruskal-wallis";
-      return { type, params: withSets(a, { posthoc: a.posthoc }) as AnalysisParams };
+      const anova = type === "anova" && {
+        equalSd: a.equalSd !== "no",
+        ...(a.posthoc === "dunnett" ? { control: a.control as string } : {}),
+      };
+      const rm = type === "rm-anova" && { sphericity: a.sphericity === "yes" };
+      return { type, params: withSets(a, { posthoc: a.posthoc, ...anova, ...rm }) as AnalysisParams };
     },
   },
 
@@ -192,7 +233,7 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
         ...someSets(table, 1),
         {
           id: "value",
-          ask: "Test each data set against a hypothetical value.",
+          ask: "Which hypothetical value should each data set be tested against?",
           kind: "number",
           label: "Hypothetical value",
           initial: 0,
@@ -228,7 +269,7 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
       ...someSets(table, 1),
       {
         id: "q",
-        ask: "ROUT method: each column is fit to a robust mean, then residuals are flagged as outliers when their false discovery rate is below Q. Smaller Q is more conservative.",
+        ask: "How strict should the search be? ROUT fits each data set to a robust mean and flags a point as an outlier when its false discovery rate is below Q: a smaller Q flags fewer.",
         kind: "number",
         label: "Q (%) =",
         initial: 1,
@@ -243,7 +284,7 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
     questions: (a, table) => {
       const ys = yNames(table);
       return [
-        choice("method", "Choose which correlation coefficient to compute.", [
+        choice("method", "Which correlation coefficient should be computed?", [
           ["pearson", "Pearson (parametric)"],
           ["spearman", "Spearman (non-parametric)"],
         ]),
@@ -252,9 +293,9 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
           ["two-datasets", "Two chosen data sets"],
           ["matrix", "Correlation matrix among the Y data sets"],
         ]),
-        a.mode === "two-datasets" && choice("first", "Choose the first data set.", names(ys)),
+        a.mode === "two-datasets" && choice("first", "Which is the first data set?", names(ys)),
         a.mode === "two-datasets" &&
-          choice("second", "Choose the second data set.", names(ys.filter((n) => n !== a.first))),
+          choice("second", "Which is the second data set?", names(ys.filter((n) => n !== a.first))),
       ];
     },
     finish: (a) => ({
@@ -282,7 +323,7 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
     questions: () => [
       {
         id: "baseline",
-        ask: "The area of each Y series is measured from this baseline. Area below the baseline counts as negative.",
+        ask: "From which baseline should each data set's area be measured? Area below it counts as negative.",
         kind: "number",
         label: "Baseline Y =",
         initial: 0,
@@ -292,34 +333,85 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
   },
 
   "nonlinear-regression": {
+    questions: (a, table) => {
+      const dose = a.kind !== "other";
+      const models = (dose ? DOSE_MODELS : NONLINEAR_MODELS.filter((m) => !isDoseModel(m))).map(
+        (m): [string, string] => [m, MODEL_LABEL[m]],
+      );
+      const others = yNames(table).filter((n) => n !== (a.y ?? yNames(table)[0]));
+      const midpoint = String(a.model).startsWith("inhibitor") ? "IC50" : "EC50";
+      return [
+        choice("y", "Which Y data set should be fitted?", names(yNames(table))),
+        choice("kind", "Which kind of curve?", [
+          ["dose", "Dose-response (sigmoidal)"],
+          ["other", "Another curve (line, polynomial, exponential, Michaelis-Menten…)"],
+        ]),
+        choice("model", "Which curve should be fitted to X and Y?", models),
+        dose &&
+          others.length > 0 &&
+          choice("compareWith", "Compare this curve with another data set's?", [
+            ["none", "No"],
+            ...others.map((n): [string, string] => [n, `Yes, with “${n}”`]),
+          ]),
+        dose &&
+          a.compareWith !== undefined &&
+          a.compareWith !== "none" &&
+          choice("compare", "What should be compared?", [
+            ["ec50", `Is the ${midpoint} different between the two data sets?`],
+            ["all", "Does one curve fit both data sets?"],
+          ]),
+      ];
+    },
+    finish: (a) => {
+      const compare =
+        a.kind !== "other" && a.compareWith !== undefined && a.compareWith !== "none"
+          ? { compareWith: a.compareWith as string, compare: a.compare as NonlinearRegressionParams["compare"] }
+          : {};
+      return {
+        type: "nonlinear-regression",
+        params: { y: a.y as string, model: a.model as NonlinearRegressionParams["model"], ...compare },
+      };
+    },
+  },
+
+  // A nonlinear regression whose unknowns (a Y, no X) are read off the curve; the 3PLs,
+  // whose slope is fixed, aren't standard curves. Curves of X as entered first (an ELISA's
+  // concentrations), those of log X after.
+  interpolate: {
     questions: (_, table) => [
-      choice("y", "Which Y data set should be fitted?", names(yNames(table))),
-      // Prism's "Standard curves to interpolate": the ones that fit reliably in WebR.
-      choice("model", "Which standard curve should be fitted to X and Y?", [
-        ["sigmoidal-4pl-logx", "Sigmoidal, 4PL, X is log(concentration)"],
-        ["sigmoidal-4pl-x", "Sigmoidal, 4PL, X is concentration"],
-        ["line", "Line"],
-        ["semilog-line", "Semilog line"],
-        ["hyperbola", "Hyperbola (X is concentration)"],
-        ["quadratic", "Second order polynomial (quadratic)"],
-        ["cubic", "Third order polynomial (cubic)"],
-      ]),
+      choice("y", "Which Y data set holds the standards and the unknowns?", names(yNames(table))),
+      choice(
+        "model",
+        "Which standard curve should be fitted?",
+        NONLINEAR_MODELS.filter((m) => !m.includes("3pl") && !(KINETIC_MODELS as readonly string[]).includes(m))
+          .sort((m, n) => Number(m.endsWith("-logx")) - Number(n.endsWith("-logx")))
+          .map((m): [string, string] => [m, MODEL_LABEL[m]]),
+      ),
     ],
     finish: (a) => ({
       type: "nonlinear-regression",
-      params: { y: a.y as string, model: a.model as NonlinearRegressionParams["model"] },
+      params: { y: a.y as string, model: a.model as NonlinearRegressionParams["model"], interpolate: true },
     }),
   },
 
   "two-way-anova": {
+    // One value per cell: only the ordinary ANOVA, without comparisons (see two-way-anova.ts).
     questions: (a, table) => [
       ...someSets(table, 2),
-      choice("design", "Compare column groups and row position, and their interaction.", [
-        ["ordinary", "Ordinary two-way ANOVA (parametric)"],
-        ["repeated-measures", "Repeated-measures (matched by row, parametric)"],
-        ["nonparametric", "Scheirer-Ray-Hare test (non-parametric)"],
-      ]),
-      a.design !== "nonparametric" &&
+      replicated(table) &&
+        choice("design", "Which two-way ANOVA? Each compares the groups, the rows and their interaction.", [
+          ["ordinary", "Ordinary two-way ANOVA (parametric)"],
+          ["repeated-measures", "Repeated-measures (matched by row, parametric)"],
+          ["nonparametric", "Scheirer-Ray-Hare test (non-parametric)"],
+        ]),
+      replicated(table) &&
+        a.design === "repeated-measures" &&
+        choice("sphericity", "Assume sphericity (equal variability of the differences between rows)?", [
+          ["no", "No — Geisser-Greenhouse correction (recommended)"],
+          ["yes", "Yes — no correction"],
+        ]),
+      replicated(table) &&
+        a.design !== "nonparametric" &&
         choice("posthoc", "Run multiple comparisons? Only meaningful if the ANOVA is significant.", [
           ["none", "No — just the ANOVA table"],
           ["tukey groups", "Yes — Tukey's, comparing groups within each row"],
@@ -333,9 +425,10 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
       return {
         type: "two-way-anova",
         params: withSets(a, {
-          design: a.design as TwoWayAnovaParams["design"],
+          design: (a.design ?? "ordinary") as TwoWayAnovaParams["design"],
           posthoc: posthoc as TwoWayAnovaParams["posthoc"],
           posthocTarget: posthocTarget as TwoWayAnovaParams["posthocTarget"],
+          ...(a.design === "repeated-measures" ? { sphericity: a.sphericity === "yes" } : {}),
         }),
       };
     },
@@ -380,7 +473,7 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
   "correlation-matrix": {
     questions: (_, table) => [
       ...someSets(table, 2),
-      choice("method", "Choose which correlation coefficient to compute for every pair of variables.", [
+      choice("method", "Which correlation coefficient should be computed for every pair of variables?", [
         ["pearson", "Pearson (parametric)"],
         ["spearman", "Spearman (non-parametric)"],
       ]),
@@ -393,10 +486,10 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
 
   "multiple-regression": {
     questions: (a, table) => [
-      choice("dependent", "Choose the dependent variable (Y).", names(dataNames(table))),
+      choice("dependent", "Which variable is the dependent one (Y)?", names(dataNames(table))),
       {
         id: "predictors",
-        ask: "Choose which variables to include as predictors.",
+        ask: "Which variables are the predictors?",
         kind: "names",
         options: dataNames(table).filter((n) => n !== a.dependent),
       },
@@ -405,5 +498,48 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
       type: "multiple-regression",
       params: { dependent: a.dependent as string, predictors: a.predictors as string[] },
     }),
+  },
+
+  survival: {
+    questions: (_, table) => {
+      const groups = splitXY(table.columns).ys.filter((c) => c.values.length > 0).length;
+      return [
+        choice("curveTest", "Which test should compare the survival curves?", [
+          ["logrank", "Log-rank (Mantel-Cox) test (recommended)"],
+          ...(groups > 2
+            ? [["trend", "Log-rank test for trend — the groups are in a meaningful order"] as [string, string]]
+            : []),
+          ["gehan", "Gehan-Breslow-Wilcoxon test — more weight on early events"],
+        ]),
+        groups > 2 &&
+          choice("correction", "Correct the comparisons of each pair of groups for multiple testing?", [
+            ["holm", "Holm correction (recommended)"],
+            ["fdr", "False discovery rate (Benjamini-Hochberg)"],
+            ["none", "None — treat each pair independently"],
+          ]),
+      ];
+    },
+    finish: (a) => ({
+      type: "survival",
+      params: {
+        curveTest: a.curveTest as SurvivalParams["curveTest"],
+        correction: (a.correction ?? "holm") as SurvivalParams["correction"],
+      },
+    }),
+  },
+
+  cox: {
+    questions: (_, table) => [
+      choice(
+        "reference",
+        "Which group's hazard should the others be compared to?",
+        names(
+          splitXY(table.columns)
+            .ys.filter((c) => c.values.length > 0)
+            .map((c) => c.name),
+        ),
+      ),
+    ],
+    finish: (a) => ({ type: "cox", params: { reference: a.reference as CoxParams["reference"] } }),
   },
 };

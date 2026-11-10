@@ -9,11 +9,11 @@ import {
   type TableData,
   type TableType,
 } from "../../store/types";
-import type { SelectorOption } from "../../components/common/universal-modal";
-import { seriesOf, splitXY, type Column, type Dataset } from "../../lib/dataset";
+import type { SelectorOption } from "../../components/universal-modal";
+import { readTable, seriesOf, splitXY, type Column, type Dataset } from "../../lib/dataset";
 import { paletteNamed, savedPalette } from "../../lib/palettes";
 import { titleCase } from "../../lib/format";
-import type { Paint } from "./plot-helpers";
+import { centerColumn, type Paint } from "./plot-helpers";
 import { individual } from "./individual";
 import { boxViolin } from "./box-violin";
 import { meanError } from "./mean-error";
@@ -22,11 +22,11 @@ import { xyBar } from "./xy-bar";
 import { xyArea } from "./xy-area";
 import { groupedBars } from "./grouped-bars";
 import { groupedScatter } from "./grouped-scatter";
+import { groupedBox } from "./grouped-box";
 import { groupedLines } from "./grouped-lines";
 import { groupedStacked } from "./grouped-stacked";
 import { groupedHbars } from "./grouped-hbars";
 import { pie, donut } from "./pie";
-import { doseResponse } from "./dose-response";
 import { heatmap } from "./heatmap";
 import { survival } from "./survival";
 import { volcano, VOLCANO_SERIES } from "./volcano";
@@ -75,30 +75,58 @@ export const GRAPHS: Record<GraphType, GraphModule> = {
   "grouped-lines": groupedLines,
   "grouped-stacked": groupedStacked,
   "grouped-hbars": groupedHbars,
+  "grouped-box": groupedBox,
   pie,
   donut,
-  "dose-response": doseResponse,
   heatmap,
   survival,
   volcano,
 };
 
+/** The two variables a scatter of a Multiple Variables table plots, X then Y: the ones
+ *  chosen, else (none, or gone) the first two holding numbers. */
+function variablePair(numeric: Column[], options: GraphOptions): [Column?, Column?] {
+  const byName = (name?: string) => numeric.find((c) => c.name === name);
+  const x = byName(options.xVariable) ?? numeric[0];
+  return [x, byName(options.yVariable) ?? numeric.find((c) => c !== x)];
+}
+
 /** The columns a graph plots: every column for the volcano (it maps text labels
- *  too), X then the Y series for the XY family (none while X is empty), else the
+ *  too), one per data set holding numbers for the heatmap (a grouped table's
+ *  replicates as their `center` on each row), X then the Y series for the XY family
+ *  (none while X is empty; a Multiple Variables table's two variables), else the
  *  columns holding numbers. */
-export function plotColumns({ columns, numeric }: Dataset, type: GraphType): Column[] {
+export function plotColumns(
+  { columns, numeric, sets }: Dataset,
+  type: GraphType,
+  options: GraphOptions,
+  tableType: TableType,
+): Column[] {
   const { family } = GRAPHS[type];
   if (family === "volcano") return columns;
+  if (family === "heatmap")
+    return sets.filter((s) => s.columns.some((c) => c.values.length)).map((s) => centerColumn(s, options.center));
   if (family !== "xy") return numeric;
+  if (tableType === "multiple") {
+    const [x, y] = variablePair(numeric, options);
+    return x && y ? [x, y] : [];
+  }
   const { x, ys } = splitXY(columns);
   return x ? [x, ...ys] : [];
 }
 
 /** The series a graph colors, in order: a volcano's "down" and "up", none for a
- *  heatmap (its cells follow the palette), else the table's series. */
-export function graphSeries(type: GraphType, data: TableData, tableType: TableType): string[] {
+ *  heatmap (its cells follow the palette), a Multiple Variables scatter's Y variable,
+ *  else the table's series. */
+export function graphSeries(type: GraphType, data: TableData, tableType: TableType, options: GraphOptions): string[] {
   const { family } = GRAPHS[type];
-  return family === "volcano" ? Object.keys(VOLCANO_SERIES) : family === "heatmap" ? [] : seriesOf(data, tableType);
+  if (family === "volcano") return Object.keys(VOLCANO_SERIES);
+  if (family === "heatmap") return [];
+  if (family === "xy" && tableType === "multiple") {
+    const y = variablePair(readTable(data).numeric, options)[1];
+    return y ? [y.name] : [];
+  }
+  return seriesOf(data, tableType);
 }
 
 /** A new graph's options: the defaults, with its type's palette and own defaults. */
@@ -114,21 +142,26 @@ const optionsFor = (types: GraphType[]): SelectorOption<GraphType>[] =>
  *  groups (bars/box/points), an XY table's are X + Y data series (scatter/line/
  *  bar/area against a shared X) — so the graphs that make sense differ too.
  *  Grouped tables (groups × replicates, rows = X categories) plot one series per
- *  group across the rows: interleaved scatter / bars / stacked / horizontal.
- *  Multiple Variables (rows = subjects, columns = variables) plots as a heatmap.
+ *  group across the rows: interleaved scatter / box and violin / bars / stacked /
+ *  horizontal.
+ *  Grouped (one cell per group and row), Multiple Variables (rows = subjects, columns =
+ *  variables) and Contingency (counts) plot as a heatmap too.
  *  Mirrors `ANALYSIS_OPTIONS_BY_TABLE`. */
 export const GRAPH_OPTIONS_BY_TABLE: Record<TableType, SelectorOption<GraphType>[]> = {
   column: optionsFor(["individual", "box-violin", "mean-error", "pie", "donut"]),
-  xy: optionsFor(["xy-scatter", "xy-bar", "xy-area", "dose-response", "survival"]),
+  xy: optionsFor(["xy-scatter", "xy-bar", "xy-area", "survival", "volcano"]),
   grouped: optionsFor([
     "grouped-scatter",
+    "grouped-box",
     "grouped-bars",
     "grouped-lines",
     "grouped-stacked",
     "grouped-hbars",
+    "heatmap",
     "volcano",
   ]),
-  multiple: optionsFor(["heatmap", "volcano"]),
+  multiple: optionsFor(["xy-scatter", "heatmap", "volcano"]),
   // Outcomes as series across the row categories, as Prism graphs contingency tables.
-  contingency: optionsFor(["grouped-bars", "grouped-stacked", "grouped-hbars"]),
+  contingency: optionsFor(["grouped-bars", "grouped-stacked", "grouped-hbars", "heatmap"]),
+  survival: optionsFor(["survival"]),
 };

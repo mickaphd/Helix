@@ -3,8 +3,8 @@
 // Each returns null when it has nothing for this graph, and the section is left out.
 import * as React from "react";
 import { Button, Checkbox, Input, Select, cn } from "../../ui/controls";
-import { Row, Stepper } from "../../components/common/inspector";
-import type { AnalysisPickerValue, AnalysisType } from "../../stats/types";
+import { Row, Stepper } from "../../components/inspector";
+import type { AnalysisPickerValue, AnalysisType, NonlinearRegressionParams } from "../../stats/types";
 import { analysisLabel } from "../analyses";
 import {
   GRAPH_LIMITS,
@@ -48,7 +48,8 @@ export interface SectionContext {
   volcanoGroups?: string[];
   numericNames: string[];
   allNames: string[];
-  doseError: string | null;
+  /** The chosen regression's failure, when it couldn't be fitted. */
+  fitError: string | null;
   /** Starts `test` (its wizard), or with none opens the New Analysis picker. */
   onNewAnalysis: (test?: AnalysisPickerValue) => void;
   /** Volcano: selects the genes named (comma-separated); returns the names no gene has. */
@@ -101,45 +102,30 @@ export function statisticsControls(c: SectionContext): React.ReactNode {
     }
     return <SignificanceControls analyses={sources} comparisons={c.comparisons} options={options} set={set} />;
   }
-  if (graphType === "xy-scatter") {
-    const sources = c.analyses.filter((a) => a.analysisType === "linear-regression");
+  if (graphType === "xy-scatter" && c.tableType === "xy") {
+    // A linear regression, or a nonlinear one of one data set (not two curves compared).
+    const sources = c.analyses.filter(
+      (a) =>
+        a.analysisType === "linear-regression" ||
+        (a.analysisType === "nonlinear-regression" &&
+          (a.analysisParams as NonlinearRegressionParams | undefined)?.compareWith === undefined),
+    );
     if (!sources.length) {
       return (
-        <NoAnalysis test="linear-regression" onNewAnalysis={c.onNewAnalysis}>
-          Draw the fitted line of a linear regression of this table.
+        <NoAnalysis onNewAnalysis={c.onNewAnalysis}>
+          Draw the fitted line or curve of a linear or nonlinear regression of this table.
         </NoAnalysis>
       );
     }
-    return <RegressionControls analyses={sources} options={options} set={set} />;
-  }
-  if (graphType === "dose-response") {
     return (
       <>
-        <Choice
-          label="Model"
-          value={options.doseModel}
-          onChange={(doseModel) => set({ doseModel })}
-          items={[
-            { value: "sigmoidal-4pl-logx", label: "Log X" },
-            { value: "sigmoidal-4pl-x", label: "Linear X" },
-          ]}
-        />
-        <Toggle
-          label="Fitted curve"
-          checked={options.doseShowCurve}
-          onChange={(doseShowCurve) => set({ doseShowCurve })}
-        />
-        <Toggle
-          label="EC50 & Hill slope"
-          checked={options.doseShowEquation}
-          onChange={(doseShowEquation) => set({ doseShowEquation })}
-        />
-        {c.doseError && <p className="text-small text-secondary">{c.doseError}</p>}
+        <RegressionControls analyses={sources} options={options} set={set} />
+        {c.fitError && <p className="text-small text-secondary">{c.fitError}</p>}
       </>
     );
   }
   if (graphType === "volcano") {
-    // Cutoffs are entered on the plotted scale (e.g. 1.3 when Y is −log10).
+    // Cutoffs are entered on the plotted scale (1.3 is P = 0.05).
     const sig = c.volcanoGroups && options.volcanoSignificance === "fdr" ? "FDR" : "P";
     return (
       <>
@@ -150,13 +136,13 @@ export function statisticsControls(c: SectionContext): React.ReactNode {
             onChange={(v) => set({ volcanoFcThreshold: v ?? 0 })}
           />
           <NumRow
-            label={options.volcanoYIsPValue ? `−log10 ${sig}` : sig}
+            label={`−log10 ${sig}`}
             value={options.volcanoPThreshold}
             onChange={(v) => set({ volcanoPThreshold: v ?? 0 })}
           />
         </div>
         <Toggle
-          label="Threshold lines"
+          label="Show threshold lines"
           checked={options.volcanoShowThresholds}
           onChange={(volcanoShowThresholds) => set({ volcanoShowThresholds })}
         />
@@ -279,7 +265,7 @@ function SignificanceControls({
   );
 }
 
-/** Pick a linear regression, then which parts of its fit to draw. */
+/** Pick a regression, then which parts of its fit to draw (a nonlinear one has no band). */
 function RegressionControls({
   analyses,
   options,
@@ -289,6 +275,8 @@ function RegressionControls({
   options: GraphOptions;
   set: SetOptions;
 }) {
+  const chosen = analyses.find((a) => a.id === options.regAnalysisId);
+  const curve = chosen?.analysisType === "nonlinear-regression";
   return (
     <>
       <AnalysisRow
@@ -296,12 +284,22 @@ function RegressionControls({
         value={options.regAnalysisId}
         onChange={(regAnalysisId) => set({ regAnalysisId })}
       />
-      {options.regAnalysisId ? (
+      {chosen ? (
         <>
-          <Toggle label="Fit line" checked={options.regShowLine} onChange={(regShowLine) => set({ regShowLine })} />
-          <Toggle label="95% CI band" checked={options.regShowBand} onChange={(regShowBand) => set({ regShowBand })} />
           <Toggle
-            label="Equation & R²"
+            label="Show fitted curve"
+            checked={options.regShowLine}
+            onChange={(regShowLine) => set({ regShowLine })}
+          />
+          {!curve && (
+            <Toggle
+              label="Show 95% CI band"
+              checked={options.regShowBand}
+              onChange={(regShowBand) => set({ regShowBand })}
+            />
+          )}
+          <Toggle
+            label="Show fit results"
             checked={options.regShowEquation}
             onChange={(regShowEquation) => set({ regShowEquation })}
           />
@@ -334,6 +332,8 @@ export function dataControls(c: SectionContext): React.ReactNode {
   switch (graphType) {
     case "grouped-stacked":
       return center; // stacked bars have no error bars
+    case "heatmap":
+      return c.tableType === "grouped" ? center : null; // a cell sums up a group's replicates
     case "pie":
     case "donut":
       return (
@@ -348,25 +348,23 @@ export function dataControls(c: SectionContext): React.ReactNode {
         />
       );
     case "survival":
+      // A Survival table holds event codes; survivor counts are an XY table's.
       return (
-        <Choice
-          label="Data format"
-          value={options.survivalMode}
-          onChange={(survivalMode) => set({ survivalMode })}
-          items={[
-            { value: "codes", label: "Event codes" },
-            { value: "counts", label: "Survivor counts" },
-          ]}
-        />
+        c.tableType === "xy" && (
+          <Choice
+            label="Data format"
+            value={options.survivalMode}
+            onChange={(survivalMode) => set({ survivalMode })}
+            items={[
+              { value: "codes", label: "Event codes" },
+              { value: "counts", label: "Survivor counts" },
+            ]}
+          />
+        )
       );
-    case "dose-response":
-      return c.seriesNames.length > 1 ? (
-        <ColumnSelectRow
-          label="Y data set"
-          value={options.doseY ?? c.seriesNames[0]}
-          names={c.seriesNames}
-          onChange={(doseY) => set({ doseY })}
-        />
+    case "xy-scatter":
+      return c.tableType === "multiple" ? (
+        <VariablePair numericNames={c.numericNames} options={options} set={set} />
       ) : null;
     case "volcano":
       return (
@@ -374,15 +372,15 @@ export function dataControls(c: SectionContext): React.ReactNode {
           {c.volcanoGroups ? (
             <GroupedVolcanoData groups={c.volcanoGroups} options={options} set={set} />
           ) : (
-            <FlatVolcanoData numericNames={c.numericNames} allNames={c.allNames} options={options} set={set} />
+            <FlatVolcanoData
+              numericNames={c.numericNames}
+              allNames={c.allNames}
+              xy={c.tableType === "xy"}
+              options={options}
+              set={set}
+            />
           )}
-          <Toggle
-            label="Y as −log10"
-            checked={options.volcanoYIsPValue}
-            onChange={(volcanoYIsPValue) => set({ volcanoYIsPValue })}
-          />
-          {/* Genes are found by name: a grouped table's row titles, else the label column. */}
-          {(c.volcanoGroups || options.volcanoLabel) && <FindGenes find={c.onFindGenes} />}
+          <FindGenes find={c.onFindGenes} />
         </>
       );
     default:
@@ -390,40 +388,81 @@ export function dataControls(c: SectionContext): React.ReactNode {
   }
 }
 
-/** A volcano of a Multiple Variables table plots the columns the user already has:
- *  X = effect size (log2 fold change), Y = a P value, adjusted P or FDR. */
+/** A scatter of a Multiple Variables table plots one variable against another. */
+function VariablePair({
+  numericNames,
+  options,
+  set,
+}: {
+  numericNames: string[];
+  options: GraphOptions;
+  set: SetOptions;
+}) {
+  const x = options.xVariable ?? numericNames[0];
+  return (
+    <>
+      <ColumnSelectRow label="X variable" value={x} names={numericNames} onChange={(xVariable) => set({ xVariable })} />
+      <ColumnSelectRow
+        label="Y variable"
+        value={options.yVariable ?? numericNames.find((n) => n !== x)}
+        names={numericNames}
+        onChange={(yVariable) => set({ yVariable })}
+      />
+    </>
+  );
+}
+
+/** A volcano of a Multiple Variables or XY table plots the columns the user already has:
+ *  X = effect size (log2 fold change), Y = a P value, adjusted P or FDR. On an XY table
+ *  X is its X column and the row titles name the genes, so only Y is chosen. */
 function FlatVolcanoData({
   numericNames,
   allNames,
+  xy,
   options,
   set,
 }: {
   numericNames: string[];
   allNames: string[];
+  xy: boolean;
   options: GraphOptions;
   set: SetOptions;
 }) {
+  const ys = xy ? allNames.slice(1) : numericNames;
   return (
     <>
-      <ColumnSelectRow
-        label="X — fold change"
-        value={options.volcanoX ?? numericNames[0]}
-        names={numericNames}
-        onChange={(volcanoX) => set({ volcanoX })}
-      />
+      {!xy && (
+        <ColumnSelectRow
+          label="X — fold change"
+          value={options.volcanoX ?? numericNames[0]}
+          names={numericNames}
+          onChange={(volcanoX) => set({ volcanoX })}
+        />
+      )}
       <ColumnSelectRow
         label="Y — significance"
-        value={options.volcanoY ?? numericNames[1] ?? numericNames[0]}
-        names={numericNames}
+        value={options.volcanoY ?? (xy ? ys[0] : (numericNames[1] ?? numericNames[0]))}
+        names={ys}
         onChange={(volcanoY) => set({ volcanoY })}
       />
-      <ColumnSelectRow
-        label="Gene labels from"
-        value={options.volcanoLabel}
-        names={allNames}
-        allowNone
-        onChange={(volcanoLabel) => set({ volcanoLabel })}
+      <Choice
+        label="Y values"
+        value={options.volcanoYIsPValue ? "p" : "log"}
+        onChange={(held) => set({ volcanoYIsPValue: held === "p" })}
+        items={[
+          { value: "p", label: "P values" },
+          { value: "log", label: "−log10" },
+        ]}
       />
+      {!xy && (
+        <ColumnSelectRow
+          label="Gene labels from"
+          value={options.volcanoLabel}
+          names={allNames}
+          allowNone
+          onChange={(volcanoLabel) => set({ volcanoLabel })}
+        />
+      )}
     </>
   );
 }
@@ -450,7 +489,7 @@ function GroupedVolcanoData({ groups, options, set }: { groups: string[]; option
         onChange={(volcanoGroupB) => set({ volcanoGroupB })}
       />
       <Choice
-        label="Effect size (X)"
+        label="X — effect size"
         value={options.volcanoEffect}
         onChange={(volcanoEffect) => set({ volcanoEffect })}
         items={[
@@ -459,7 +498,7 @@ function GroupedVolcanoData({ groups, options, set }: { groups: string[]; option
         ]}
       />
       <Choice
-        label="Significance (Y)"
+        label="Y — significance"
         value={options.volcanoSignificance}
         onChange={(volcanoSignificance) => set({ volcanoSignificance })}
         items={[
@@ -578,11 +617,18 @@ function linesGroup({ graphType, options, set }: SectionContext) {
       />
       <DashRow value={options.lineDash} onChange={(lineDash) => set({ lineDash })} />
       {graphType === "survival" && options.survivalMode === "codes" && (
-        <Toggle
-          label="Show censored ticks"
-          checked={options.survivalShowCensors}
-          onChange={(survivalShowCensors) => set({ survivalShowCensors })}
-        />
+        <>
+          <Toggle
+            label="Show censored ticks"
+            checked={options.survivalShowCensors}
+            onChange={(survivalShowCensors) => set({ survivalShowCensors })}
+          />
+          <Toggle
+            label="Show 95% CI band"
+            checked={options.survivalShowBand}
+            onChange={(survivalShowBand) => set({ survivalShowBand })}
+          />
+        </>
       )}
     </Group>
   );
@@ -652,6 +698,36 @@ function ownStyle(context: SectionContext): React.ReactNode {
     />
   );
   const points = GRAPHS[graphType].points?.(options) && pointsGroup(context);
+  // Each row's groups side by side, or each group's rows in a block of its own.
+  const groups = (
+    <Choice
+      label="Groups"
+      value={options.groupLayout}
+      onChange={(groupLayout) => set({ groupLayout })}
+      items={[
+        { value: "interleaved", label: "Interleaved" },
+        { value: "separated", label: "Separated" },
+      ]}
+    />
+  );
+  const boxOrViolin = (
+    <>
+      <Choice
+        label="Draw as"
+        value={options.kind}
+        onChange={(kind) => set({ kind })}
+        items={[
+          { value: "box", label: "Box" },
+          { value: "violin", label: "Violin" },
+        ]}
+      />
+      {shapes(options.kind === "violin" ? "Violin" : "Box")}
+      {pointsGroup(
+        context,
+        <Toggle label="Show points" checked={options.showPoints} onChange={(showPoints) => set({ showPoints })} />,
+      )}
+    </>
+  );
   switch (graphType) {
     case "individual":
       return (
@@ -680,22 +756,12 @@ function ownStyle(context: SectionContext): React.ReactNode {
         </>
       );
     case "box-violin":
+      return boxOrViolin;
+    case "grouped-box":
       return (
         <>
-          <Choice
-            label="Draw as"
-            value={options.kind}
-            onChange={(kind) => set({ kind })}
-            items={[
-              { value: "box", label: "Box" },
-              { value: "violin", label: "Violin" },
-            ]}
-          />
-          {shapes(options.kind === "violin" ? "Violin" : "Box")}
-          {pointsGroup(
-            context,
-            <Toggle label="Show points" checked={options.showPoints} onChange={(showPoints) => set({ showPoints })} />,
-          )}
+          {groups}
+          {boxOrViolin}
         </>
       );
     case "xy-scatter":
@@ -725,19 +791,10 @@ function ownStyle(context: SectionContext): React.ReactNode {
     case "grouped-scatter":
       return (
         <>
-          <Choice
-            label="Groups"
-            value={options.groupLayout}
-            onChange={(groupLayout) => set({ groupLayout })}
-            items={[
-              { value: "interleaved", label: "Interleaved" },
-              { value: "separated", label: "Separated" },
-            ]}
-          />
+          {groups}
           {graphType === "grouped-scatter" ? points : shapes("Bars", options.groupLayout === "interleaved" && gap)}
         </>
       );
-    case "dose-response":
     case "grouped-lines":
     case "volcano":
       return (
@@ -746,7 +803,7 @@ function ownStyle(context: SectionContext): React.ReactNode {
           {graphType === "volcano" && (
             <Group title="Labels">
               <Stepper
-                label="Labelled genes"
+                label="Labeled genes"
                 value={options.volcanoLabelCount}
                 {...GRAPH_LIMITS.volcanoLabelCount}
                 step={5}

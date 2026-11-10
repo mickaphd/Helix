@@ -30,12 +30,15 @@ import {
 } from "../store/types";
 import {
   type AnalysisParams,
+  ANOVA_POSTHOCS,
   CORRECTIONS,
+  CURVE_COMPARISONS,
   CORRELATION_METHODS,
   CORRELATION_MODES,
+  CURVE_TESTS,
+  DOSE_MODELS,
   NONLINEAR_MODELS,
   POSTHOC_TARGETS,
-  POSTHOCS,
   RANK_POSTHOCS,
   ROUT_Q,
   TAILS,
@@ -123,7 +126,7 @@ type OptionalOption = {
 // prettier-ignore
 const OPTIONAL_OPTIONS = {
   yMin: "number", yMax: "number", yStep: "number", xMin: "number", xMax: "number", xStep: "number",
-  sigAnalysisId: "text", sigPairs: "texts", regAnalysisId: "text", doseY: "text",
+  sigAnalysisId: "text", sigPairs: "texts", regAnalysisId: "text", xVariable: "text", yVariable: "text",
   volcanoX: "text", volcanoY: "text", volcanoLabel: "text", volcanoGroupA: "text", volcanoGroupB: "text",
   palette: "palette", series: "styles", points: "pointStyles", outlineColor: "color", pointOutlineColor: "color", errorColor: "color",
   legend: "place", note: "place",
@@ -147,10 +150,10 @@ type ParamKind = "yes/no" | "number" | "name" | "names" | readonly string[] | Li
 // prettier-ignore
 const PARAMS = {
   paired: "yes/no", gaussian: "yes/no", equalVariance: "yes/no", ratio: "yes/no", forceOrigin: "yes/no", pooledSd: "yes/no",
-  tails: TAILS, posthoc: [...POSTHOCS, ...RANK_POSTHOCS], model: NONLINEAR_MODELS, method: CORRELATION_METHODS,
-  mode: CORRELATION_MODES, design: TWO_WAY_DESIGNS, posthocTarget: POSTHOC_TARGETS, correction: CORRECTIONS,
+  equalSd: "yes/no", sphericity: "yes/no", interpolate: "yes/no", tails: TAILS, posthoc: [...ANOVA_POSTHOCS, ...RANK_POSTHOCS], model: NONLINEAR_MODELS, method: CORRELATION_METHODS,
+  mode: CORRELATION_MODES, design: TWO_WAY_DESIGNS, posthocTarget: POSTHOC_TARGETS, correction: CORRECTIONS, curveTest: CURVE_TESTS, compare: CURVE_COMPARISONS,
   hypotheticalValue: "number", baseline: "number", q: ROUT_Q,
-  y: "name", dependent: "name", datasets: "names", predictors: "names", sets: "names",
+  y: "name", dependent: "name", reference: "name", control: "name", compareWith: "name", datasets: "names", predictors: "names", sets: "names",
 } satisfies Record<ParamKey, ParamKind>;
 
 const isFiniteNumber = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
@@ -257,7 +260,6 @@ const READ_OPTION = {
 /** Colors a table kept for its graphs before Helix 1.0.3: its series' and its cells'. */
 type TableColors = { series?: Record<string, PaletteColor>; cells?: Record<string, PaletteColor> };
 
-/** A table's data, and the colors it kept for its graphs. */
 /** A table's data, put straight: no value beyond its last column (`beyond` counts those left
  *  out), exclusions and widths only on cells and columns it has, and a grouped table's
  *  groups and sub-columns those of its columns ("A:Y1"…). */
@@ -387,7 +389,7 @@ function readNode(
   } else {
     node.graphType = lower(n.graphType) as ProjectNode["graphType"];
     node.graphOptions = readOptions(n.graphOptions);
-    if (!isIn(GRAPHS, node.graphType)) {
+    if (!isIn(GRAPHS, node.graphType) && (node.graphType as string) !== DOSE_GRAPH) {
       issues.push({ severity: "error", message: `Graph “${node.name}” uses a chart this version doesn't know.` });
     }
   }
@@ -423,14 +425,17 @@ export function parseProjectFile(
   const nodes: Record<string, ProjectNode> = {};
   const tableColors: Record<string, TableColors> = {};
   let skipped = 0;
+  // `__proto__` can't be an item's id: set on an object, it would change what the object is.
   for (const [id, raw] of Object.entries(project.nodes)) {
-    const node = readNode(id, raw, issues, tableColors);
+    const node = id === "__proto__" ? null : readNode(id, raw, issues, tableColors);
     if (node) nodes[id] = node;
     else skipped++;
   }
+  /** The item with this id: one of the file's own, never a name every object has ("constructor"). */
+  const nodeOf = (id: unknown) => (isIn(nodes, id) ? nodes[id as string] : undefined);
   // Analyses and graphs belong to a table: drop those whose table didn't survive.
   for (const node of Object.values(nodes)) {
-    if (node.type !== "table" && nodes[node.parentId ?? ""]?.type !== "table") {
+    if (node.type !== "table" && nodeOf(node.parentId)?.type !== "table") {
       delete nodes[node.id];
       skipped++;
     }
@@ -442,12 +447,13 @@ export function parseProjectFile(
     });
   }
 
+  const fits = fitsFromDoseGraphs(nodes);
   const ids = (v: unknown) => (Array.isArray(v) ? v.filter((id): id is string => typeof id === "string") : []);
   const tables = Object.values(nodes).filter((n) => n.type === "table");
   if (tables.length === 0) return { error: "This project file has no readable data tables." };
   // Saved order first, then anything the order missed.
   const rootOrder = [
-    ...new Set([...ids(project.rootOrder).filter((id) => nodes[id]?.type === "table"), ...tables.map((t) => t.id)]),
+    ...new Set([...ids(project.rootOrder).filter((id) => nodeOf(id)?.type === "table"), ...tables.map((t) => t.id)]),
   ];
   const savedChildren = isObj(project.childOrder) ? project.childOrder : {};
   const childOrder = Object.fromEntries(
@@ -455,19 +461,21 @@ export function parseProjectFile(
       const children = Object.values(nodes)
         .filter((n) => n.parentId === tableId)
         .map((n) => n.id);
-      const saved = ids(savedChildren[tableId]).filter((id) => children.includes(id));
+      // A dose-response graph's fit, now an analysis, comes just before it.
+      const saved = ids(savedChildren[tableId])
+        .flatMap((id) => (fits[id] ? [fits[id], id] : [id]))
+        .filter((id) => children.includes(id));
       return [tableId, [...new Set([...saved, ...children])]];
     }),
   );
-  const activeNodeId =
-    typeof project.activeNodeId === "string" && nodes[project.activeNodeId] ? project.activeNodeId : rootOrder[0];
+  const activeNodeId = nodeOf(project.activeNodeId) ? (project.activeNodeId as string) : rootOrder[0];
 
   for (const node of Object.values(nodes)) {
     if (node.type === "graph") {
       if (!node.graphOptions!.palette) colorsFromHelix1(node, tableColors[node.parentId!]?.series);
       pointsFromCells(node, tableColors[node.parentId!]?.cells);
     }
-    const tableType = node.parentId ? nodes[node.parentId]?.tableType : undefined;
+    const tableType = nodeOf(node.parentId)?.tableType;
     if (node.type !== "graph" || !node.graphType || !tableType) continue;
     if (isIn(GRAPHS, node.graphType) && !GRAPH_OPTIONS_BY_TABLE[tableType].some((o) => o.value === node.graphType)) {
       issues.push({
@@ -476,7 +484,7 @@ export function parseProjectFile(
       });
     }
     const o = node.graphOptions!;
-    if ((o.sigAnalysisId && !nodes[o.sigAnalysisId]) || (o.regAnalysisId && !nodes[o.regAnalysisId])) {
+    if ((o.sigAnalysisId && !nodeOf(o.sigAnalysisId)) || (o.regAnalysisId && !nodeOf(o.regAnalysisId))) {
       issues.push({
         severity: "warning",
         message: `Graph “${node.name}” refers to an analysis that no longer exists.`,
@@ -486,6 +494,52 @@ export function parseProjectFile(
 
   const read = { nodes, rootOrder, childOrder, activeNodeId };
   return { project: read, issues, updated: contents(read) !== contents(file.project) };
+}
+
+// ── Dose-response graphs (before Helix 1.0.7) ───────────────────────────
+// A "Dose-response curve" graph fitted its own curve. A curve now always comes from an
+// analysis, as in Prism: each becomes an XY scatter drawing the curve of a new
+// "Nonlinear regression" of the same data set and model, so it looks as it did.
+
+const DOSE_GRAPH = "dose-response";
+
+/** Turns each dose-response graph into a scatter and its fit into an analysis of its
+ *  table; returns the new analyses' ids, by graph. */
+function fitsFromDoseGraphs(nodes: Record<string, ProjectNode>): Record<string, string> {
+  const fits: Record<string, string> = {};
+  for (const graph of Object.values(nodes)) {
+    if (graph.type !== "graph" || (graph.graphType as string) !== DOSE_GRAPH) continue;
+    const { doseY, doseModel, doseShowCurve, doseShowEquation, ...options } = graph.graphOptions as unknown as Obj;
+    let id = `analysis_fit_${graph.id}`;
+    while (isIn(nodes, id)) id += "_";
+    const siblings = Object.values(nodes)
+      .filter((n) => n.parentId === graph.parentId)
+      .map((n) => n.name);
+    let name = "Nonlinear regression";
+    for (let i = 2; siblings.includes(name); i++) name = `Nonlinear regression ${i}`;
+    nodes[id] = {
+      id,
+      type: "analysis",
+      name,
+      parentId: graph.parentId,
+      analysisType: "nonlinear-regression",
+      // Helix's default then: a 4PL with X as the concentration.
+      analysisParams: defined({
+        y: typeof doseY === "string" ? doseY : undefined,
+        model: oneOf(DOSE_MODELS, doseModel) ?? "sigmoidal-4pl-x",
+      }),
+    };
+    graph.graphType = "xy-scatter";
+    graph.graphOptions = {
+      ...(options as unknown as GraphOptions),
+      xyStyle: "points",
+      regAnalysisId: id,
+      regShowLine: doseShowCurve !== false,
+      regShowEquation: doseShowEquation !== false,
+    };
+    fits[graph.id] = id;
+  }
+  return fits;
 }
 
 // ── Files from Helix 1.0 ─────────────────────────────────────────────────

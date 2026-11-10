@@ -1,17 +1,18 @@
 import * as React from "react";
 import { ProjectSidebar, SidebarToggle } from "./project-sidebar";
 import { Workspace } from "./workspace";
-import { useAppMenu } from "../../app-menu";
-import { useDocument } from "../../store/use-document";
-import { useProjectStore } from "../../store/use-project-store";
-import { useLayout } from "../../store/use-layout";
-import { onFullscreenChange } from "../../native";
-import { UniversalModal } from "../common/universal-modal";
-import { TABLE_TYPE_OPTIONS } from "../../views/tables";
-import { ANALYSIS_OPTIONS_BY_TABLE } from "../../views/analyses";
-import { AnalysisWizard } from "../../views/analyses/analysis-wizard";
-import { useStartAnalysis } from "../../views/analyses/use-analysis-launcher";
-import { GRAPH_OPTIONS_BY_TABLE } from "../../views/graphs";
+import { useAppMenu } from "../app-menu";
+import { useDocument } from "../store/use-document";
+import { useProjectStore } from "../store/use-project-store";
+import { useLayout } from "../store/use-layout";
+import { onFullscreenChange } from "../native";
+import { UniversalModal } from "./universal-modal";
+import { TABLE_TYPE_OPTIONS } from "../views/tables";
+import { TableDetail } from "../views/tables/table-detail";
+import { ANALYSIS_OPTIONS_BY_TABLE } from "../views/analyses";
+import { AnalysisWizard } from "../views/analyses/analysis-wizard";
+import { useStartAnalysis } from "../views/analyses/use-analysis-launcher";
+import { GRAPH_OPTIONS_BY_TABLE } from "../views/graphs";
 
 // The traffic lights sit at x 20–80, centered in the 52 px toolbars (`trafficLightPosition`
 // in tauri.conf.json). With the sidebar hidden, its button follows them (or starts the
@@ -48,6 +49,7 @@ export function AppShell() {
         title="New Table"
         description="Choose a data table type."
         options={TABLE_TYPE_OPTIONS}
+        detail={(type) => <TableDetail type={type} />}
         onSelect={(type) => {
           createTable(type);
           closeSelector();

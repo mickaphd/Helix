@@ -23,7 +23,7 @@ export async function runXYCorrelation(
 
   if (mode === "matrix") {
     if (yCols.length < 2) {
-      return { error: "A correlation matrix needs at least 2 Y data columns with numeric data." };
+      return { error: "A correlation matrix needs at least 2 Y data sets holding numbers." };
     }
     const outcome = await runCorrelationMatrix(yCols, { method });
     if ("error" in outcome) return outcome;
@@ -38,7 +38,7 @@ export async function runXYCorrelation(
     const [nameA, nameB] = params?.datasets ?? [];
     const a = vars.find((v) => v.name === nameA);
     const b = vars.find((v) => v.name === nameB);
-    if (!a || !b) return { error: "Choose two data series to correlate." };
+    if (!a || !b) return { error: "Choose two data sets to correlate." };
     const { x: xs, y: ys } = pairUp(a, b);
     if (xs.length < MIN_PAIRS) {
       return { error: `Not enough complete pairs (${xs.length}) between “${a.name}” and “${b.name}”.` };
@@ -50,7 +50,7 @@ export async function runXYCorrelation(
       testType: "correlation",
       subtitle: `${methodLabel} correlation`,
       stats: [{ label: `${methodLabel} r`, value: v.r }, pRow("P value", v.p)],
-      groups: [a, b].map(describe),
+      groups: (await describe([a, b])).groups,
       notes:
         method === "spearman"
           ? `Spearman rank correlation between “${a.name}” and “${b.name}”; non-parametric, no linearity assumption.`
@@ -71,7 +71,7 @@ export async function runXYCorrelation(
     assigns.push(`r_${i}=unname(ct_${i}$estimate),p_${i}=ct_${i}$p.value`);
   });
   if (assigns.length === 0) {
-    return { error: `Not enough complete pairs (need at least ${MIN_PAIRS}) between X and any Y column.` };
+    return { error: `Not enough complete pairs (need at least ${MIN_PAIRS}) between X and any Y data set.` };
   }
   const v = await evalNamedVector(`${stmts.join(";")};c(${assigns.join(",")})`);
   const correlations: CorrelationRow[] = yCols.map((y, i) => ({
@@ -79,7 +79,7 @@ export async function runXYCorrelation(
     r: computed.has(i) ? (v[`r_${i}`] ?? null) : null,
     p: computed.has(i) ? (v[`p_${i}`] ?? null) : null,
   }));
-  const described = [xCol, ...yCols].map(describe);
+  const { groups: described } = await describe([xCol, ...yCols]);
   return {
     testType: "correlation",
     subtitle: `${methodLabel} correlation`,
@@ -87,8 +87,8 @@ export async function runXYCorrelation(
     groups: described,
     notes:
       method === "spearman"
-        ? "Spearman rank correlation between X and each Y data column; non-parametric, no linearity assumption."
-        : "Pearson correlation between X and each Y data column; assumes a linear relationship.",
+        ? "Spearman rank correlation between X and each Y data set; non-parametric, no linearity assumption."
+        : "Pearson correlation between X and each Y data set; assumes a linear relationship.",
     correlations,
   };
 }

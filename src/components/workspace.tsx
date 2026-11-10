@@ -1,11 +1,11 @@
 import * as React from "react";
-import { EmptyState } from "../../ui/layout";
-import { useProjectStore } from "../../store/use-project-store";
-import { TableView } from "../../views/tables/table-view";
-import { AnalysisView } from "../../views/analyses/analysis-view";
-import { GraphView } from "../../views/graphs/graph-view";
-import { GRAPHS } from "../../views/graphs";
-import { ANALYSES } from "../../stats";
+import { EmptyState } from "../ui/layout";
+import { useProjectStore } from "../store/use-project-store";
+import { TableView } from "../views/tables/table-view";
+import { AnalysisView } from "../views/analyses/analysis-view";
+import { GraphView } from "../views/graphs/graph-view";
+import { GRAPHS } from "../views/graphs";
+import { ANALYSES } from "../stats";
 
 const NEWER = "It was made with a newer version of Helix.";
 
@@ -47,7 +47,7 @@ class Shown extends React.Component<{ children: React.ReactNode }, { error: stri
   }
   render() {
     return this.state.error ? (
-      <EmptyState title="This item couldn't be shown" description={this.state.error} />
+      <EmptyState title="This Item Couldn't Be Shown" description={this.state.error} />
     ) : (
       this.props.children
     );

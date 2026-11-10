@@ -19,6 +19,8 @@ export const TABLES: Record<TableType, TableModule> = {
   multiple: { label: "Multiple Variables", defaultData: () => newTable("multiple", 15) },
   // Counts: row categories × outcomes.
   contingency: { label: "Contingency", defaultData: () => newTable("contingency", 15) },
+  // One subject per row: its time, then 1 (event) or 0 (censored) in its group's column.
+  survival: { label: "Survival", defaultData: () => newTable("survival", 4) },
 };
 
 export const TABLE_TYPE_OPTIONS = (Object.keys(TABLES) as TableType[]).map((value) => ({

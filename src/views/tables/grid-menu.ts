@@ -2,7 +2,7 @@
 // on where the click landed: a cell, a row number, or a column header.
 // Deleting rows or columns is only offered from their own header, so a stray
 // right-click on a cell can't lose data.
-import type { TableData, TableType } from "../../store/types";
+import { hasXColumn, type TableData, type TableType } from "../../store/types";
 import type { TableMove } from "../../store/references";
 import type { MenuItems } from "../../native";
 import { isGrouped } from "../../lib/dataset";
@@ -44,8 +44,8 @@ export function gridMenu({ data, type, zone, range, update, rename, showGroups }
   const grouped = isGrouped(data);
   const rows = range.r1 - range.r0 + 1;
   const cols = range.c1 - range.c0 + 1;
-  // Row titles (and an XY table's X column) stay first: nothing is inserted before them or deletes them.
-  const firstData = Math.max(type === "xy" ? 2 : 1, range.c0);
+  // Row titles (and an X column) stay first: nothing is inserted before them or deletes them.
+  const firstData = Math.max(hasXColumn(type) ? 2 : 1, range.c0);
   // Column actions need a stored column: the empty ones shown beyond have nothing to act on.
   const onCells = zone !== "row" && range.c0 < data.columns.length;
   const exclude = isRangeExcluded(data, range) ? "Include in Analysis" : "Exclude from Analysis";

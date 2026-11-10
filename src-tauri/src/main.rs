@@ -13,6 +13,7 @@ use tauri::{
     async_runtime::{channel, Sender},
     ipc::{InvokeBody, Request},
     utils::config::WindowConfig,
+    webview::NewWindowResponse,
     AppHandle, Emitter, LogicalPosition, Manager, RunEvent, State, WebviewWindow, WebviewWindowBuilder, WindowEvent,
 };
 use tauri_plugin_dialog::DialogExt;
@@ -102,7 +103,12 @@ fn build_window(app: &AppHandle, label: String) -> tauri::Result<()> {
     let front = front_window(app);
     // The first window appears where the last one was; the others appear once cascaded.
     let config = WindowConfig { label, visible: front.is_none(), ..template.clone() };
-    let window = WebviewWindowBuilder::from_config(app, &config)?.build()?;
+    // A project window only ever shows Helix: a link in a text a file brought (a graph's
+    // title…) neither takes the window elsewhere nor opens another.
+    let window = WebviewWindowBuilder::from_config(app, &config)?
+        .on_navigation(|url| url.scheme() == "tauri" || (cfg!(debug_assertions) && url.host_str() == Some("localhost")))
+        .on_new_window(|_, _| NewWindowResponse::Deny)
+        .build()?;
     if let Some(front) = front {
         // A front window still being made (Helix launched by opening a file) can't say
         // where it is yet: the new one then keeps the remembered frame.
