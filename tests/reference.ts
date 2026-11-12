@@ -19,6 +19,7 @@ import { tCrit95 } from "../src/lib/student-t";
 import { kaplanMeier } from "../src/lib/kaplan-meier";
 import { rVec } from "../src/stats/column/base";
 import { R_MAXIMUM_T } from "../src/stats/column/anova";
+import { R_GRUBBS } from "../src/stats/column/rout";
 import { evaluate as doseCurveAt } from "../src/views/graphs/fitted-curve";
 import { NONLINEAR_MODELS, type NonlinearModel } from "../src/stats/types";
 import { positiveXOnly } from "../src/stats/xy/nonlinear-regression";
@@ -491,6 +492,7 @@ const ANALYSES: [string, TableData, AnalysisType, AnalysisParams?][] = [
   ["column", column, "shapiro-wilk"],
   ["column", column, "outliers", { q: 1 }],
   ["column", column, "outliers", { q: 5 }],
+  ["column", column, "outliers", { q: 1, grubbs: true }],
   ["xy", xy, "correlation", { method: "pearson", mode: "x-vs-every-y" }],
   ["xy", xy, "correlation", { method: "spearman", mode: "x-vs-every-y" }],
   ["xy", xy, "correlation", { method: "pearson", mode: "two-datasets", datasets: ["Y1", "Y3"] }],
@@ -552,6 +554,8 @@ const ANALYSES: [string, TableData, AnalysisType, AnalysisParams?][] = [
   ["multiple", multiple, "correlation-matrix", { method: "spearman" }],
   ["multiple", multiple, "multiple-regression", { dependent: "Weight" }],
   ["multiple", multiple, "multiple-regression", { dependent: "Weight", predictors: ["Height", "Age"] }],
+  ["multiple", multiple, "linear-regression", { x: "Height", y: "Weight", forceOrigin: false }],
+  ["multiple", multiple, "linear-regression", { x: "Age", y: "Height", forceOrigin: true }],
   ["multiple", multiple, "descriptive-statistics"],
   ["multiple", multiple, "outliers", { q: 1 }],
   ["contingency2", contingency2, "chi-square"],
@@ -580,6 +584,10 @@ const ANALYSES: [string, TableData, AnalysisType, AnalysisParams?][] = [
   ["sparse", sparse, "compare-two-groups", { paired: true, gaussian: true, equalVariance: true, ratio: true, tails: "two-sided", sets: ["A", "C"] }],
   // prettier-ignore
   ["sparse", sparse, "compare-two-groups", { paired: false, gaussian: true, equalVariance: true, ratio: false, tails: "two-sided", sets: ["B", "C"] }],
+  // prettier-ignore
+  ["column", column, "compare-two-groups", { paired: false, gaussian: true, equalVariance: true, ratio: false, lognormal: true, tails: "two-sided", sets: ["Low", "High"] }],
+  // prettier-ignore
+  ["column", column, "compare-two-groups", { paired: false, gaussian: true, equalVariance: false, ratio: false, lognormal: true, tails: "greater", sets: ["High", "Control"] }],
   ["decimalCounts", decimalCounts, "chi-square"],
   ["noEvent", noEvent, "cox"],
   ["survival3", survival3, "cox", { reference: "Gone" }],
@@ -704,13 +712,34 @@ async function disagreements(): Promise<string[]> {
       const r = await runAnalysis("linear-regression", xy, { y: y.name, forceOrigin });
       const pairs = pairUp(x!, y);
       const js = fitLinear(pairs.x, pairs.y, forceOrigin);
-      const rSlope = "error" in r ? null : r.stats.find((s) => s.label === "Slope")?.value;
+      const stat = (label: string) => ("error" in r ? null : r.stats.find((s) => s.label === label)?.value);
+      const [rSlope, rR] = [stat("Slope"), stat("Pearson r")];
       if (rSlope == null || js == null || Math.abs(rSlope - js.slope) > 1e-9)
         out.push(
           `Regression of ${y.name}${forceOrigin ? " through the origin" : ""}: graph slope ${js?.slope}, R slope ${rSlope}`,
         );
+      if (!forceOrigin && (rR == null || js == null || Math.abs(rR - js.r) > 1e-9))
+        out.push(`Regression of ${y.name}: graph r ${js?.r}, R's ${rR}`);
     }
   }
+  // Grubbs' P is 0.05 at his published critical values of G (two-sided, alpha = 0.05).
+  const grubbs = await evalNamedVector(
+    `${R_GRUBBS}\nc(n5=grubbsP(1.715,5),n10=grubbsP(2.290,10),n20=grubbsP(2.709,20))`,
+  );
+  for (const [n, p] of Object.entries(grubbs))
+    if (p == null || Math.abs(p - 0.05) > 0.001) out.push(`Grubbs' P at the critical G for ${n}: ${p}, not 0.05`);
+  // A regression of two variables takes those two, not the table's first column.
+  const variables = readTable(multiple).columns;
+  const named = (name: string) => variables.find((c) => c.name === name)!;
+  const pairs = pairUp(named("Height"), named("Weight"));
+  const twoVariables = await runAnalysis("linear-regression", multiple, {
+    x: "Height",
+    y: "Weight",
+    forceOrigin: false,
+  });
+  const slope = "error" in twoVariables ? null : twoVariables.stats.find((s) => s.label === "Slope")?.value;
+  if (slope == null || Math.abs(slope - fitLinear(pairs.x, pairs.y, false)!.slope) > 1e-9)
+    out.push(`Regression of Weight on Height: R slope ${slope}`);
   const tests = await runAnalysis("multiple-t-tests", twoGroups, {
     paired: false,
     gaussian: true,

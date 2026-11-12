@@ -1,6 +1,6 @@
 // Compare two groups — one wizard-driven test that resolves to Student's t,
-// Welch's t, a paired t test, Mann-Whitney, or Wilcoxon signed-rank, based on
-// `paired` / `gaussian` / `equalVariance` / `tails`. Mirrors GraphPad Prism's
+// Welch's t, a paired t test, their lognormal forms, Mann-Whitney, or Wilcoxon signed-rank,
+// based on `paired` / `gaussian` / `equalVariance` / `ratio` / `lognormal` / `tails`. Mirrors GraphPad Prism's
 // cascade of questions instead of listing every variant as its own test.
 import type { CompareTwoGroupsParams, StatRow } from "../types";
 import {
@@ -9,6 +9,7 @@ import {
   matchedRowsNote,
   pairedGroups,
   pRow,
+  R_HEDGES,
   rAlt,
   rBool,
   type ColumnTestSpec,
@@ -26,6 +27,7 @@ const DEFAULTS: CompareTwoGroupsParams = {
 function subtitle(p: CompareTwoGroupsParams): string {
   if (!p.gaussian) return p.paired ? "Wilcoxon matched-pairs signed rank test" : "Mann-Whitney test";
   if (p.paired) return p.ratio ? "Ratio paired t test" : "Paired t test";
+  if (p.lognormal) return p.equalVariance ? "Lognormal t test" : "Lognormal Welch's t test";
   return p.equalVariance ? "Unpaired t test" : "Welch's t test";
 }
 
@@ -41,6 +43,12 @@ function notes(p: CompareTwoGroupsParams): string {
       ? `Compares the ratio between pairs (log-transformed) instead of the difference — for data ` +
           `where a proportional change is more meaningful. Assumes the ratios are log-normally distributed. ${tail}`
       : `Assumes the paired differences are sampled from a normal distribution. ${tail}`;
+  }
+  if (p.lognormal) {
+    return (
+      `Compares the two groups' geometric means: a t test on the logarithms of the values, for data sampled ` +
+      `from lognormal distributions${p.equalVariance ? " with equal variances of the logarithms" : " (Welch–Satterthwaite df)"}. ${tail}`
+    );
   }
   return p.equalVariance
     ? `Assumes both groups are sampled from normal distributions with equal variances. ${tail}`
@@ -68,17 +76,28 @@ function rCode(groups: Group[], p: CompareTwoGroupsParams): string {
   }
   if (p.paired) {
     return (
-      `${decl};tt<-t.test(g0,g1,paired=TRUE,${alt});` +
+      // Effect size: the mean difference in SDs of the differences.
+      `${decl};tt<-t.test(g0,g1,paired=TRUE,${alt});${R_HEDGES};d<-mean(g0-g1)/sd(g0-g1);` +
       `c(t=unname(tt$statistic),df=unname(tt$parameter),p=tt$p.value,` +
       `md=unname(tt$estimate),ci_lo=tt$conf.int[1],ci_hi=tt$conf.int[2],` +
-      `r2=unname(tt$statistic^2/(tt$statistic^2+tt$parameter)))`
+      `r2=unname(tt$statistic^2/(tt$statistic^2+tt$parameter)),d=d,g=d*J(length(g0)-1))`
     );
   }
+  if (p.lognormal) {
+    return (
+      `${decl};tt<-t.test(log(g0),log(g1),var.equal=${rBool(p.equalVariance)},${alt});` +
+      `c(t=unname(tt$statistic),df=unname(tt$parameter),p=tt$p.value,gm0=exp(mean(log(g0))),gm1=exp(mean(log(g1))),` +
+      `gmr=exp(unname(tt$estimate[1]-tt$estimate[2])),ci_lo=exp(tt$conf.int[1]),ci_hi=exp(tt$conf.int[2]))`
+    );
+  }
+  // Effect size: the mean difference in pooled SDs, whichever t test runs.
   return (
-    `${decl};tt<-t.test(g0,g1,var.equal=${rBool(p.equalVariance)},${alt});vt<-var.test(g0,g1);` +
+    `${decl};tt<-t.test(g0,g1,var.equal=${rBool(p.equalVariance)},${alt});vt<-var.test(g0,g1);${R_HEDGES};` +
+    `n0<-length(g0);n1<-length(g1);d<-(mean(g0)-mean(g1))/sqrt(((n0-1)*var(g0)+(n1-1)*var(g1))/(n0+n1-2));` +
     `c(t=unname(tt$statistic),df=unname(tt$parameter),p=tt$p.value,` +
     `md=unname(tt$estimate[1]-tt$estimate[2]),ci_lo=tt$conf.int[1],ci_hi=tt$conf.int[2],` +
     `r2=unname(tt$statistic^2/(tt$statistic^2+tt$parameter)),` +
+    `d=d,g=d*J(n0+n1-2),` +
     `F=unname(vt$statistic),Fdfn=unname(vt$parameter[1]),Fdfd=unname(vt$parameter[2]),Fp=vt$p.value)`
   );
 }
@@ -89,13 +108,15 @@ export const compareTwoGroupsSpec: ColumnTestSpec<CompareTwoGroupsParams> = {
   maxGroups: 2,
   minValues: 2,
   matched: (params) => (params ?? DEFAULTS).paired,
-  // 5 — a ratio is of two values above 0.
+  // A ratio, or a logarithm, is of values above 0.
   check: (columns, params) => {
     const p = params ?? DEFAULTS;
-    if (!(p.paired && p.gaussian && p.ratio)) return undefined;
-    for (const g of pairedGroups(dataGroups(columns).slice(0, 2))) {
+    if (!(p.gaussian && (p.paired ? p.ratio : p.lognormal))) return undefined;
+    const two = dataGroups(columns).slice(0, 2);
+    for (const g of p.paired ? pairedGroups(two) : two) {
       const v = g.values.find((v) => v <= 0);
-      if (v !== undefined) return `The ratio t test needs values above 0; “${g.name}” holds ${v}.`;
+      if (v !== undefined)
+        return `The ${p.paired ? "ratio" : "lognormal"} t test needs values above 0; “${g.name}” holds ${v}.`;
     }
   },
   // The first two columns holding data; paired, only rows where both have a value.
@@ -124,12 +145,15 @@ export const compareTwoGroupsSpec: ColumnTestSpec<CompareTwoGroupsParams> = {
       }
       return rows;
     }
-    if (p.paired && p.ratio) {
+    if (p.paired ? p.ratio : p.lognormal) {
       return [
         { label: "t", value: v.t },
         { label: "df", value: v.df },
         pRow("P value", v.p),
-        { label: "Geometric mean ratio", value: v.gmr },
+        ...(p.paired
+          ? []
+          : groups.slice(0, 2).map((g, i) => ({ label: `Geometric mean (${g.name})`, value: v[`gm${i}`] }))),
+        { label: p.paired ? "Geometric mean ratio" : "Ratio of geometric means", value: v.gmr },
         { label: "95% CI lower", value: v.ci_lo },
         { label: "95% CI upper", value: v.ci_hi },
       ];
@@ -142,6 +166,8 @@ export const compareTwoGroupsSpec: ColumnTestSpec<CompareTwoGroupsParams> = {
       { label: "95% CI lower", value: v.ci_lo },
       { label: "95% CI upper", value: v.ci_hi },
       { label: "R squared", value: v.r2 },
+      { label: "Cohen's d", value: v.d },
+      { label: "Hedges' g", value: v.g },
     ];
     if (!p.paired) {
       rows.push(

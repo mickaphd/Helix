@@ -98,7 +98,7 @@ export const anovaSpec: ColumnTestSpec<AnovaParams> = {
       `n<-lengths(G);m<-sapply(G,mean);s2<-sapply(G,var);a<-summary(aov(v~gr))[[1]]`;
     const main = welch(p)
       ? `w<-oneway.test(v~gr,var.equal=FALSE);r<-c(F=unname(w$statistic),dfn=unname(w$parameter[1]),dfd=unname(w$parameter[2]),p=w$p.value)`
-      : `r<-c(F=a$"F value"[1],dfn=a$Df[1],dfd=a$Df[2],p=a$"Pr(>F)"[1],eta2=a$"Sum Sq"[1]/sum(a$"Sum Sq"))`;
+      : `r<-c(F=a$"F value"[1],dfn=a$Df[1],dfd=a$Df[2],p=a$"Pr(>F)"[1],eta2=a$"Sum Sq"[1]/sum(a$"Sum Sq"));r["f"]<-sqrt(r["eta2"]/(1-r["eta2"]))`;
     if (p.posthoc === "none") return `${setup};${main};r`;
     const ph = comparisons(groups, p);
     return `${setup};${main}\n${ph.setup}\nc(r,${ph.values})`;
@@ -117,6 +117,7 @@ export const anovaSpec: ColumnTestSpec<AnovaParams> = {
           { label: "DFd", value: v.dfd },
           pRow("P value", v.p),
           { label: "R squared (eta squared)", value: v.eta2 },
+          { label: "Cohen's f", value: v.f },
         ],
   posthoc: posthocOf,
   pairs: (groups, params) => {

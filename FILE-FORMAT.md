@@ -105,7 +105,9 @@ from the table when the file opens, so results always match the data.
 `analysisParams` holds the choices made in the analysis's wizard (see
 `src/stats/types.ts`). `sets` (Helix 1.0.5 and later) names the data sets it runs on, in
 order: columns, or a grouped table's groups. Without it, an analysis runs on all of
-them (a two-group test: the first two holding data).
+them (a two-group test: the first two holding data). A linear regression's `x` (Helix
+1.0.8 and later) names its X variable in a Multiple Variables table; without it, X is the
+table's first data column.
 
 ### Graph
 

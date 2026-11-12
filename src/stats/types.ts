@@ -69,7 +69,7 @@ export const CURVE_TESTS = ["logrank", "trend", "gehan"] as const;
 export const ROUT_Q = { min: 0.01, max: 50 };
 
 /** Params for "compare-two-groups": resolves to Student/Welch t-test, paired
- *  t-test, ratio t-test, Mann-Whitney, or Wilcoxon signed-rank, Prism-wizard style. */
+ *  t-test, ratio or lognormal t-test, Mann-Whitney, or Wilcoxon signed-rank, Prism-wizard style. */
 export interface CompareTwoGroupsParams {
   paired: boolean;
   gaussian: boolean;
@@ -78,6 +78,10 @@ export interface CompareTwoGroupsParams {
   /** Only meaningful when paired && gaussian: compare ratios (log-transformed)
    *  instead of differences — for data where proportional change is what matters. */
   ratio: boolean;
+  /** Only meaningful when gaussian && !paired: compare the geometric means, a t test on the
+   *  logarithms (lognormal t test, Student's or Welch's). Its own param, not `ratio`: a file
+   *  of an older Helix may hold a `ratio` left from a paired answer. */
+  lognormal?: boolean;
   /** "less"/"greater" follow R's t.test semantics: alternative on (col0 vs col1). */
   tails: (typeof TAILS)[number];
 }
@@ -117,9 +121,11 @@ export interface FriedmanParams {
   posthoc: (typeof RANK_POSTHOCS)[number];
 }
 
-/** Params for "linear-regression" (XY table): which Y series to regress on X, and
- *  whether to force the line through the origin (intercept = 0). */
+/** Params for "linear-regression": which Y series to regress on X, and whether to
+ *  force the line through the origin (intercept = 0). */
 export interface LinearRegressionParams {
+  /** The X variable of a Multiple Variables table; omitted, X is the first data column (XY). */
+  x?: string;
   /** Omitted defaults to the first Y data column. */
   y?: string;
   forceOrigin: boolean;
@@ -208,6 +214,8 @@ export interface MultipleTTestsParams {
  *  maximum desired false discovery rate — smaller Q is more conservative). */
 export interface OutliersParams {
   q: number;
+  /** Grubbs' test instead of ROUT: one outlier at most per column, at alpha = 0.05. */
+  grubbs?: boolean;
 }
 
 /** The data sets an analysis runs on, in this order: columns, or a grouped table's groups.
@@ -364,13 +372,25 @@ export interface AreaUnderCurveRow {
   n: number;
 }
 
-/** One row of "outliers" results: one column's outlier count + robust mean. */
+/** One row of "outliers" results: one column's outlier count, with ROUT's robust mean or
+ *  Grubbs' statistic for its most extreme value. */
 interface OutlierGroupRow {
   group: string;
   points: number;
   outliers: number;
   percent: number;
   robustMean: number | null;
+  grubbs?: { extreme: number | null; g: number | null; p: number | null };
+}
+
+/** One row of "shapiro-wilk" results: a data set's test of normality, and of lognormality
+ *  (on its logarithms); none where it can't be tested. */
+export interface NormalityRow {
+  group: string;
+  w: number | null;
+  p: number | null;
+  logW: number | null;
+  logP: number | null;
 }
 
 /** Unified result shape returned by every analysis module. */
@@ -378,6 +398,10 @@ export interface AnalysisResult {
   testType: AnalysisType;
   /** Resolved test name when params pick a specific variant, e.g. "Welch's t test". */
   subtitle?: string;
+  /** What the results mean, in plain words, under the heading. */
+  summary?: string;
+  /** Optional per-data-set normality table ("shapiro-wilk"). */
+  normality?: NormalityRow[];
   /** Human-readable fitted-model equation, e.g. "Y = 2.927*X − 0.3322" (regressions). */
   equation?: string;
   stats: StatRow[];

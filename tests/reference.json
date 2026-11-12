@@ -92,6 +92,14 @@
     "value": 0.006729660092
    },
    {
+    "label": "Cohen's d",
+    "value": -0.1072717126
+   },
+   {
+    "label": "Hedges' g",
+    "value": -0.1009408008
+   },
+   {
     "label": "F (variance ratio)",
     "value": 56.96167335
    },
@@ -163,6 +171,14 @@
     "value": 0.003293752969
    },
    {
+    "label": "Cohen's d",
+    "value": -0.1072717126
+   },
+   {
+    "label": "Hedges' g",
+    "value": -0.1009408008
+   },
+   {
     "label": "F (variance ratio)",
     "value": 56.96167335
    },
@@ -232,6 +248,14 @@
    {
     "label": "R squared",
     "value": 0.001319243147
+   },
+   {
+    "label": "Cohen's d",
+    "value": -0.03364927316
+   },
+   {
+    "label": "Hedges' g",
+    "value": -0.0292286567
    }
   ],
   "groups": [
@@ -426,6 +450,14 @@
     "value": 19.66483206
    },
    {
+    "label": "Control — Cohen's d",
+    "value": 0.36682506
+   },
+   {
+    "label": "Control — Hedges' g",
+    "value": 0.3258150849
+   },
+   {
     "label": "Low — t",
     "value": 8.908463473
    },
@@ -449,6 +481,14 @@
    {
     "label": "Low — 95% CI upper",
     "value": 15.62371243
+   },
+   {
+    "label": "Low — Cohen's d",
+    "value": 3.367082702
+   },
+   {
+    "label": "Low — Hedges' g",
+    "value": 2.924737895
    },
    {
     "label": "High — t",
@@ -476,6 +516,14 @@
     "value": 20.75358218
    },
    {
+    "label": "High — Cohen's d",
+    "value": 7.030602828
+   },
+   {
+    "label": "High — Hedges' g",
+    "value": 5.910970064
+   },
+   {
     "label": "Sparse — t",
     "value": -2.2
    },
@@ -499,6 +547,14 @@
    {
     "label": "Sparse — 95% CI upper",
     "value": 12.61402894
+   },
+   {
+    "label": "Sparse — Cohen's d",
+    "value": -1.1
+   },
+   {
+    "label": "Sparse — Hedges' g",
+    "value": -0.79596138
    }
   ],
   "groups": [
@@ -654,6 +710,10 @@
    {
     "label": "R squared (eta squared)",
     "value": 0.4096752805
+   },
+   {
+    "label": "Cohen's f",
+    "value": 0.8330563806
    }
   ],
   "groups": [
@@ -716,6 +776,10 @@
    {
     "label": "R squared (eta squared)",
     "value": 0.4096752805
+   },
+   {
+    "label": "Cohen's f",
+    "value": 0.8330563806
    }
   ],
   "groups": [
@@ -817,6 +881,10 @@
    {
     "label": "R squared (eta squared)",
     "value": 0.4096752805
+   },
+   {
+    "label": "Cohen's f",
+    "value": 0.8330563806
    }
   ],
   "groups": [
@@ -918,6 +986,10 @@
    {
     "label": "R squared (eta squared)",
     "value": 0.4096752805
+   },
+   {
+    "label": "Cohen's f",
+    "value": 0.8330563806
    }
   ],
   "groups": [
@@ -1892,40 +1964,9 @@
  },
  "shapiro-wilk column {}": {
   "testType": "shapiro-wilk",
-  "stats": [
-   {
-    "label": "Control — W",
-    "value": 0.5343178936
-   },
-   {
-    "label": "Control — P value",
-    "value": 0.00002663845117
-   },
-   {
-    "label": "Low — W",
-    "value": 0.9659268155
-   },
-   {
-    "label": "Low — P value",
-    "value": 0.8676710945
-   },
-   {
-    "label": "High — W",
-    "value": 0.9833914548
-   },
-   {
-    "label": "High — P value",
-    "value": 0.9671208723
-   },
-   {
-    "label": "Sparse — W",
-    "value": 0.981516365
-   },
-   {
-    "label": "Sparse — P value",
-    "value": 0.9108563771
-   }
-  ],
+  "subtitle": "Shapiro-Wilk test",
+  "summary": "“Control” departs from a normal (Gaussian) distribution. Prefer a nonparametric test (Mann-Whitney, Wilcoxon, Kruskal-Wallis, Friedman).",
+  "stats": [],
   "groups": [
    {
     "name": "Control",
@@ -1960,7 +2001,37 @@
     "n": 4
    }
   ],
-  "notes": "Per-column normality. P > 0.05: data are consistent with a normal distribution. P < 0.05: significant departure from normality."
+  "normality": [
+   {
+    "group": "Control",
+    "w": 0.5343178936,
+    "p": 0.00002663845117,
+    "logW": 0.6065264407,
+    "logP": 0.0001895338463
+   },
+   {
+    "group": "Low",
+    "w": 0.9659268155,
+    "p": 0.8676710945,
+    "logW": 0.9693092016,
+    "logP": 0.8934284885
+   },
+   {
+    "group": "High",
+    "w": 0.9833914548,
+    "p": 0.9671208723,
+    "logW": 0.9869576864,
+    "logP": 0.9804669148
+   },
+   {
+    "group": "Sparse",
+    "w": 0.981516365,
+    "p": 0.9108563771,
+    "logW": 0.9683613817,
+    "logP": 0.8313112245
+   }
+  ],
+  "notes": "Each data set is tested alone. P > 0.05: consistent with the distribution; P < 0.05: a significant departure from it. Lognormality is the same test on the logarithms, for data sets whose values are all above 0. With few values the test seldom detects a departure, so passing it is not proof."
  },
  "outliers column {\"q\":1}": {
   "testType": "outliers",
@@ -2143,6 +2214,109 @@
    }
   ],
   "notes": "Flagged as outliers (FDR-adjusted P < Q): Control row 8 (value 30, adj. P = 0.0000). Use Edit ▸ Exclude / Include (⌘E) on those cells to leave them out of other tests and graphs. Method: each column fit independently to a robust mean (Huber M-estimator, scale from the median absolute deviation), residuals tested via a two-tailed t distribution and FDR-corrected (Benjamini-Hochberg) within that column. This mirrors the published Motulsky & Brown (2006) ROUT algorithm's logic, not GraphPad's certified implementation."
+ },
+ "outliers column {\"q\":1,\"grubbs\":true}": {
+  "testType": "outliers",
+  "subtitle": "Grubbs' test (alpha = 0.05)",
+  "stats": [
+   {
+    "label": "Total observations",
+    "value": 25
+   },
+   {
+    "label": "Groups analyzed",
+    "value": 4
+   },
+   {
+    "label": "Outliers detected",
+    "value": 1
+   }
+  ],
+  "groups": [
+   {
+    "name": "Control",
+    "mean": 14.3375,
+    "sd": 6.372247305,
+    "sem": 2.25292964,
+    "median": 12.3,
+    "n": 8
+   },
+   {
+    "name": "Low",
+    "mean": 14.84285714,
+    "sd": 0.8443086775,
+    "sem": 0.3191186843,
+    "median": 14.9,
+    "n": 7
+   },
+   {
+    "name": "High",
+    "mean": 19.61666667,
+    "sd": 1.083358974,
+    "sem": 0.4422794491,
+    "median": 19.65,
+    "n": 6
+   },
+   {
+    "name": "Sparse",
+    "mean": 10.625,
+    "sd": 1.25,
+    "sem": 0.625,
+    "median": 10.75,
+    "n": 4
+   }
+  ],
+  "outlierGroups": [
+   {
+    "group": "Control",
+    "points": 8,
+    "outliers": 1,
+    "percent": 12.5,
+    "robustMean": null,
+    "grubbs": {
+     "extreme": 30,
+     "g": 2.457924065,
+     "p": 0.00000639176906
+    }
+   },
+   {
+    "group": "Low",
+    "points": 7,
+    "outliers": 0,
+    "percent": 0,
+    "robustMean": null,
+    "grubbs": {
+     "extreme": 16.2,
+     "g": 1.60740129,
+     "p": 0.522030338
+    }
+   },
+   {
+    "group": "High",
+    "points": 6,
+    "outliers": 0,
+    "percent": 0,
+    "robustMean": null,
+    "grubbs": {
+     "extreme": 21.3,
+     "g": 1.553809378,
+     "p": 0.4723455532
+    }
+   },
+   {
+    "group": "Sparse",
+    "points": 4,
+    "outliers": 0,
+    "percent": 0,
+    "robustMean": null,
+    "grubbs": {
+     "extreme": 9,
+     "g": 1.3,
+     "p": 0.5333333333
+    }
+   }
+  ],
+  "notes": "Outliers (P < 0.05): Control row 8 (value 30). Use Edit ▸ Exclude / Include (⌘E) on those cells to leave them out of other tests and graphs. Grubbs' test asks, in each column, whether the value farthest from the mean is an outlier: it finds one at most, and assumes the other values are sampled from a normal distribution. Two-sided."
  },
  "correlation xy {\"method\":\"pearson\",\"mode\":\"x-vs-every-y\"}": {
   "testType": "correlation",
@@ -2396,6 +2570,10 @@
     "value": 1.340327799
    },
    {
+    "label": "Pearson r",
+    "value": 0.9992303609
+   },
+   {
     "label": "R squared",
     "value": 0.9984613141
    },
@@ -2453,6 +2631,10 @@
    {
     "label": "Intercept 95% CI upper",
     "value": 2.541176788
+   },
+   {
+    "label": "Pearson r",
+    "value": 0.9991445113
    },
    {
     "label": "R squared",
@@ -6711,6 +6893,120 @@
    }
   ]
  },
+ "linear-regression multiple {\"x\":\"Height\",\"y\":\"Weight\",\"forceOrigin\":false}": {
+  "testType": "linear-regression",
+  "subtitle": "Simple linear regression",
+  "equation": "Y = 1.333*X − 156.6",
+  "stats": [
+   {
+    "label": "Slope",
+    "value": 1.333333333
+   },
+   {
+    "label": "Slope 95% CI lower",
+    "value": 0.9676900408
+   },
+   {
+    "label": "Slope 95% CI upper",
+    "value": 1.698976626
+   },
+   {
+    "label": "Y-intercept",
+    "value": -156.5555556
+   },
+   {
+    "label": "Intercept 95% CI lower",
+    "value": -220.7377295
+   },
+   {
+    "label": "Intercept 95% CI upper",
+    "value": -92.37338159
+   },
+   {
+    "label": "Pearson r",
+    "value": 0.9560089253
+   },
+   {
+    "label": "R squared",
+    "value": 0.9139530653
+   },
+   {
+    "label": "P value (slope ≠ 0)",
+    "value": 0.0000563106795,
+    "p": true
+   }
+  ],
+  "groups": [
+   {
+    "name": "Height",
+    "mean": 175.3333333,
+    "sd": 8.860022573,
+    "sem": 2.953340858,
+    "median": 175,
+    "n": 9
+   },
+   {
+    "name": "Weight",
+    "mean": 77.22222222,
+    "sd": 12.35695935,
+    "sem": 4.118986451,
+    "median": 75,
+    "n": 9
+   }
+  ],
+  "notes": "Ordinary least-squares linear regression of “Weight” on “Height”. Assumes a linear relationship and homoscedastic residuals."
+ },
+ "linear-regression multiple {\"x\":\"Age\",\"y\":\"Height\",\"forceOrigin\":true}": {
+  "testType": "linear-regression",
+  "subtitle": "Simple linear regression (through origin)",
+  "equation": "Y = 4.129*X",
+  "stats": [
+   {
+    "label": "Slope",
+    "value": 4.129410266
+   },
+   {
+    "label": "Slope 95% CI lower",
+    "value": 3.493481659
+   },
+   {
+    "label": "Slope 95% CI upper",
+    "value": 4.765338873
+   },
+   {
+    "label": "Y-intercept",
+    "value": 0
+   },
+   {
+    "label": "R squared",
+    "value": 0.9655503046
+   },
+   {
+    "label": "P value (slope ≠ 0)",
+    "value": 3.905472485e-7,
+    "p": true
+   }
+  ],
+  "groups": [
+   {
+    "name": "Age",
+    "mean": 40.66666667,
+    "sd": 10.11187421,
+    "sem": 3.370624736,
+    "median": 41,
+    "n": 9
+   },
+   {
+    "name": "Height",
+    "mean": 175.3333333,
+    "sd": 8.860022573,
+    "sem": 2.953340858,
+    "median": 175,
+    "n": 9
+   }
+  ],
+  "notes": "Ordinary least-squares linear regression of “Height” on “Age”, forced through the origin. Assumes a linear relationship and homoscedastic residuals."
+ },
  "descriptive-statistics multiple {}": {
   "testType": "descriptive-statistics",
   "stats": [],
@@ -6875,6 +7171,30 @@
     "value": 6.614723219
    },
    {
+    "label": "Odds ratio 95% CI lower",
+    "value": 1.457115795
+   },
+   {
+    "label": "Odds ratio 95% CI upper",
+    "value": 35.7378194
+   },
+   {
+    "label": "Relative risk (Outcome A)",
+    "value": 2.5
+   },
+   {
+    "label": "Relative risk 95% CI lower",
+    "value": 1.222151798
+   },
+   {
+    "label": "Relative risk 95% CI upper",
+    "value": 5.113931025
+   },
+   {
+    "label": "Phi",
+    "value": 0.4505635569
+   },
+   {
     "label": "Chi-square (Yates' correction, for reference)",
     "value": 6.4160401
    },
@@ -6884,7 +7204,7 @@
    }
   ],
   "groups": [],
-  "notes": "Contingency table 2×2, N = 40. Fisher's exact test (2×2). Odds ratio 95% CI: 1.457 to 35.74 for the table as entered (rows × columns); it is the test's conditional estimate, close to but not a·d / b·c."
+  "notes": "Contingency table 2×2, N = 40. Fisher's exact test (2×2). The odds ratio is for the table as entered (rows × columns): the test's conditional estimate, close to but not a·d / b·c. The relative risk is the first row's share of “Outcome A” over the second row's."
  },
  "chi-square contingency3 {}": {
   "testType": "chi-square",
@@ -6902,6 +7222,10 @@
     "label": "P value",
     "value": 0.09292761413,
     "p": true
+   },
+   {
+    "label": "Cramér's V",
+    "value": 0.1657107377
    }
   ],
   "groups": [],
@@ -6921,6 +7245,30 @@
     "value": 6.614723219
    },
    {
+    "label": "Odds ratio 95% CI lower",
+    "value": 1.457115795
+   },
+   {
+    "label": "Odds ratio 95% CI upper",
+    "value": 35.7378194
+   },
+   {
+    "label": "Relative risk (Outcome A)",
+    "value": 2.5
+   },
+   {
+    "label": "Relative risk 95% CI lower",
+    "value": 1.222151798
+   },
+   {
+    "label": "Relative risk 95% CI upper",
+    "value": 5.113931025
+   },
+   {
+    "label": "Phi",
+    "value": 0.4505635569
+   },
+   {
     "label": "Chi-square (Yates' correction, for reference)",
     "value": 6.4160401
    },
@@ -6930,7 +7278,7 @@
    }
   ],
   "groups": [],
-  "notes": "Contingency table 2×2, N = 40. Fisher's exact test (2×2). Odds ratio 95% CI: 1.457 to 35.74 for the table as entered (rows × columns); it is the test's conditional estimate, close to but not a·d / b·c."
+  "notes": "Contingency table 2×2, N = 40. Fisher's exact test (2×2). The odds ratio is for the table as entered (rows × columns): the test's conditional estimate, close to but not a·d / b·c. The relative risk is the first row's share of “Outcome A” over the second row's."
  },
  "survival freireich {\"curveTest\":\"logrank\",\"correction\":\"holm\"}": {
   "testType": "survival",
@@ -7717,32 +8065,9 @@
  },
  "shapiro-wilk sparse {}": {
   "testType": "shapiro-wilk",
-  "stats": [
-   {
-    "label": "A — W",
-    "value": 0.9713736655
-   },
-   {
-    "label": "A — P value",
-    "value": 0.8499708188
-   },
-   {
-    "label": "B — W",
-    "value": null
-   },
-   {
-    "label": "B — P value",
-    "value": null
-   },
-   {
-    "label": "C — W",
-    "value": null
-   },
-   {
-    "label": "C — P value",
-    "value": null
-   }
-  ],
+  "subtitle": "Shapiro-Wilk test",
+  "summary": "These data are consistent with a normal (Gaussian) distribution: parametric tests (t tests, ANOVA) suit these data.",
+  "stats": [],
   "groups": [
    {
     "name": "A",
@@ -7769,7 +8094,30 @@
     "n": 4
    }
   ],
-  "notes": "Per-column normality. P > 0.05: data are consistent with a normal distribution. P < 0.05: significant departure from normality. Not tested (the test needs 3 to 5000 values that aren't all identical): “B”, “C”."
+  "normality": [
+   {
+    "group": "A",
+    "w": 0.9713736655,
+    "p": 0.8499708188,
+    "logW": null,
+    "logP": null
+   },
+   {
+    "group": "B",
+    "w": null,
+    "p": null,
+    "logW": null,
+    "logP": null
+   },
+   {
+    "group": "C",
+    "w": null,
+    "p": null,
+    "logW": null,
+    "logP": null
+   }
+  ],
+  "notes": "Each data set is tested alone. P > 0.05: consistent with the distribution; P < 0.05: a significant departure from it. Lognormality is the same test on the logarithms, for data sets whose values are all above 0. With few values the test seldom detects a departure, so passing it is not proof. Not tested (the test needs 3 to 5000 values that aren't all identical): “B”, “C”."
  },
  "friedman sparse {\"posthoc\":\"none\"}": {
   "error": "This test needs at least 2 rows holding a value in every group; the table has 1."
@@ -7785,6 +8133,122 @@
  },
  "compare-two-groups sparse {\"paired\":false,\"gaussian\":true,\"equalVariance\":true,\"ratio\":false,\"tails\":\"two-sided\",\"sets\":[\"B\",\"C\"]}": {
   "error": "“B” holds 1 value; this test needs at least 2 in each group."
+ },
+ "compare-two-groups column {\"paired\":false,\"gaussian\":true,\"equalVariance\":true,\"ratio\":false,\"lognormal\":true,\"tails\":\"two-sided\",\"sets\":[\"Low\",\"High\"]}": {
+  "testType": "compare-two-groups",
+  "subtitle": "Lognormal t test",
+  "stats": [
+   {
+    "label": "t",
+    "value": -8.982816025
+   },
+   {
+    "label": "df",
+    "value": 11
+   },
+   {
+    "label": "P value",
+    "value": 0.000002135715597,
+    "p": true
+   },
+   {
+    "label": "Geometric mean (Low)",
+    "value": 14.82247051
+   },
+   {
+    "label": "Geometric mean (High)",
+    "value": 19.5919028
+   },
+   {
+    "label": "Ratio of geometric means",
+    "value": 0.7565610479
+   },
+   {
+    "label": "95% CI lower",
+    "value": 0.7065747587
+   },
+   {
+    "label": "95% CI upper",
+    "value": 0.810083593
+   }
+  ],
+  "groups": [
+   {
+    "name": "Low",
+    "mean": 14.84285714,
+    "sd": 0.8443086775,
+    "sem": 0.3191186843,
+    "median": 14.9,
+    "n": 7
+   },
+   {
+    "name": "High",
+    "mean": 19.61666667,
+    "sd": 1.083358974,
+    "sem": 0.4422794491,
+    "median": 19.65,
+    "n": 6
+   }
+  ],
+  "notes": "Compares the two groups' geometric means: a t test on the logarithms of the values, for data sampled from lognormal distributions with equal variances of the logarithms. Two-tailed P value."
+ },
+ "compare-two-groups column {\"paired\":false,\"gaussian\":true,\"equalVariance\":false,\"ratio\":false,\"lognormal\":true,\"tails\":\"greater\",\"sets\":[\"High\",\"Control\"]}": {
+  "testType": "compare-two-groups",
+  "subtitle": "Lognormal Welch's t test",
+  "stats": [
+   {
+    "label": "t",
+    "value": 3.136776937
+   },
+   {
+    "label": "df",
+    "value": 7.520847799
+   },
+   {
+    "label": "P value",
+    "value": 0.007500952422,
+    "p": true
+   },
+   {
+    "label": "Geometric mean (High)",
+    "value": 19.5919028
+   },
+   {
+    "label": "Geometric mean (Control)",
+    "value": 13.53168056
+   },
+   {
+    "label": "Ratio of geometric means",
+    "value": 1.447854367
+   },
+   {
+    "label": "95% CI lower",
+    "value": 1.160515133
+   },
+   {
+    "label": "95% CI upper",
+    "value": null
+   }
+  ],
+  "groups": [
+   {
+    "name": "High",
+    "mean": 19.61666667,
+    "sd": 1.083358974,
+    "sem": 0.4422794491,
+    "median": 19.65,
+    "n": 6
+   },
+   {
+    "name": "Control",
+    "mean": 14.3375,
+    "sd": 6.372247305,
+    "sem": 2.25292964,
+    "median": 12.3,
+    "n": 8
+   }
+  ],
+  "notes": "Compares the two groups' geometric means: a t test on the logarithms of the values, for data sampled from lognormal distributions (Welch–Satterthwaite df). One-tailed P value."
  },
  "chi-square decimalCounts {}": {
   "error": "Counts must be whole numbers; the table holds 3.6."
@@ -7922,6 +8386,14 @@
     "value": 0.4123634518
    },
    {
+    "label": "Cohen's d",
+    "value": 1.073684862
+   },
+   {
+    "label": "Hedges' g",
+    "value": 1.004906567
+   },
+   {
     "label": "F (variance ratio)",
     "value": 0.02890410497
    },
@@ -7991,6 +8463,14 @@
    {
     "label": "R squared",
     "value": 0.5162116041
+   },
+   {
+    "label": "Cohen's d",
+    "value": 0.8945750669
+   },
+   {
+    "label": "Hedges' g",
+    "value": 0.6473156407
    }
   ],
   "groups": [
@@ -8037,6 +8517,10 @@
    {
     "label": "R squared (eta squared)",
     "value": 0.2719491866
+   },
+   {
+    "label": "Cohen's f",
+    "value": 0.6111714187
    }
   ],
   "groups": [
@@ -15636,8 +16120,8 @@
      "yref": "y",
      "x0": 0,
      "x1": 1,
-     "y0": 1.3,
-     "y1": 1.3,
+     "y0": 1.301029996,
+     "y1": 1.301029996,
      "line": {
       "color": "#9CA3AF",
       "width": 1,
@@ -15867,8 +16351,8 @@
      "yref": "y",
      "x0": 0,
      "x1": 1,
-     "y0": 1.3,
-     "y1": 1.3,
+     "y0": 1.301029996,
+     "y1": 1.301029996,
      "line": {
       "color": "#9CA3AF",
       "width": 1,
@@ -16098,8 +16582,8 @@
      "yref": "y",
      "x0": 0,
      "x1": 1,
-     "y0": 1.3,
-     "y1": 1.3,
+     "y0": 1.301029996,
+     "y1": 1.301029996,
      "line": {
       "color": "#9CA3AF",
       "width": 1,

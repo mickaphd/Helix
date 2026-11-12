@@ -43,7 +43,7 @@ import {
   stylePoints,
 } from "./selection";
 import { chooseSelectionStyle } from "./style-menus";
-import { genesNamed, volcanoPair } from "./volcano";
+import { genesNamed, volcanoAxes, volcanoPair } from "./volcano";
 import { titleCase } from "../../lib/format";
 
 // The view's zoom, 25 % to 400 %, as in Pages; WebGL's resolution, which Plotly takes up to 4.
@@ -104,7 +104,6 @@ export function GraphView({ node }: { node: ProjectNode }) {
     family === "xy" && parent?.tableType && hasXColumn(parent.tableType) && dataset
       ? xyProblem(dataset.columns)
       : undefined;
-  const hasData = !xyLack && columns.some((c) => c.values.length > 0);
 
   // A volcano on a grouped table: Helix computes the DEGs between two of its groups
   // (per-row Welch t test + BH FDR) and plots them, read like any other table.
@@ -121,11 +120,22 @@ export function GraphView({ node }: { node: ProjectNode }) {
     for (const d of deg) rows[d.row] = [null, d.label, String(d.log2FC), String(d.p), String(d.padj)];
     return readTable({ columns: ["Title", "Gene", "Log2 FC", "P", "FDR"], rows }).columns;
   }, [columns, data, volcanoGroups?.join("\n"), options.volcanoGroupA, options.volcanoGroupB, options.volcanoEffect]);
+  // The rows of a grouped table holding values of the two groups that gave no gene.
+  const volcanoLeftOut = React.useMemo(() => {
+    if (!volcanoGroups || !dataset) return 0;
+    const pair = volcanoPair(volcanoGroups, options);
+    const held = groupsOf(dataset.numeric)
+      .filter((g) => pair.includes(g.name))
+      .flatMap((g) => g.columns);
+    const rows = new Set(held.flatMap((c) => c.rows));
+    return rows.size - (volcanoColumns.find((c) => c.name === "Log2 FC")?.values.length ?? 0);
+  }, [dataset, volcanoColumns, volcanoGroups?.join("\n"), options.volcanoGroupA, options.volcanoGroupB]);
 
   // The series drawn, one row each in the Series section.
   const seriesNames = data && parent?.tableType ? graphSeries(type, data, parent.tableType, options) : [];
 
-  // The grouped volcano maps the computed DEG columns (P values) onto its axes.
+  // The grouped volcano maps the computed DEG columns (P values) onto its axes; an XY
+  // table's X is its X column.
   const buildOptions = volcanoGroups
     ? {
         ...options,
@@ -134,7 +144,13 @@ export function GraphView({ node }: { node: ProjectNode }) {
         volcanoY: options.volcanoSignificance === "fdr" ? "FDR" : "P",
         volcanoYIsPValue: true,
       }
-    : options;
+    : family === "volcano" && parent?.tableType === "xy"
+      ? { ...options, volcanoX: dataset?.columns[0]?.name }
+      : options;
+  // A volcano whose chosen column is gone says so, and draws no other in its place.
+  const gone = family === "volcano" ? volcanoAxes([], volcanoColumns, buildOptions).gone : undefined;
+  const lack = xyLack ?? (gone === undefined ? undefined : `The column “${gone}” is no longer in the table.`);
+  const hasData = !lack && columns.some((c) => c.values.length > 0);
 
   // The figure's traces as last drawn, without the selection ring.
   const [drawn, setDrawn] = React.useState<unknown[]>([]);
@@ -452,6 +468,7 @@ export function GraphView({ node }: { node: ProjectNode }) {
             }
           }
           volcanoGroups={volcanoGroups}
+          volcanoLeftOut={volcanoLeftOut}
           onFindGenes={findGenes}
           numericNames={dataset?.numeric.map((c) => c.name) ?? []}
           allNames={dataset?.columns.map((c) => c.name) ?? []}
@@ -551,7 +568,7 @@ export function GraphView({ node }: { node: ProjectNode }) {
           ) : (
             <div className="flex h-full items-center justify-center">
               <p className="text-regular text-secondary">
-                {xyLack ?? "Enter numeric data in the source table to draw this graph."}
+                {lack ?? "Enter numeric data in the source table to draw this graph."}
               </p>
             </div>
           )}

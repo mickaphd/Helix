@@ -150,10 +150,10 @@ type ParamKind = "yes/no" | "number" | "name" | "names" | readonly string[] | Li
 // prettier-ignore
 const PARAMS = {
   paired: "yes/no", gaussian: "yes/no", equalVariance: "yes/no", ratio: "yes/no", forceOrigin: "yes/no", pooledSd: "yes/no",
-  equalSd: "yes/no", sphericity: "yes/no", interpolate: "yes/no", tails: TAILS, posthoc: [...ANOVA_POSTHOCS, ...RANK_POSTHOCS], model: NONLINEAR_MODELS, method: CORRELATION_METHODS,
+  equalSd: "yes/no", sphericity: "yes/no", interpolate: "yes/no", grubbs: "yes/no", lognormal: "yes/no", tails: TAILS, posthoc: [...ANOVA_POSTHOCS, ...RANK_POSTHOCS], model: NONLINEAR_MODELS, method: CORRELATION_METHODS,
   mode: CORRELATION_MODES, design: TWO_WAY_DESIGNS, posthocTarget: POSTHOC_TARGETS, correction: CORRECTIONS, curveTest: CURVE_TESTS, compare: CURVE_COMPARISONS,
   hypotheticalValue: "number", baseline: "number", q: ROUT_Q,
-  y: "name", dependent: "name", reference: "name", control: "name", compareWith: "name", datasets: "names", predictors: "names", sets: "names",
+  x: "name", y: "name", dependent: "name", reference: "name", control: "name", compareWith: "name", datasets: "names", predictors: "names", sets: "names",
 } satisfies Record<ParamKey, ParamKind>;
 
 const isFiniteNumber = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);

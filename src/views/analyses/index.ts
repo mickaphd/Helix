@@ -26,11 +26,12 @@ const optionsFor = (order: AnalysisPickerValue[]): SelectorOption<AnalysisPicker
  *  X + Y data series — so the tests that make statistical sense differ too) and given in a fixed
  *  logical order rather than sorted by label. ANOVA/Kruskal-Wallis and Repeated-measures
  *  ANOVA/Friedman aren't listed individually — Prism-style, one meta entry cascades to whichever
- *  the wizard's Paired?/Gaussian? answers resolve to. Shapiro-Wilk isn't listed either: it is
- *  offered as "Not sure?" on every Gaussian? question (see `normality-check.ts`). */
+ *  the wizard's Paired?/Gaussian? answers resolve to. Shapiro-Wilk is its own entry, and is
+ *  offered as "Not sure?" on every Gaussian? question too (see `normality-check.ts`). */
 export const ANALYSIS_OPTIONS_BY_TABLE: Record<TableType, SelectorOption<AnalysisPickerValue>[]> = {
   column: optionsFor([
     "descriptive-statistics",
+    "shapiro-wilk",
     "compare-two-groups",
     "compare-many-groups",
     "one-sample-t",
@@ -38,7 +39,14 @@ export const ANALYSIS_OPTIONS_BY_TABLE: Record<TableType, SelectorOption<Analysi
   ]),
   xy: optionsFor(["correlation", "linear-regression", "area-under-curve", "nonlinear-regression", "interpolate"]),
   grouped: optionsFor(["two-way-anova", "multiple-t-tests"]),
-  multiple: optionsFor(["descriptive-statistics", "correlation-matrix", "multiple-regression", "outliers"]),
+  multiple: optionsFor([
+    "descriptive-statistics",
+    "shapiro-wilk",
+    "correlation-matrix",
+    "linear-regression",
+    "multiple-regression",
+    "outliers",
+  ]),
   survival: optionsFor(["survival", "cox"]),
   contingency: optionsFor(["chi-square"]),
 };

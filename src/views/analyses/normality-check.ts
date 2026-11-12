@@ -14,13 +14,11 @@ export async function checkNormality(data: TableData, sets?: string[]): Promise<
     await alert("Couldn't Run the Shapiro-Wilk Test", outcome.error, "error");
     return null;
   }
-  const pValues = outcome.groups.map(
-    (g) => outcome.stats.find((s) => s.label === `${g.name} — P value`)?.value ?? null,
-  );
+  const rows = outcome.normality ?? [];
   // A data set the test can't take (too few values, or all identical) is said, not judged.
-  const tested = pValues.filter((p) => p != null);
-  const summary = outcome.groups
-    .map((g, i) => `${g.name}: ${pValues[i] == null ? "not tested (too few or identical values)" : pText(pValues[i])}`)
+  const tested = rows.flatMap((r) => (r.p == null ? [] : [r.p]));
+  const summary = rows
+    .map((r) => `${r.group}: ${r.p == null ? "not tested (too few or identical values)" : pText(r.p)}`)
     .join("\n");
   if (!tested.length) {
     await alert("Couldn't Run the Shapiro-Wilk Test", summary, "error");

@@ -40,12 +40,18 @@
         "style-src": "'self' 'unsafe-inline'",
         "img-src": "'self' data: blob:",
         "font-src": "'self' data:",
-        "connect-src": "'self' ipc: http://ipc.localhost data: blob: https://api.github.com https://raw.githubusercontent.com",
+        "connect-src": "'self' ipc: http://ipc.localhost data: blob:",
         "worker-src": "'self' blob:",
         "object-src": "'none'",
         "base-uri": "'self'"
       },
       "devCsp": null
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDRDRTBCQ0RBQzQ0REM0MDYKUldRR3hFM0UycnpnVE5IQnhrdUpJa2ZzQzRyQ2lUbUFEL2QrcGxvMDFJK0RlZXhNQU1tcWtDQ28K",
+      "endpoints": ["https://github.com/mickaphd/Helix/releases/latest/download/latest.json"]
     }
   },
   "bundle": {

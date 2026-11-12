@@ -19,6 +19,7 @@ interface LinearFit {
   forceOrigin: boolean;
   n: number;
   dof: number;
+  r: number; // Pearson's
   r2: number;
   p: number;
   xbar: number;
@@ -45,7 +46,11 @@ export function fitLinear(x: number[], y: number[], forceOrigin: boolean): Linea
   const dof = n - (forceOrigin ? 1 : 2);
   const s = Math.sqrt(ssRes / dof);
   const t = slope / (s / Math.sqrt(sxx));
-  return { slope, intercept, forceOrigin, n, dof, r2: 1 - ssRes / ssTot, p: tTwoSidedP(t, dof), xbar, sxx, s };
+  const centered = (v: number[], m: number) => v.map((vi) => vi - m);
+  const [dx, dy] = [centered(x, xbar), centered(y, ybar)];
+  const dot = (a: number[], b: number[]) => a.reduce((sum, ai, i) => sum + ai * b[i], 0);
+  const r = dot(dx, dy) / Math.sqrt(dot(dx, dx) * dot(dy, dy));
+  return { slope, intercept, forceOrigin, n, dof, r, r2: 1 - ssRes / ssTot, p: tTwoSidedP(t, dof), xbar, sxx, s };
 }
 
 /** Evenly-spaced points across [xMin, xMax] with the fit line + 95% confidence band
@@ -77,7 +82,7 @@ function regressionCurve(
   return { x, yFit, yLo, yHi };
 }
 
-/** "Y = 2.927*X − 0.3322<br>R² = 0.8734, P = 0.0021" annotation text — Plotly-ready
+/** "Y = 2.927*X − 0.3322<br>r = 0.9346, R² = 0.8734, P = 0.0021" (no r through the origin) annotation text — Plotly-ready
  *  (line break as `<br>`), formatted the same way as the Analysis panel's equation.
  *  Always uses literal "Y"/"X" rather than the actual column names, for simplicity. */
 function regressionLabel(fit: LinearFit): string {
@@ -85,11 +90,12 @@ function regressionLabel(fit: LinearFit): string {
   const eq = fit.forceOrigin
     ? `Y = ${term}`
     : `Y = ${term} ${fit.intercept < 0 ? "−" : "+"} ${num(Math.abs(fit.intercept))}`;
-  return `${eq}<br>R² = ${num(fit.r2)}, ${pText(fit.p)}`;
+  return `${eq}<br>${fit.forceOrigin ? "" : `r = ${num(fit.r)}, `}R² = ${num(fit.r2)}, ${pText(fit.p)}`;
 }
 
 /** Draws a linear-regression analysis's fit on an XY scatter (`columns` = X, then
- *  the Y series): its line, 95% CI band and equation as chosen, under the points. */
+ *  the Y series): its line, 95% CI band and equation as chosen, under the points. A
+ *  regression of two named variables is drawn only on the scatter of those two. */
 export function addRegression(
   fig: GraphFigure,
   columns: Column[],
@@ -98,8 +104,8 @@ export function addRegression(
   paint: Paint,
 ) {
   const [x, ...ys] = columns;
-  const y = ys.find((c) => c.name === params?.y) ?? ys[0];
-  if (!x || !y) return;
+  const y = ys.find((c) => c.name === params?.y) ?? (params?.x === undefined ? ys[0] : undefined);
+  if (!x || !y || (params?.x !== undefined && params.x !== x.name)) return;
   const pairs = pairUp(x, y);
   const fit = fitLinear(pairs.x, pairs.y, params?.forceOrigin ?? false);
   if (!fit) return;

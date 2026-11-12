@@ -21,8 +21,8 @@ Get the latest version from the [Releases page](https://github.com/mickaphd/Heli
 Requires macOS 13.3 (Ventura) or later. Open the DMG and drag **Helix** into the
 **Applications** folder. Helix is signed and notarized by Apple, so it opens like any other app.
 
-When a new version is out, Helix tells you (Helix › Check for Updates…): download it and
-replace the old one.
+When a new version is out, Helix tells you (Helix › Check for Updates…) and installs it
+for you: it relaunches with your projects.
 
 ## What Helix does
 
@@ -54,7 +54,8 @@ And a spreadsheet that feels like one:
   paired and whether they follow a normal distribution (or checks it for you with
   Shapiro-Wilk), then runs the right test
 - **Every number comes from R**, the reference for statistics
-- **Two groups:** unpaired, Welch, paired and ratio t tests, Mann-Whitney, Wilcoxon
+- **Two groups:** unpaired, Welch, paired, ratio and lognormal t tests, with Cohen's d and
+  Hedges' g; Mann-Whitney, Wilcoxon
 - **More groups:** one-way ANOVA (or Welch's, without equal SDs), repeated-measures ANOVA with
   the Geisser-Greenhouse correction, Kruskal-Wallis, Friedman; then every pair (Tukey,
   Bonferroni, Games-Howell, Dunnett's T3, Dunn) or each group against a control (Dunnett)
@@ -63,6 +64,12 @@ And a spreadsheet that feels like one:
 - **Curves:** dose-response (4PL, 3PL, 5PL) with the EC50 or IC50 and every parameter's 95% CI,
   two curves compared; standard curves read for your unknowns (ELISA); exponential growth
   and decay (doubling time, half-life), Michaelis-Menten, lines and polynomials
+- **Before you test:** a normality and lognormality test that says in plain words which
+  tests suit your data; outliers found by ROUT or Grubbs
+- **Counts:** Fisher's exact and chi-square tests, with the odds ratio, the relative risk,
+  Phi and Cramér's V
+- **Two variables:** a regression line through any two variables of a table, with its
+  equation, r, R² and P
 - **Survival:** Kaplan-Meier with median survival, log-rank, trend and Gehan-Breslow-Wilcoxon
   tests, hazard ratios, and Cox regression
 - **Clear results:** the exact test that ran, whether it is significant, every statistic,

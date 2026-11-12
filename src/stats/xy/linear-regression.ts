@@ -1,5 +1,5 @@
-// Ordinary least-squares simple linear regression of a chosen Y data series on X,
-// for an XY table. Optionally forces the line through the origin (intercept = 0);
+// Ordinary least-squares simple linear regression of a chosen Y data series on X: an XY
+// table's X, or two variables of a Multiple Variables table (`x`, `y`). Optionally forces the line through the origin (intercept = 0);
 // reports 95% confidence intervals for the slope and intercept alongside the fit.
 import type { Column, LinearRegressionParams, StatRow } from "../types";
 import { pRow, rVec, type ColumnTestSpec, type Group } from "../column/base";
@@ -8,10 +8,18 @@ import { num } from "../../lib/format";
 
 const DEFAULTS: LinearRegressionParams = { forceOrigin: false };
 
-/** X and the chosen Y series (the first by default), on the rows where both have a value. */
-function pickXY(columns: Column[], params: LinearRegressionParams | undefined): Group[] {
+/** The two columns regressed, X then Y: the variables named, else an XY table's X and
+ *  the chosen Y series (the first by default). */
+function chosenXY(columns: Column[], params: LinearRegressionParams | undefined): [Column?, Column?] {
+  const named = (name?: string) => columns.find((c) => c.name === name);
+  if (params?.x !== undefined) return [named(params.x), named(params.y)];
   const { x, ys } = splitXY(columns);
-  const y = params?.y === undefined ? ys[0] : ys.find((c) => c.name === params.y);
+  return [x, params?.y === undefined ? ys[0] : ys.find((c) => c.name === params.y)];
+}
+
+/** X and Y on the rows where both have a value. */
+function pickXY(columns: Column[], params: LinearRegressionParams | undefined): Group[] {
+  const [x, y] = chosenXY(columns, params);
   if (!x || !y) return [];
   const pairs = pairUp(x, y);
   return [
@@ -23,7 +31,11 @@ function pickXY(columns: Column[], params: LinearRegressionParams | undefined): 
 export const linearRegressionSpec: ColumnTestSpec<LinearRegressionParams> = {
   testType: "linear-regression",
   minGroups: 2,
-  check: (columns, params) => xyProblem(columns, params?.y),
+  check: (columns, params) => {
+    if (params?.x === undefined) return xyProblem(columns, params?.y);
+    const empty = chosenXY(columns, params).find((c) => c && !c.values.length);
+    return empty && `“${empty.name}” holds no numbers yet.`;
+  },
   parseGroups: pickXY,
   rCode: (groups, params) => {
     const origin = (params ?? DEFAULTS).forceOrigin;
@@ -33,7 +45,7 @@ export const linearRegressionSpec: ColumnTestSpec<LinearRegressionParams> = {
     return (
       `x<-${rVec(groups[0].values)};y<-${rVec(groups[1].values)};m<-lm(${formula});s<-summary(m);ci<-confint(m);` +
       `c(slope=unname(coef(m)[${slopeIdx}]),intercept=${origin ? "0" : "unname(coef(m)[1])"},` +
-      `r2=s$r.squared,p=unname(s$coefficients[${slopeIdx},4]),` +
+      `r=cor(x,y),r2=s$r.squared,p=unname(s$coefficients[${slopeIdx},4]),` +
       `slopeCiLo=unname(ci[${slopeIdx},1]),slopeCiHi=unname(ci[${slopeIdx},2])${interceptTerms})`
     );
   },
@@ -51,6 +63,7 @@ export const linearRegressionSpec: ColumnTestSpec<LinearRegressionParams> = {
         { label: "Y-intercept", value: v.intercept },
         { label: "Intercept 95% CI lower", value: v.interceptCiLo },
         { label: "Intercept 95% CI upper", value: v.interceptCiHi },
+        { label: "Pearson r", value: v.r }, // of the data: says nothing of a line through the origin
       );
     }
     rows.push({ label: "R squared", value: v.r2 }, pRow("P value (slope ≠ 0)", v.p));

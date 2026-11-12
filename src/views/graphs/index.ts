@@ -85,7 +85,7 @@ export const GRAPHS: Record<GraphType, GraphModule> = {
 
 /** The two variables a scatter of a Multiple Variables table plots, X then Y: the ones
  *  chosen, else (none, or gone) the first two holding numbers. */
-function variablePair(numeric: Column[], options: GraphOptions): [Column?, Column?] {
+export function variablePair<T extends { name: string }>(numeric: T[], options: GraphOptions): [T?, T?] {
   const byName = (name?: string) => numeric.find((c) => c.name === name);
   const x = byName(options.xVariable) ?? numeric[0];
   return [x, byName(options.yVariable) ?? numeric.find((c) => c !== x)];

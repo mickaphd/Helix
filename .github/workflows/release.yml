@@ -1,6 +1,8 @@
 # Builds Helix for a release: pushing a version tag (v1.1.0) runs the checks, then
 # builds the two DMGs (Apple Silicon, Intel) on GitHub's Macs and attaches them to a
-# draft release of that tag. Publishing the draft is what "Check for Updates" sees.
+# draft release of that tag, with what Helix updates itself from: each app as a signed
+# `.app.tar.gz` and `latest.json`, which names them. Publishing the draft is what
+# "Check for Updates" sees.
 name: Release
 
 on:
@@ -26,6 +28,7 @@ jobs:
     permissions:
       contents: write # to create the release and upload the DMGs
     strategy:
+      max-parallel: 1 # each build adds its Mac to the release's latest.json: one at a time
       matrix:
         target: [aarch64-apple-darwin, x86_64-apple-darwin]
     steps:
@@ -48,12 +51,15 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # The key Helix checks an update against (its public half is in tauri.conf.json).
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: Helix ${{ github.ref_name }}
           releaseDraft: true
           tauriScript: npx tauri
-          args: --target ${{ matrix.target }}
+          args: --target ${{ matrix.target }} --config src-tauri/tauri.release.conf.json
           releaseBody: |
             Download the DMG for your Mac: **aarch64** for Apple Silicon (M1 and later), **x64** for Intel.
             Open it and drag Helix into the Applications folder.

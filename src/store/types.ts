@@ -163,7 +163,7 @@ export interface GraphOptions {
   volcanoLabel?: string;
   volcanoYIsPValue: boolean;
   volcanoFcThreshold: number; // |X| cutoff (log2FC scale)
-  volcanoPThreshold: number; // cutoff on the plotted (−log10) scale: 1.3 is P = 0.05
+  volcanoPThreshold: number; // cutoff on the plotted (−log10) scale: about 1.3 is P = 0.05
   volcanoShowThresholds: boolean;
   volcanoLabelCount: number;
   // Grouped-table volcano (Helix computes the DEGs): compare two groups (by column
@@ -247,7 +247,7 @@ export const DEFAULT_GRAPH_OPTIONS: GraphOptions = {
   survivalShowBand: false,
   volcanoYIsPValue: true,
   volcanoFcThreshold: 1,
-  volcanoPThreshold: 1.3,
+  volcanoPThreshold: -Math.log10(0.05),
   volcanoShowThresholds: true,
   volcanoLabelCount: 10,
   volcanoEffect: "log2ratio",

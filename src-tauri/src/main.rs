@@ -14,9 +14,11 @@ use tauri::{
     ipc::{InvokeBody, Request},
     utils::config::WindowConfig,
     webview::NewWindowResponse,
+    window::{ProgressBarState, ProgressBarStatus},
     AppHandle, Emitter, LogicalPosition, Manager, RunEvent, State, WebviewWindow, WebviewWindowBuilder, WindowEvent,
 };
 use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_updater::{Update, UpdaterExt};
 
 // ── Project windows ──────────────────────────────────────────────────────
 
@@ -48,6 +50,8 @@ struct ProjectWindows {
     documents: HashMap<String, Document>,
     openings: HashMap<String, Opening>,
     quitting: bool,
+    /// Quitting to start the version just installed (`install_update`).
+    relaunch: bool,
 }
 
 impl Opening {
@@ -202,7 +206,9 @@ fn choose_project(app: AppHandle, window: WebviewWindow) {
 /// A window refused to close (its user chose Cancel): Helix doesn't quit after all.
 #[tauri::command]
 fn cancel_quit(projects: State<Projects>) {
-    projects.0.lock().unwrap().quitting = false;
+    let mut projects = projects.0.lock().unwrap();
+    projects.quitting = false;
+    projects.relaunch = false;
 }
 
 // ── Session ──────────────────────────────────────────────────────────────
@@ -336,6 +342,44 @@ fn accent_color() -> Option<String> {
     }
 }
 
+/// macOS's own spinning wheel over a project window while an analysis runs, centered
+/// `at` (x, y in points from the window's top left); `None` takes it away.
+#[tauri::command]
+fn set_spinner(window: WebviewWindow, at: Option<(f64, f64)>) {
+    let _ = window.clone().run_on_main_thread(move || unsafe {
+        let Ok(ns_window) = window.ns_window() else { return };
+        let content: *mut AnyObject = objc2::msg_send![ns_window.cast::<AnyObject>(), contentView];
+        if content.is_null() {
+            return;
+        }
+        let views: *mut AnyObject = objc2::msg_send![content, subviews];
+        let count: usize = objc2::msg_send![views, count];
+        for i in 0..count {
+            let view: *mut AnyObject = objc2::msg_send![views, objectAtIndex: i];
+            let spinning: bool = objc2::msg_send![view, isKindOfClass: objc2::class!(NSProgressIndicator)];
+            if spinning {
+                let _: () = objc2::msg_send![view, removeFromSuperview];
+            }
+        }
+        let Some((x, y)) = at else { return };
+        let spinner: *mut AnyObject = objc2::msg_send![objc2::class!(NSProgressIndicator), new];
+        let _: () = objc2::msg_send![spinner, setStyle: 1usize]; // NSProgressIndicatorStyleSpinning
+        let _: () = objc2::msg_send![spinner, setTranslatesAutoresizingMaskIntoConstraints: false];
+        let _: () = objc2::msg_send![content, addSubview: spinner];
+        let _: () = objc2::msg_send![spinner, release]; // the window keeps it
+        for (center, edge, offset) in [
+            (objc2::sel!(centerXAnchor), objc2::sel!(leftAnchor), x),
+            (objc2::sel!(centerYAnchor), objc2::sel!(topAnchor), y),
+        ] {
+            let center: *mut AnyObject = objc2::msg_send![spinner, performSelector: center];
+            let edge: *mut AnyObject = objc2::msg_send![content, performSelector: edge];
+            let placed: *mut AnyObject = objc2::msg_send![center, constraintEqualToAnchor: edge, constant: offset];
+            let _: () = objc2::msg_send![placed, setActive: true];
+        }
+        let _: () = objc2::msg_send![spinner, startAnimation: std::ptr::null::<AnyObject>()];
+    });
+}
+
 /// Helix's website, GitHub page, releases or Buy Me a Coffee page, in the default
 /// browser: fixed addresses, so the page can't open anything else.
 #[tauri::command]
@@ -355,6 +399,74 @@ fn open_link(link: String) {
     }
 }
 
+/// Remembers the open projects and closes their windows, each asking about its unsaved
+/// changes: Helix ends after the last one (see `main`), or starts again if `relaunch`.
+/// False when no window is open.
+fn close_projects(app: &AppHandle, relaunch: bool) -> bool {
+    save_session(app);
+    let windows: Vec<_> = app.webview_windows().into_values().filter(|w| is_project(w.label())).collect();
+    if windows.is_empty() {
+        return false;
+    }
+    let state = app.state::<Projects>();
+    let mut projects = state.0.lock().unwrap();
+    projects.quitting = true;
+    projects.relaunch = relaunch;
+    drop(projects);
+    for window in windows {
+        let _ = window.close();
+    }
+    true
+}
+
+// ── Updates ──────────────────────────────────────────────────────────────
+// A newer Helix is read from the latest release's `latest.json` on GitHub
+// (`tauri.conf.json`), downloaded, checked against Helix's public key and put in
+// place of this one; Helix then quits as usual and starts again.
+
+/// The update found by the last check, kept until it is installed.
+#[derive(Default)]
+struct Found(Mutex<Option<Update>>);
+
+/// The newer version out ("1.0.8"), if any.
+#[tauri::command]
+async fn check_update(app: AppHandle, found: State<'_, Found>) -> Result<Option<String>, String> {
+    let update = app.updater().map_err(|e| e.to_string())?.check().await.map_err(|e| e.to_string())?;
+    let version = update.as_ref().map(|u| u.version.clone());
+    *found.0.lock().unwrap() = update;
+    Ok(version)
+}
+
+/// Downloads and installs the update found, its progress on the Dock icon, then closes
+/// the projects (each asks about its changes) and starts the new Helix. A window that
+/// stays open only delays it: the new version is in place for the next launch.
+#[tauri::command]
+async fn install_update(app: AppHandle, found: State<'_, Found>) -> Result<(), String> {
+    let Some(update) = found.0.lock().unwrap().take() else { return Ok(()) };
+    let engine = app.get_webview_window("engine");
+    let progress = |status, progress| {
+        if let Some(engine) = &engine {
+            let _ = engine.set_progress_bar(ProgressBarState { status: Some(status), progress });
+        }
+    };
+    let mut received = 0;
+    let installed = update
+        .download_and_install(
+            |chunk, total| {
+                received += chunk as u64;
+                progress(ProgressBarStatus::Normal, total.map(|total| received * 100 / total.max(1)));
+            },
+            || {},
+        )
+        .await;
+    progress(ProgressBarStatus::None, None);
+    installed.map_err(|e| e.to_string())?;
+    if !close_projects(&app, true) {
+        app.restart();
+    }
+    Ok(())
+}
+
 /// Quitting (Helix ▸ Quit, the Dock, the app switcher, logout) asks the app delegate
 /// `applicationShouldTerminate:`, which tao doesn't answer, so Helix would quit
 /// without asking to save. This answers "not now" and closes the project windows
@@ -364,16 +476,8 @@ fn ask_before_quitting(app: &AppHandle) {
     static APP: OnceLock<AppHandle> = OnceLock::new();
     extern "C-unwind" fn should_terminate(_: &AnyObject, _: Sel, _: &AnyObject) -> usize {
         let Some(app) = APP.get() else { return 1 };
-        save_session(app);
-        let windows: Vec<_> = app.webview_windows().into_values().filter(|w| is_project(w.label())).collect();
-        if windows.is_empty() {
-            return 1; // NSTerminateNow
-        }
-        app.state::<Projects>().0.lock().unwrap().quitting = true;
-        for window in windows {
-            let _ = window.close();
-        }
-        0 // NSTerminateCancel
+        // NSTerminateCancel (0) while windows are closing, else NSTerminateNow (1).
+        usize::from(!close_projects(app, false))
     }
     let _ = APP.set(app.clone());
     unsafe {
@@ -489,6 +593,7 @@ fn r_ready(app: AppHandle, engine: State<REngine>) {
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(
             // All project windows share one remembered frame, which the first one opens in.
             tauri_plugin_window_state::Builder::default()
@@ -498,6 +603,7 @@ fn main() {
         )
         .manage(Projects::default())
         .manage(REngine::default())
+        .manage(Found::default())
         .setup(|app| {
             ask_before_quitting(app.handle());
             show_menu_pictures();
@@ -519,6 +625,9 @@ fn main() {
             set_recent_documents,
             accent_color,
             open_link,
+            set_spinner,
+            check_update,
+            install_update,
             eval_r,
             r_result,
             r_ready
@@ -543,10 +652,12 @@ fn main() {
                 let mut projects = state.0.lock().unwrap();
                 projects.documents.remove(&label);
                 projects.openings.remove(&label);
-                let quitting = projects.quitting;
+                let (quitting, relaunch) = (projects.quitting, projects.relaunch);
                 drop(projects);
                 if !app.webview_windows().keys().any(|l| is_project(l) && *l != label) {
-                    if quitting {
+                    if relaunch {
+                        app.restart();
+                    } else if quitting {
                         app.exit(0);
                     } else {
                         // Helix stays open: the engine window sets the menu bar for no window.

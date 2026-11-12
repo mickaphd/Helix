@@ -2,7 +2,7 @@
 // Checks for what must never break: .hlx files opening across versions and never
 // trusted, table edits keeping every value where it belongs, graphs drawing each
 // setting and following renamed columns, selected points, exports, analyses on the
-// data asked, Undo, and the app's menus, recents and update check. `npm test` runs them.
+// data asked, Undo, and the app's menus and recents. `npm test` runs them.
 import { deepStrictEqual, ok, strictEqual } from "node:assert/strict";
 import { parseProjectFile, readPalette, serializeProjectFile, type ProjectFilePayload } from "../src/lib/project-file";
 import {
@@ -12,6 +12,7 @@ import {
   type GraphOptions,
   type GraphType,
   type ProjectNode,
+  type TableType,
   type TableData,
 } from "../src/store/types";
 import {
@@ -40,10 +41,11 @@ import {
   withoutColors,
 } from "../src/lib/palettes";
 import { deletePalette, keepPalette, loadMyPalettes } from "../src/store/my-palettes";
-import { GRAPHS, newGraphOptions, type GraphFigure } from "../src/views/graphs";
+import { GRAPHS, newGraphOptions, plotColumns, type GraphFigure } from "../src/views/graphs";
 import { readTable, setColumns } from "../src/lib/dataset";
 import { incompleteRows, missingColumn } from "../src/stats/column/base";
-import { toggled, WIZARDS } from "../src/views/analyses/wizards";
+import { toggled, WIZARDS, type Answers } from "../src/views/analyses/wizards";
+import { addRegression } from "../src/views/graphs/regression-overlay";
 import { addNote, movedText, paintOf, vectorTraces, visibleOutline, withCaps } from "../src/views/graphs/plot-helpers";
 import {
   drawnKeys,
@@ -56,7 +58,7 @@ import {
   stylePoints,
   withoutSelection,
 } from "../src/views/graphs/selection";
-import { genesNamed } from "../src/views/graphs/volcano";
+import { cutoffAsP, cutoffOfP, genesNamed } from "../src/views/graphs/volcano";
 import { examplesFor, matched, type Matched } from "../src/views/graphs/match-graph";
 import type { OutlineNode } from "../src/store/use-project-store";
 import { deriveComparisons } from "../src/views/graphs/significance-overlay";
@@ -65,13 +67,12 @@ import { fitWidths } from "../src/store/use-layout";
 import { computeGroupedDEG } from "../src/lib/deg";
 import { runAnalysis } from "../src/stats";
 import { makeInitialState, reducer } from "../src/store/use-project-store";
-import { isNewer, latestVersion } from "../src/lib/version";
 import { titleCase } from "../src/lib/format";
 import { loadRecents } from "../src/store/recents";
 import { largestAt, withDpi } from "../src/lib/image-dpi";
 import { crc32 } from "node:zlib";
 import { readFileSync } from "node:fs";
-import type { AnalysisOutcome, AnalysisParams } from "../src/stats/types";
+import type { AnalysisOutcome, AnalysisParams, LinearRegressionParams } from "../src/stats/types";
 
 const checks: [string, () => void | Promise<void>][] = [];
 const check = (name: string, fn: () => void | Promise<void>) => checks.push([name, fn]);
@@ -705,6 +706,51 @@ check("a paste wider than a grouped table says how many columns didn't fit", () 
   strictEqual(columnsBeyond(grouped, 3, [["1", "2", "3", "4"]]), 2);
   strictEqual(columnsBeyond(grouped, 1, [["1", "2"]]), 0);
   strictEqual(columnsBeyond({ columns: ["Title", "A"], rows: [] }, 1, [["1", "2", "3"]]), 0);
+});
+
+check("a linear regression takes two variables of a Multiple Variables table", async () => {
+  const data: TableData = {
+    columns: ["Title", "Age", "Height", "Weight"],
+    rows: [[null, "1", "2", "9"], [null, "2", "4", "7"], [null, "3", "5", "6"], [null, "4", "9", "1"]], // prettier-ignore
+  };
+  const wizard = WIZARDS["linear-regression"]!;
+  const ids = (a: Answers, type?: TableType) =>
+    wizard.questions(a, readTable(data), type).flatMap((q) => (q ? [q.id] : []));
+  deepStrictEqual(ids({}), ["y", "origin"]);
+  deepStrictEqual(ids({ x: "Height" }, "multiple"), ["x", "y", "origin"]);
+  const params = wizard.finish({ x: "Height", y: "Weight", origin: "no" }, readTable(data), "multiple").params!;
+  deepStrictEqual(params, { x: "Height", y: "Weight", forceOrigin: false });
+  deepStrictEqual(await runAnalysis("linear-regression", data, { ...params, x: "Gone" } as AnalysisParams), {
+    error: missingColumn("Gone"),
+  });
+  const node = { ...analysis, analysisParams: params };
+  deepStrictEqual(followTable(node, { renamed: { Height: "Size" } }, []).analysisParams, { ...params, x: "Size" });
+  // Its line is drawn on the scatter of its two variables only.
+  const { columns } = readTable(data);
+  const drawn = (x: number, y: number) => {
+    const fig: GraphFigure = { data: [], layout: {} };
+    const options = { ...DEFAULT_GRAPH_OPTIONS, regShowLine: true, regShowBand: false };
+    addRegression(fig, [columns[x], columns[y]], options, params as LinearRegressionParams, paintOf(options, 1));
+    return fig.data.length;
+  };
+  strictEqual(drawn(1, 2), 1);
+  strictEqual(drawn(0, 2), 0);
+  strictEqual(drawn(1, 0), 0);
+});
+
+check("a two-group test keeps only the answers to the questions it asked", () => {
+  const table = readTable(treatments(["A", "B"]));
+  const finish = (a: Answers) => WIZARDS["compare-two-groups"]!.finish({ tails: "two-sided", ...a }, table).params;
+  const unpaired = { paired: false, gaussian: true, equalVariance: true, ratio: false, tails: "two-sided" };
+  // "ratio" answered while paired, then Back to unpaired: not a ratio test, nor a lognormal one.
+  deepStrictEqual(finish({ paired: "unpaired", gaussian: "yes", ratio: "ratio" }), unpaired);
+  deepStrictEqual(finish({ paired: "unpaired", gaussian: "yes", lognormal: "yes" }), { ...unpaired, lognormal: true });
+  deepStrictEqual(finish({ paired: "paired", gaussian: "yes", lognormal: "yes", ratio: "ratio" }), {
+    ...unpaired,
+    paired: true,
+    ratio: true,
+  });
+  deepStrictEqual(finish({ paired: "unpaired", gaussian: "no", lognormal: "yes" }), { ...unpaired, gaussian: false });
 });
 
 check("analyses follow renamed columns", () => {
@@ -1378,6 +1424,32 @@ check("a point shows its row's title as its name, else its row number", () => {
 
 // ── Volcano ──────────────────────────────────────────────────────────────
 
+check("a volcano plots its first two columns of numbers and a P of 0 on top, never another column for one gone", () => {
+  // As DESeq2 exports: the genes' names first. The second gene's P is 0, the last has none.
+  const data: TableData = {
+    columns: ["Title", "Gene", "log2FoldChange", "padj"],
+    rows: [[null, "A", "2", "0.001"], [null, "B", "-3", "0"], [null, "C", "0.2", "0.5"], [null, "D", "1", null]], // prettier-ignore
+  };
+  const options = newGraphOptions("volcano");
+  const draw = (o: GraphOptions) => {
+    const fig = GRAPHS.volcano.build(plotColumns(readTable(data), "volcano", o, "multiple"), o, paintOf(o, 2));
+    const [points] = fig.data as { x: number[]; y: number[]; text: string[] }[];
+    return { fig, points };
+  };
+  const { fig, points } = draw(options);
+  deepStrictEqual(points.x, [2, -3, 0.2]);
+  // P = 0.001 is at 3; P = 0 one unit above the most significant of the others.
+  deepStrictEqual(points.y, [3, 4, -Math.log10(0.5)]);
+  ok(points.text[1].endsWith("padj: 0"));
+  strictEqual((fig.layout.yaxis as { title: { text: string } }).title.text, "-log10(padj)");
+  strictEqual(draw({ ...options, volcanoY: "Gone" }).fig.data.length, 0);
+  // The cutoff is kept on the plotted scale, and typed as a P value: 0.05, as new graphs take.
+  strictEqual(cutoffAsP(options.volcanoPThreshold), 0.05);
+  strictEqual(cutoffAsP(cutoffOfP(0.001)), 0.001);
+  // A graph of Helix 1.0.7 keeps its line where it was, 1.3: a P of 0.0501.
+  strictEqual(cutoffAsP(1.3), 0.0501);
+});
+
 check("a volcano gene is its row: its own style wins over up / down, and it can show its name", () => {
   const options: GraphOptions = {
     ...volcanoOptions,
@@ -1797,7 +1869,7 @@ check("menus and pickers name things in title case, as macOS does", () => {
     [
       "Compare one group to a value",
       "Multiple t tests",
-      "Identify outliers (ROUT)",
+      "Identify outliers",
       "Chi-square or Fisher's exact test",
       "Two-way ANOVA",
       "Area under the curve",
@@ -1807,7 +1879,7 @@ check("menus and pickers name things in title case, as macOS does", () => {
     [
       "Compare One Group to a Value",
       "Multiple t Tests",
-      "Identify Outliers (ROUT)",
+      "Identify Outliers",
       "Chi-Square or Fisher's Exact Test",
       "Two-Way ANOVA",
       "Area Under the Curve",
@@ -1873,40 +1945,10 @@ check("My Palettes keep, replace and delete palettes; a gradient of few colors b
   ]);
 });
 
-check("a release is newer only when its version number is higher", () => {
-  ok(isNewer("v1.1.0", "1.0.0"));
-  ok(isNewer("v1.10.0", "1.9.0"));
-  ok(isNewer("2", "1.99.9"));
-  ok(!isNewer("v1.0.0", "1.0.0"));
-  ok(!isNewer("1.0", "1.0.1"));
-});
-
 check("a narrow window narrows the sidebar for the inspector only where there is one", () => {
   const layout = { sidebar: true, sidebarWidth: 224, inspector: true, inspectorWidth: 256 };
   deepStrictEqual(fitWidths(layout, 700, true), { sidebarWidth: 180, inspectorWidth: 220 });
   strictEqual(fitWidths(layout, 700, false).sidebarWidth, 224);
-});
-
-check("the update check still answers when GitHub refuses it", async () => {
-  const answers = (...responses: Response[]) => {
-    const asked: string[] = [];
-    globalThis.fetch = async (url) => (asked.push(String(url)), responses.shift()!);
-    return asked;
-  };
-  const json = (body: object) => new Response(JSON.stringify(body));
-  const realFetch = globalThis.fetch;
-  try {
-    let asked = answers(json({ tag_name: "v1.2.0" }));
-    strictEqual(await latestVersion(), "v1.2.0");
-    strictEqual(asked.length, 1);
-    answers(new Response(null, { status: 404 }));
-    strictEqual(await latestVersion(), null);
-    asked = answers(new Response(null, { status: 403 }), json({ version: "1.3.0" }));
-    strictEqual(await latestVersion(), "1.3.0");
-    ok(asked[1].startsWith("https://raw.githubusercontent.com/"));
-  } finally {
-    globalThis.fetch = realFetch;
-  }
 });
 
 // ── Run ──────────────────────────────────────────────────────────────────

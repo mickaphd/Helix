@@ -285,3 +285,6 @@ export async function runColumnTest<P>(
     comparisonsLabel: posthoc,
   };
 }
+
+/** R: Hedges' correction of a Cohen's d with `df` degrees of freedom, exact (none under 2 df). */
+export const R_HEDGES = "J<-function(df)if(df<2)NA else exp(lgamma(df/2)-lgamma((df-1)/2))/sqrt(df/2)";

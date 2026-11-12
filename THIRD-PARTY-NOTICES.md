@@ -15,7 +15,7 @@ license; the full texts come with each package's source.
 | [lattice](https://cran.r-project.org/package=lattice) (R package, needed by Matrix) | 0.23-1 | GPL-2 or later | — |
 | [Plotly.js](https://github.com/plotly/plotly.js) | 4.1.2 | MIT | Drawing the graphs |
 | [React](https://react.dev) and React DOM | 19.3.0 | MIT | The interface |
-| [Tauri](https://tauri.app) (with its dialog and window-state plugins) | 2.11 | MIT or Apache-2.0 | The native macOS app around the interface |
+| [Tauri](https://tauri.app) (with its dialog, window-state and updater plugins) | 2.11 | MIT or Apache-2.0 | The native macOS app around the interface |
 | [objc2](https://github.com/madsmtm/objc2) | 0.6.4 | MIT | Talking to macOS from the native side |
 | [percent-encoding](https://github.com/servo/rust-url) | 2.3.2 | MIT or Apache-2.0 | Passing file paths to the native side |
 | [serde](https://serde.rs) | 1.0.229 | MIT or Apache-2.0 | Passing data between the windows and the native side |

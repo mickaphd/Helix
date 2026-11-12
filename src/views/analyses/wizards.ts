@@ -21,6 +21,7 @@ import type {
   XYCorrelationParams,
 } from "../../stats/types";
 import { splitXY, type Dataset } from "../../lib/dataset";
+import type { TableType } from "../../store/types";
 
 export type Answer = string | number | string[];
 export type Answers = Record<string, Answer | undefined>;
@@ -39,9 +40,9 @@ export type Question = { id: string; ask: string } & (
 
 export interface Wizard {
   /** Every question, given the answers so far (false: not asked with these answers). */
-  questions: (a: Answers, table: Dataset) => (Question | false)[];
+  questions: (a: Answers, table: Dataset, type?: TableType) => (Question | false)[];
   /** The test to create, once every question is answered. */
-  finish: (a: Answers, table: Dataset) => { type: AnalysisType; params?: AnalysisParams };
+  finish: (a: Answers, table: Dataset, type?: TableType) => { type: AnalysisType; params?: AnalysisParams };
 }
 
 const choice = (id: string, ask: string, options: [string, string][], normality = false): Question => ({
@@ -107,6 +108,11 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
     finish: (a) => ({ type: "descriptive-statistics", params: withSets(a) }),
   },
 
+  "shapiro-wilk": {
+    questions: (_, table) => someSets(table, 1),
+    finish: (a) => ({ type: "shapiro-wilk", params: withSets(a) }),
+  },
+
   "compare-two-groups": {
     questions: (a, table) => {
       const [first = "Group 1", second = "Group 2"] = chosenSets(a) ?? setNames(table);
@@ -127,16 +133,20 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
           true,
         ),
         gaussian &&
-          a.paired === "paired" &&
-          choice("ratio", "How should the paired values be compared?", [
-            ["diff", "Compute differences (paired t test)"],
-            ["ratio", "Compute ratios (ratio t test) — for log-normal data"],
-          ]),
+          (a.paired === "paired"
+            ? choice("ratio", "How should the paired values be compared?", [
+                ["diff", "Compute differences (paired t test)"],
+                ["ratio", "Compute ratios (ratio t test) — for log-normal data"],
+              ])
+            : choice("lognormal", "How should the two groups be compared?", [
+                ["no", "Compare means (t test)"],
+                ["yes", "Compare geometric means (lognormal t test) — for log-normal data"],
+              ])),
         gaussian &&
           a.paired !== "paired" &&
           choice("variance", "Assume the two groups have equal variances?", [
-            ["equal", "Yes — Student's t test"],
-            ["unequal", "No — Welch's t test"],
+            ["equal", a.lognormal === "yes" ? "Yes — lognormal t test" : "Yes — Student's t test"],
+            ["unequal", a.lognormal === "yes" ? "No — lognormal Welch's t test" : "No — Welch's t test"],
           ]),
         choice("tails", "One-tailed or two-tailed P value?", [
           ["two-sided", "Two-tailed (recommended)"],
@@ -145,16 +155,21 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
         ]),
       ];
     },
-    finish: (a) => ({
-      type: "compare-two-groups",
-      params: withSets(a, {
-        paired: a.paired === "paired",
-        gaussian: a.gaussian === "yes",
-        equalVariance: a.variance !== "unequal",
-        ratio: a.ratio === "ratio",
-        tails: a.tails as CompareTwoGroupsParams["tails"],
-      }),
-    }),
+    // An answer left from a question no longer asked (after Back) doesn't count.
+    finish: (a) => {
+      const [paired, gaussian] = [a.paired === "paired", a.gaussian === "yes"];
+      return {
+        type: "compare-two-groups",
+        params: withSets(a, {
+          paired,
+          gaussian,
+          equalVariance: a.variance !== "unequal",
+          ratio: paired && gaussian && a.ratio === "ratio",
+          ...(!paired && gaussian && a.lognormal === "yes" ? { lognormal: true } : {}),
+          tails: a.tails as CompareTwoGroupsParams["tails"],
+        }),
+      };
+    },
   },
 
   "compare-many-groups": {
@@ -265,9 +280,13 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
   },
 
   outliers: {
-    questions: (_, table) => [
+    questions: (a, table) => [
       ...someSets(table, 1),
-      {
+      choice("method", "Which method should look for outliers?", [
+        ["rout", "ROUT — finds any number of outliers (recommended)"],
+        ["grubbs", "Grubbs — finds one outlier at most in each data set"],
+      ]),
+      a.method !== "grubbs" && {
         id: "q",
         ask: "How strict should the search be? ROUT fits each data set to a robust mean and flags a point as an outlier when its false discovery rate is below Q: a smaller Q flags fewer.",
         kind: "number",
@@ -277,7 +296,10 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
         step: 0.5,
       },
     ],
-    finish: (a) => ({ type: "outliers", params: withSets(a, { q: a.q as number }) }),
+    finish: (a) => ({
+      type: "outliers",
+      params: withSets(a, a.method === "grubbs" ? { q: 1, grubbs: true } : { q: a.q as number }),
+    }),
   },
 
   correlation: {
@@ -309,14 +331,21 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
   },
 
   "linear-regression": {
-    questions: (_, table) => [
-      choice("y", "Which Y data set should be regressed on X?", names(yNames(table))),
+    // A Multiple Variables table has no X column: both variables are asked.
+    questions: (a, table, type) => [
+      type === "multiple" && choice("x", "Which variable is X?", names(dataNames(table))),
+      type === "multiple"
+        ? choice("y", "Which variable is Y?", names(dataNames(table).filter((n) => n !== a.x)))
+        : choice("y", "Which Y data set should be regressed on X?", names(yNames(table))),
       choice("origin", "Force the line through the origin (0,0)?", [
         ["no", "No — fit both slope and Y-intercept (recommended)"],
         ["yes", "Yes — assume Y = 0 when X = 0"],
       ]),
     ],
-    finish: (a) => ({ type: "linear-regression", params: { y: a.y as string, forceOrigin: a.origin === "yes" } }),
+    finish: (a) => ({
+      type: "linear-regression",
+      params: { ...(a.x === undefined ? {} : { x: a.x as string }), y: a.y as string, forceOrigin: a.origin === "yes" },
+    }),
   },
 
   "area-under-curve": {

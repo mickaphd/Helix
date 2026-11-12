@@ -2,7 +2,7 @@
 // user-chosen hypothetical value. Resolves to a one-sample t test (parametric)
 // or a Wilcoxon signed-rank test (non-parametric), Prism-wizard style.
 import type { OneSampleTParams } from "../types";
-import { declareGroups, pRow, rAlt, type ColumnTestSpec } from "./base";
+import { declareGroups, pRow, R_HEDGES, rAlt, type ColumnTestSpec } from "./base";
 
 const DEFAULTS: OneSampleTParams = { hypotheticalValue: 0, tails: "two-sided", gaussian: true };
 
@@ -27,9 +27,12 @@ export const oneSampleTSpec: ColumnTestSpec<OneSampleTParams> = {
     const vals = groups.map(
       (_, i) =>
         `t${i}=unname(tt${i}$statistic),df${i}=unname(tt${i}$parameter),p${i}=tt${i}$p.value,` +
-        `md${i}=unname(tt${i}$estimate)-${p.hypotheticalValue},ci_lo${i}=tt${i}$conf.int[1],ci_hi${i}=tt${i}$conf.int[2]`,
+        `md${i}=unname(tt${i}$estimate)-${p.hypotheticalValue},ci_lo${i}=tt${i}$conf.int[1],ci_hi${i}=tt${i}$conf.int[2],` +
+        // Effect size: the distance to the hypothetical value in SDs.
+        `d${i}=(mean(g${i})-${p.hypotheticalValue})/sd(g${i}),` +
+        `g${i}=(mean(g${i})-${p.hypotheticalValue})/sd(g${i})*J(length(g${i})-1)`,
     );
-    return `${decl};${stmts.join(";")};c(${vals.join(",")})`;
+    return `${decl};${R_HEDGES};${stmts.join(";")};c(${vals.join(",")})`;
   },
   rows: (v, groups, params) => {
     const p = { ...DEFAULTS, ...params };
@@ -47,6 +50,8 @@ export const oneSampleTSpec: ColumnTestSpec<OneSampleTParams> = {
       { label: `${g.name} — Mean vs. hypothetical`, value: v[`md${i}`] },
       { label: `${g.name} — 95% CI lower`, value: v[`ci_lo${i}`] },
       { label: `${g.name} — 95% CI upper`, value: v[`ci_hi${i}`] },
+      { label: `${g.name} — Cohen's d`, value: v[`d${i}`] },
+      { label: `${g.name} — Hedges' g`, value: v[`g${i}`] },
     ]);
   },
   notes: (params) => {

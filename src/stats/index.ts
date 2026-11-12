@@ -25,8 +25,8 @@ import { anovaSpec } from "./column/anova";
 import { kruskalWallisSpec } from "./column/kruskal-wallis";
 import { rmAnovaSpec } from "./column/rm-anova";
 import { friedmanSpec } from "./column/friedman";
-import { shapiroWilkSpec } from "./column/shapiro-wilk";
-import { runRout } from "./column/rout";
+import { runNormality } from "./column/shapiro-wilk";
+import { runGrubbs, runRout } from "./column/rout";
 import { runXYCorrelation } from "./xy/correlation";
 import { linearRegressionSpec } from "./xy/linear-regression";
 import { runAreaUnderCurve } from "./xy/area-under-curve";
@@ -75,8 +75,16 @@ export const ANALYSES: Record<AnalysisType, Analysis> = {
   "kruskal-wallis": spec("Kruskal-Wallis test", kruskalWallisSpec),
   "rm-anova": spec("Repeated-measures ANOVA", rmAnovaSpec),
   friedman: spec("Friedman test", friedmanSpec),
-  "shapiro-wilk": spec("Shapiro-Wilk normality", shapiroWilkSpec),
-  outliers: { label: "Identify outliers (ROUT)", minColumns: 1, run: (c, p) => runRout(c, p as OutliersParams) },
+  "shapiro-wilk": { label: "Normality and lognormality test", minColumns: 1, run: (c) => runNormality(c) },
+  outliers: {
+    label: "Identify outliers",
+    name: (p) => {
+      const { q = 1, grubbs } = (p ?? {}) as Partial<OutliersParams>;
+      return grubbs ? "Outliers (Grubbs)" : `Outliers (ROUT, Q = ${q}%)`;
+    },
+    minColumns: 1,
+    run: (c, p) => ((p as OutliersParams | undefined)?.grubbs ? runGrubbs(c) : runRout(c, p as OutliersParams)),
+  },
   correlation: { label: "Correlation", minColumns: 2, run: (c, p) => runXYCorrelation(c, p as XYCorrelationParams) },
   "linear-regression": spec("Linear regression", linearRegressionSpec),
   "area-under-curve": {
@@ -134,9 +142,9 @@ export function runAnalysis(
   // A data set or a column the analysis names (a regression's Y…) must still be there.
   // prettier-ignore
   const named = params as
-    { y?: string; dependent?: string; reference?: string; control?: string; compareWith?: string; predictors?: string[]; datasets?: string[] } | undefined;
+    { x?: string; y?: string; dependent?: string; reference?: string; control?: string; compareWith?: string; predictors?: string[]; datasets?: string[] } | undefined;
   // prettier-ignore
-  const chosen = [named?.y, named?.dependent, named?.reference, named?.control, named?.compareWith, ...(named?.predictors ?? []), ...(named?.datasets ?? [])];
+  const chosen = [named?.x, named?.y, named?.dependent, named?.reference, named?.control, named?.compareWith, ...(named?.predictors ?? []), ...(named?.datasets ?? [])];
   const gone =
     params?.sets?.find((name) => !table.sets.some((s) => s.name === name)) ??
     chosen.find((name) => name !== undefined && !table.columns.some((c) => c.name === name));

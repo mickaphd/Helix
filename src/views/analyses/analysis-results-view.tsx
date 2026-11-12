@@ -17,6 +17,9 @@ function P({ p }: { p: number | null | undefined }) {
   );
 }
 
+/** Whether a normality test's P is consistent with the distribution: here a small P is a No. */
+const verdict = (p: number | null) => (p == null ? "—" : p > 0.05 ? "Yes" : <span className="text-secondary">No</span>);
+
 type Column = { label: string; numeric?: boolean };
 
 /** One part of the result: a titled table, as wide as its content. The first
@@ -105,6 +108,31 @@ export function AnalysisResultsView({ result }: { result: AnalysisResult }) {
             </span>
           )}
         </header>
+      )}
+
+      {result.summary && <p className="max-w-prose">{result.summary}</p>}
+
+      {result.normality && (
+        <Table
+          columns={[
+            { label: "" },
+            { label: "W", numeric: true },
+            { label: "P value", numeric: true },
+            { label: "Normal?" },
+            { label: "W (log)", numeric: true },
+            { label: "P value (log)", numeric: true },
+            { label: "Lognormal?" },
+          ]}
+          rows={result.normality.map((r) => [
+            r.group,
+            num(r.w),
+            r.p == null ? "—" : pValue(r.p),
+            verdict(r.p),
+            num(r.logW),
+            r.logP == null ? "—" : pValue(r.logP),
+            verdict(r.logP),
+          ])}
+        />
       )}
 
       {result.fit && (
@@ -218,7 +246,27 @@ export function AnalysisResultsView({ result }: { result: AnalysisResult }) {
         />
       )}
 
-      {result.outlierGroups && result.outlierGroups.length > 0 && (
+      {result.outlierGroups?.[0]?.grubbs && (
+        <Table
+          title="Outliers by column"
+          columns={[
+            { label: "" },
+            { label: "Points", numeric: true },
+            { label: "Farthest value", numeric: true },
+            { label: "G", numeric: true },
+            { label: "P value", numeric: true },
+          ]}
+          rows={result.outlierGroups.map((g) => [
+            g.group,
+            g.points,
+            num(g.grubbs?.extreme),
+            num(g.grubbs?.g),
+            <P p={g.grubbs?.p} />,
+          ])}
+        />
+      )}
+
+      {result.outlierGroups && result.outlierGroups.length > 0 && !result.outlierGroups[0].grubbs && (
         <Table
           title="Outliers by column"
           columns={[

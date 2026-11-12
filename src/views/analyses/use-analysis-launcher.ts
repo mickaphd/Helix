@@ -65,9 +65,10 @@ export function useStartAnalysis() {
     if (!ready) return false;
     // A wizard with nothing to ask of this table (one data set, say) runs at once.
     const wizard = WIZARDS[picked];
-    const table = readTable(get().nodes[tableId]!.data!);
-    if (!wizard?.questions({}, table).some(Boolean)) {
-      const { type, params } = wizard?.finish({}, table) ?? { type: picked as AnalysisType };
+    const { data, tableType } = get().nodes[tableId]!;
+    const table = readTable(data!);
+    if (!wizard?.questions({}, table, tableType).some(Boolean)) {
+      const { type, params } = wizard?.finish({}, table, tableType) ?? { type: picked as AnalysisType };
       createAnalysis(tableId, type, params);
       return false;
     }

@@ -6,7 +6,7 @@ import { Button, Checkbox, Field, NumberInput, RadioList } from "../../ui/contro
 import { Dialog } from "../../ui/dialog";
 import { readTable } from "../../lib/dataset";
 import type { AnalysisParams, AnalysisType } from "../../stats/types";
-import type { TableData } from "../../store/types";
+import type { TableData, TableType } from "../../store/types";
 import { useProjectStore } from "../../store/use-project-store";
 import { checkNormality } from "./normality-check";
 import { useAnalysisLauncher } from "./use-analysis-launcher";
@@ -19,7 +19,7 @@ export function AnalysisWizard() {
   const { nodes, selector, closeSelector } = useProjectStore();
   const launch = useAnalysisLauncher();
   if (selector?.kind !== "analysis-params") return null;
-  const data = nodes[selector.tableId]?.data;
+  const { data, tableType } = nodes[selector.tableId] ?? {};
   const wizard = WIZARDS[selector.testType];
   if (!data || !wizard) return null;
   return (
@@ -27,6 +27,7 @@ export function AnalysisWizard() {
       title={analysisLabel(selector.testType)}
       wizard={wizard}
       data={data}
+      tableType={tableType}
       onClose={closeSelector}
       onDone={(type, params) => {
         launch(selector.tableId, type, params);
@@ -47,12 +48,14 @@ function Steps({
   title,
   wizard,
   data,
+  tableType,
   onDone,
   onClose,
 }: {
   title: string;
   wizard: Wizard;
   data: TableData;
+  tableType?: TableType;
   onDone: (type: AnalysisType, params?: AnalysisParams) => void;
   onClose: () => void;
 }) {
@@ -66,7 +69,7 @@ function Steps({
     const input = (selector: string) => field.current?.querySelector<HTMLInputElement>(selector);
     (input("input:checked") ?? input("input"))?.focus();
   }, [step]);
-  const asked = (a: Answers) => wizard.questions(a, table).filter((q): q is Question => q !== false);
+  const asked = (a: Answers) => wizard.questions(a, table, tableType).filter((q): q is Question => q !== false);
   const q = asked(answers)[step];
   const [value, setValue] = React.useState<Answer | null>(() => initialAnswer(q, undefined));
 
@@ -90,7 +93,7 @@ function Steps({
     const a = { ...answers, [q.id]: answer };
     if (asked(a).length > step + 1) go(step + 1, a);
     else {
-      const { type, params } = wizard.finish(a, table);
+      const { type, params } = wizard.finish(a, table, tableType);
       onDone(type, params);
     }
   };

@@ -4,7 +4,12 @@
 import * as React from "react";
 import { Button, Checkbox, Input, Select, cn } from "../../ui/controls";
 import { Row, Stepper } from "../../components/inspector";
-import type { AnalysisPickerValue, AnalysisType, NonlinearRegressionParams } from "../../stats/types";
+import type {
+  AnalysisPickerValue,
+  AnalysisType,
+  LinearRegressionParams,
+  NonlinearRegressionParams,
+} from "../../stats/types";
 import { analysisLabel } from "../analyses";
 import {
   GRAPH_LIMITS,
@@ -15,9 +20,9 @@ import {
   type TableType,
 } from "../../store/types";
 import { isSignificant, pStars } from "../../lib/format";
-import { GRAPHS } from ".";
+import { GRAPHS, variablePair } from ".";
 import type { SigComparison } from "./significance-overlay";
-import { volcanoPair } from "./volcano";
+import { cutoffAsP, cutoffOfP, volcanoAxes, volcanoPair } from "./volcano";
 import { paletteOf } from "../../lib/palettes";
 import {
   Choice,
@@ -46,6 +51,8 @@ export interface SectionContext {
   seriesNames: string[];
   /** Volcano on a grouped table: the groups it can compare (Helix computes the DEGs). */
   volcanoGroups?: string[];
+  /** Its rows holding values of the two groups compared that gave no gene. */
+  volcanoLeftOut: number;
   numericNames: string[];
   allNames: string[];
   /** The chosen regression's failure, when it couldn't be fitted. */
@@ -124,21 +131,45 @@ export function statisticsControls(c: SectionContext): React.ReactNode {
       </>
     );
   }
+  if (graphType === "xy-scatter" && c.tableType === "multiple") {
+    // The linear regressions of the two variables plotted, X and Y as on the graph.
+    const [x, y] = variablePair(
+      c.numericNames.map((name) => ({ name })),
+      options,
+    );
+    const sources = c.analyses.filter((a) => {
+      const p = a.analysisParams as LinearRegressionParams | undefined;
+      return a.analysisType === "linear-regression" && p?.x !== undefined && p.x === x?.name && p.y === y?.name;
+    });
+    if (!sources.length) {
+      return (
+        <NoAnalysis test="linear-regression" onNewAnalysis={c.onNewAnalysis}>
+          Draw the fitted line of a linear regression of these two variables.
+        </NoAnalysis>
+      );
+    }
+    return <RegressionControls analyses={sources} options={options} set={set} />;
+  }
   if (graphType === "volcano") {
-    // Cutoffs are entered on the plotted scale (1.3 is P = 0.05).
-    const sig = c.volcanoGroups && options.volcanoSignificance === "fdr" ? "FDR" : "P";
+    // Cutoffs are typed in the columns' own units: the effect on X's scale; the
+    // significance as a P value (0.05) when Y holds P values, as −log10 (1.3) when it
+    // holds that. Kept on the plotted scale, so the line stays put either way.
+    const asP = Boolean(c.volcanoGroups) || options.volcanoYIsPValue;
     return (
       <>
         <div className="grid grid-cols-2 gap-2">
           <NumRow
-            label="Fold change"
+            label="X cutoff"
             value={options.volcanoFcThreshold}
-            onChange={(v) => set({ volcanoFcThreshold: v ?? 0 })}
+            onChange={(v) => set({ volcanoFcThreshold: Math.abs(v ?? 0) })}
           />
           <NumRow
-            label={`−log10 ${sig}`}
-            value={options.volcanoPThreshold}
-            onChange={(v) => set({ volcanoPThreshold: v ?? 0 })}
+            label="Y cutoff"
+            value={asP ? cutoffAsP(options.volcanoPThreshold) : options.volcanoPThreshold}
+            onChange={(v) => {
+              if (v === undefined || v < 0 || (asP && (v === 0 || v > 1))) return; // no such P value
+              set({ volcanoPThreshold: asP ? cutoffOfP(v) : v });
+            }}
           />
         </div>
         <Toggle
@@ -370,7 +401,7 @@ export function dataControls(c: SectionContext): React.ReactNode {
       return (
         <>
           {c.volcanoGroups ? (
-            <GroupedVolcanoData groups={c.volcanoGroups} options={options} set={set} />
+            <GroupedVolcanoData groups={c.volcanoGroups} leftOut={c.volcanoLeftOut} options={options} set={set} />
           ) : (
             <FlatVolcanoData
               numericNames={c.numericNames}
@@ -429,22 +460,24 @@ function FlatVolcanoData({
   set: SetOptions;
 }) {
   const ys = xy ? allNames.slice(1) : numericNames;
+  // What the graph plots until a column is chosen (an XY table's X is its X column).
+  const named = (names: string[]) => names.map((name) => ({ name }));
+  const { x, y } = volcanoAxes(
+    named(numericNames),
+    named(allNames),
+    xy ? { ...options, volcanoX: allNames[0] } : options,
+  );
   return (
     <>
       {!xy && (
         <ColumnSelectRow
-          label="X — fold change"
-          value={options.volcanoX ?? numericNames[0]}
+          label="X — effect size"
+          value={x?.name}
           names={numericNames}
           onChange={(volcanoX) => set({ volcanoX })}
         />
       )}
-      <ColumnSelectRow
-        label="Y — significance"
-        value={options.volcanoY ?? (xy ? ys[0] : (numericNames[1] ?? numericNames[0]))}
-        names={ys}
-        onChange={(volcanoY) => set({ volcanoY })}
-      />
+      <ColumnSelectRow label="Y — significance" value={y?.name} names={ys} onChange={(volcanoY) => set({ volcanoY })} />
       <Choice
         label="Y values"
         value={options.volcanoYIsPValue ? "p" : "log"}
@@ -469,7 +502,17 @@ function FlatVolcanoData({
 
 /** A volcano of a grouped table compares two of its groups row by row (Welch t test
  *  and BH FDR, see lib/deg.ts); gene labels are the row titles. */
-function GroupedVolcanoData({ groups, options, set }: { groups: string[]; options: GraphOptions; set: SetOptions }) {
+function GroupedVolcanoData({
+  groups,
+  leftOut,
+  options,
+  set,
+}: {
+  groups: string[];
+  leftOut: number;
+  options: GraphOptions;
+  set: SetOptions;
+}) {
   const [groupA, groupB] = volcanoPair(groups, options);
   return (
     <>
@@ -506,6 +549,12 @@ function GroupedVolcanoData({ groups, options, set }: { groups: string[]; option
           { value: "fdr", label: "FDR" },
         ]}
       />
+      {leftOut > 0 && (
+        <p className="text-small text-secondary">
+          {leftOut} {leftOut === 1 ? "row" : "rows"} left out: fewer than 2 values in a group
+          {options.volcanoEffect === "log2ratio" && ", or a mean at or under 0"}.
+        </p>
+      )}
     </>
   );
 }
