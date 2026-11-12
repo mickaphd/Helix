@@ -10,14 +10,22 @@ import { titleCase } from "../../lib/format";
 import { AnalysisResultsView } from "./analysis-results-view";
 import { useAnalysis } from "./use-analysis";
 
-/** While the analysis runs: macOS's spinning wheel in the middle of the results. */
+/** While the analysis runs: macOS's spinning wheel in the middle of the results, once it
+ *  has taken half a second (R or a package loading): a quick one shows none. */
 function Running() {
   const ref = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
     if (!isNative) return;
-    const { left, top, width, height } = ref.current!.getBoundingClientRect();
-    setSpinner([left + width / 2, top + height / 2]);
-    return () => setSpinner(null);
+    let shown = false;
+    const timer = setTimeout(() => {
+      const { left, top, width, height } = ref.current!.getBoundingClientRect();
+      shown = true;
+      setSpinner([left + width / 2, top + height / 2]);
+    }, 500);
+    return () => {
+      clearTimeout(timer);
+      if (shown) setSpinner(null);
+    };
   }, []);
   return (
     <div ref={ref} className="flex h-full items-center justify-center text-regular text-secondary">

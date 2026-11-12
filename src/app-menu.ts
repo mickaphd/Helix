@@ -13,6 +13,7 @@ import { TABLE_TYPE_OPTIONS } from "./views/tables";
 import { ANALYSIS_OPTIONS_BY_TABLE } from "./views/analyses";
 import { GRAPH_OPTIONS_BY_TABLE } from "./views/graphs";
 import { useStartAnalysis } from "./views/analyses/use-analysis-launcher";
+import { SECTIONS } from "./views/graphs/format-panel";
 
 const THEME_KEY = "helix.theme";
 
@@ -50,7 +51,7 @@ function edit(command: EditCommand) {
 export function useAppMenu(doc: DocumentActions) {
   const store = useProjectStore();
   const startAnalysis = useStartAnalysis();
-  const { sidebar, inspector, inspectorHere, setLayout } = useLayout();
+  const { sidebar, inspector, inspectorHere, setLayout, setOpenSections, setFoldedTables } = useLayout();
   const [theme, setThemeState] = React.useState(savedTheme);
 
   // Menu actions run long after the menu was built: read everything through this ref.
@@ -95,6 +96,8 @@ export function useAppMenu(doc: DocumentActions) {
   const tableType = activeTableId ? nodes[activeTableId]?.tableType : undefined;
   const hasTable = activeTableId !== null;
   const tableCount = Object.values(nodes).filter((n) => n.type === "table").length;
+  // A graph's Format panel shown, whose sections the View menu folds.
+  const formatShown = activeNode?.type === "graph" && inspector;
 
   React.useEffect(() => {
     if (!isNative || !focused) return;
@@ -249,6 +252,23 @@ export function useAppMenu(doc: DocumentActions) {
             action: () => setLayout({ inspector: !inspector }),
           },
           sep,
+          // Every table, or every section of a graph's Format panel, at once (⌥ on a triangle too).
+          { text: "Expand All Tables", enabled: tableCount > 0, action: () => setFoldedTables(new Set()) },
+          {
+            text: "Collapse All Tables",
+            enabled: tableCount > 0,
+            action: () =>
+              setFoldedTables(
+                new Set(
+                  Object.values(latest.current.store.nodes)
+                    .filter((n) => n.type === "table")
+                    .map((n) => n.id),
+                ),
+              ),
+          },
+          { text: "Expand All Sections", enabled: formatShown, action: () => setOpenSections(new Set(SECTIONS)) },
+          { text: "Collapse All Sections", enabled: formatShown, action: () => setOpenSections(new Set()) },
+          sep,
           {
             text: "Appearance",
             items: [themeItem("system", "Automatic"), themeItem("light", "Light"), themeItem("dark", "Dark")],
@@ -265,6 +285,7 @@ export function useAppMenu(doc: DocumentActions) {
     activeNodeId !== null,
     activeNode?.type,
     tableCount,
+    formatShown,
     inspectorHere,
     isDirty,
     doc.recents,

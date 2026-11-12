@@ -9,10 +9,12 @@ import {
   type PointShape,
   type PointStyle,
 } from "../../store/types";
-import type { Column, DataSet } from "../../lib/dataset";
+import { xyPoints, xyRows, type Column, type DataSet } from "../../lib/dataset";
+import { pointKeyOf } from "../../lib/columns";
 import type { GraphFigure } from ".";
 import { paletteColor, paletteOf, withOpacity } from "../../lib/palettes";
 import { mean, median, sd, sem } from "../../lib/summary";
+import { tCrit95 } from "../../lib/student-t";
 
 export const INK = "#111827"; // axes + titles only
 export const GUIDE = "#9CA3AF"; // what guides the eye: threshold lines, a name's leader line
@@ -308,10 +310,33 @@ export const pointName = (
 export const centers = (cols: Column[], center: GraphOptions["center"]) =>
   cols.map((c) => (center === "median" ? median(c.values) : mean(c.values)));
 
-/** The error of `v`: its SEM, else its SD. */
-const errorOf = (v: number[], kind: GraphOptions["error"]) => (kind === "sem" ? sem(v) : sd(v));
+/** The error of `v`: its SD, its SEM, or the half-width of its mean's 95% CI (t × SEM). */
+export const errorOf = (v: number[], kind: GraphOptions["error"]) =>
+  kind === "sem" ? sem(v) : kind === "ci" ? (v.length < 2 ? 0 : tCrit95(v.length - 1) * sem(v)) : sd(v);
 
-/** Error magnitude per column (SD or SEM), or null when error is off. */
+/** A Y data set of an XY graph, as drawn: each value where X has one, keyed so it can be
+ *  picked and styled; or, for replicates shown as their center (`xyReplicates`), each X's
+ *  center (mean or median) and its error (none when error bars are off). */
+export function xyDrawn(
+  x: Column,
+  set: DataSet,
+  options: GraphOptions,
+): { x: number[]; y: number[]; keys?: string[]; errors?: number[] } {
+  if (set.columns.length === 1 || options.xyReplicates === "each") {
+    const points = xyPoints(x, set);
+    return { x: points.x, y: points.y, keys: points.rows.map((r, i) => pointKeyOf(points.columns[i], r)) };
+  }
+  const rows = xyRows(x, set);
+  return {
+    x: rows.x,
+    y: rows.values.map((v) => (options.center === "median" ? median(v) : mean(v))),
+    ...(options.error === "none"
+      ? {}
+      : { errors: rows.values.map((v) => (v.length < 2 ? 0 : errorOf(v, options.error))) }),
+  };
+}
+
+/** Error magnitude per column (SD, SEM or 95% CI), or null when error is off. */
 export const errors = (cols: Column[], kind: GraphOptions["error"]) =>
   kind === "none" ? null : cols.map((c) => errorOf(c.values, kind));
 
@@ -400,10 +425,66 @@ function axisChrome(options: GraphOptions): Record<string, unknown> {
   };
 }
 
+/** A power's tick label: written out from 0.000001 to 1000000 while short (8 characters
+ *  at most), so an axis is all figures or, beyond, all powers, never a mix in practice. */
+function powerLabel(v: number, base: number): string {
+  const k = Math.round(Math.log(v) / Math.log(base));
+  const plain = String(Number(v.toPrecision(6)));
+  return v >= 1e-6 && v <= 1e6 && plain.length <= 8 ? plain : `${base}<sup>${k}</sup>`;
+}
+
+const POWERS = Array.from({ length: 81 }, (_, i) => i - 40);
+
+/** `steps + 1` X values from `lo` to `hi` for drawing a curve: evenly spaced, or evenly
+ *  spaced in log on a log X axis (from the smallest X above 0), so it stays smooth there. */
+export function curveXs(xs: number[], scale: GraphOptions["xScale"], steps: number): number[] {
+  const positive = xs.filter((x) => x > 0);
+  const log = scale !== "linear" && positive.length > 0;
+  const [lo, hi] = log ? extent(positive).map(Math.log10) : extent(xs);
+  return Array.from({ length: steps + 1 }, (_, i) => {
+    const t = lo + ((hi - lo) * i) / steps;
+    return log ? 10 ** t : t;
+  });
+}
+
+/** A logarithmic axis: ticks at the powers of `base` (only those in range show), small
+ *  ticks between the powers of 10, and its range typed in real values (above 0). Values
+ *  at or under 0 have no place on it: Plotly leaves them out (the Format panel says how
+ *  many). No step: the ticks are the powers. */
+function logAxis(scale: "log10" | "log2", min?: number, max?: number): Record<string, unknown> {
+  const base = scale === "log2" ? 2 : 10;
+  const ticks = POWERS.map((k) => base ** k);
+  const at = (v?: number) => (v != null && v > 0 ? Math.log10(v) : undefined);
+  const [lo, hi] = [at(min), at(max)];
+  return {
+    type: "log",
+    tickmode: "array",
+    tickvals: ticks,
+    ticktext: ticks.map((v) => powerLabel(v, base)),
+    ...(base === 10
+      ? { minor: { tickvals: POWERS.flatMap((k) => [2, 3, 4, 5, 6, 7, 8, 9].map((d) => d * 10 ** k)), ticklen: 3 } }
+      : {}),
+    ...(lo != null && hi != null
+      ? { range: [lo, hi], autorange: false }
+      : lo != null || hi != null
+        ? { autorangeoptions: { ...(lo != null ? { minallowed: lo } : {}), ...(hi != null ? { maxallowed: hi } : {}) } }
+        : {}),
+  };
+}
+
+/** The value axis's scale and range: linear (from 0 when `zeroBase`, for bars), or log. */
 const yAxisRange = (options: GraphOptions, zeroBase?: boolean) =>
-  axisRange(options.yMin, options.yMax, options.yStep, zeroBase);
+  options.yScale === "linear"
+    ? axisRange(options.yMin, options.yMax, options.yStep, zeroBase)
+    : logAxis(options.yScale, options.yMin, options.yMax);
 const xAxisRange = (options: GraphOptions, zeroBase?: boolean) =>
-  axisRange(options.xMin, options.xMax, options.xStep, zeroBase);
+  options.xScale === "linear"
+    ? axisRange(options.xMin, options.xMax, options.xStep, zeroBase)
+    : logAxis(options.xScale, options.xMin, options.xMax);
+
+/** Where a label goes on an axis of this scale: Plotly places shapes and traces at
+ *  their values, but texts (annotations) at the log10 of them on a log axis. */
+export const onAxis = (v: number, scale: GraphOptions["xScale"]) => (scale === "linear" ? v : Math.log10(v));
 
 /** Common white publication-style layout; numeric x with column-name ticks (Column family). */
 export function baseLayout(
@@ -483,7 +564,7 @@ export function xyLayout(
     xaxis: {
       type: "linear",
       ...axisChrome(options),
-      ...xAxisRange(options),
+      ...xAxisRange(options), // type "log" when X is on a log scale
       ...axisTitle(options.xLabel || xName, options.xTitleGap),
     },
     yaxis: {

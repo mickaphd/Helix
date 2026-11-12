@@ -15,7 +15,9 @@ interface SurvivalGroup {
 export function survivalGroups(columns: Column[]): SurvivalGroup[] | { error: string } {
   const { x, ys } = splitXY(columns);
   if (!x) return { error: xyProblem(columns)! };
-  const groups = ys.map((y) => ({ name: y.name, ...pairUp(x, y) })).filter((g) => g.y.length > 0);
+  if (ys.some((y) => y.columns.length > 1))
+    return { error: "Each group needs one column of event codes, not replicates." };
+  const groups = ys.map((y) => ({ name: y.name, ...pairUp(x, y.columns[0]) })).filter((g) => g.y.length > 0);
   for (const g of groups) {
     const code = g.y.find((c) => c !== 0 && c !== 1);
     if (code !== undefined)

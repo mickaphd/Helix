@@ -17,17 +17,25 @@ import type { AnalysisParams, AnalysisType } from "../src/stats/types";
 
 // ── Reproducible random data ─────────────────────────────────────────────
 
-let seed = 20260924;
-/** Uniform in [0, 1) (mulberry32), the same numbers on every run. */
-function random(): number {
-  seed = (seed + 0x6d2b79f5) | 0;
-  let t = seed;
-  t = Math.imul(t ^ (t >>> 15), t | 1);
-  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+/** Uniform in [0, 1) (mulberry32) from `seed`, the same numbers on every run. */
+function generator(seed: number): () => number {
+  return () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = seed;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
-/** Normal with mean `m` and standard deviation `sd` (Box-Muller). */
-const normal = (m = 0, sd = 1) => m + sd * Math.sqrt(-2 * Math.log(1 - random())) * Math.cos(2 * Math.PI * random());
+/** Normal with mean `m` and standard deviation `sd` (Box-Muller), from `random`. */
+const gaussian =
+  (random: () => number) =>
+  (m = 0, sd = 1) =>
+    m + sd * Math.sqrt(-2 * Math.log(1 - random())) * Math.cos(2 * Math.PI * random());
+const random = generator(20260924);
+const normal = gaussian(random);
+// The data added since Helix 1.0.9 draw from their own numbers, so the older data stay as they were.
+const added = gaussian(generator(20261112));
 const fixed = (v: number, digits = 2) => v.toFixed(digits);
 const range = (n: number) => Array.from({ length: n }, (_, i) => i);
 
@@ -109,14 +117,27 @@ const arms = (...names: string[]) => ({
 {
   const logDose = range(11).map((i) => -9 + i * 0.5);
   // Viability falls from 100% to its floor as the dose rises.
-  const viability = (ec50: number, hill: number, floor: number) =>
-    logDose.map((x) => fixed(floor + (100 - floor) / (1 + 10 ** ((x - ec50) * hill)) + normal(0, 2.5), 1));
+  // Each line in triplicate: three wells at each dose.
+  const curve = (ec50: number, hill: number, floor: number) => (x: number) =>
+    floor + (100 - floor) / (1 + 10 ** ((x - ec50) * hill));
+  const viability = (at: (x: number) => number) => [
+    logDose.map((x) => fixed(at(x) + normal(0, 2.5), 1)),
+    logDose.map((x) => fixed(at(x) + added(0, 2.5), 1)),
+    logDose.map((x) => fixed(at(x) + added(0, 2.5), 1)),
+  ];
+  const [mia, bxpc] = [viability(curve(-6.8, 1.1, 4)), viability(curve(-5.4, 0.9, 12))];
   table("t-viab", "Cell viability (%)", "xy", {
-    columns: ["Title", "log[HLX-101] (M)", "MIA PaCa-2", "BxPC-3"],
-    rows: rows([logDose.map((x) => fixed(x, 1)), viability(-6.8, 1.1, 4), viability(-5.4, 0.9, 12)]),
+    columns: [
+      "Title",
+      "log[HLX-101] (M)",
+      ...["MIA PaCa-2", "BxPC-3"].flatMap((line) => range(3).map((k) => `${line}:Y${k + 1}`)),
+    ],
+    rows: rows([logDose.map((x) => fixed(x, 1)), ...mia, ...bxpc]),
+    groups: 2,
+    replicates: 3,
   });
-  analysis("t-viab", "a-viab-fit", "4PL fit (MIA PaCa-2)", "nonlinear-regression", {
-    y: "MIA PaCa-2",
+  analysis("t-viab", "a-viab-fit", "4PL fit", "nonlinear-regression", {
+    ys: ["MIA PaCa-2", "BxPC-3"],
     model: "sigmoidal-4pl-logx",
   });
   // Their IC50s compared on a standard slope: a 4PL's slopes, free, leave no fit sharing one.
@@ -129,6 +150,7 @@ const arms = (...names: string[]) => ({
   graph("t-viab", "g-viab", "Dose-response curve", "xy-scatter", {
     regAnalysisId: "a-viab-fit",
     ...POINTS,
+    error: "sd",
     xLabel: "log[HLX-101] (M)",
     yLabel: "Cell viability (%)",
     legend: { x: 0.72, y: 0.98 },
@@ -141,10 +163,14 @@ const arms = (...names: string[]) => ({
     columns: ["Title", "ATP (µM)", "Rate (nmol/min)"],
     rows: rows([
       ["0.5", "1", "2", "5", "10", "20", "50"],
-      ["9.8", "17.1", "27.9", "44.2", "55.9", "63.1", "70.4"],
+      ["9.8", "17.1", "27.9", "61.5", "55.9", "63.1", "70.4"], // at 5 µM, a pipetting error
     ]),
   });
-  analysis("t-kinase", "a-kinase", "Michaelis-Menten", "nonlinear-regression", { model: "michaelis-menten" });
+  // ROUT leaves the pipetting error out of the fit (drawn hollow).
+  analysis("t-kinase", "a-kinase", "Michaelis-Menten (ROUT)", "nonlinear-regression", {
+    model: "michaelis-menten",
+    rout: true,
+  });
   graph("t-kinase", "g-kinase", "Michaelis-Menten", "xy-scatter", {
     regAnalysisId: "a-kinase",
     ...POINTS,
@@ -192,6 +218,7 @@ const arms = (...names: string[]) => ({
     ),
     excluded: ["3,2"],
   });
+  analysis("t-volume", "a-volume-desc", "Descriptive statistics", "descriptive-statistics");
   // Each treatment against the vehicle: Dunnett's test, not every pair.
   analysis("t-volume", "a-volume", "One-way ANOVA + Dunnett (vs. vehicle)", "anova", {
     posthoc: "dunnett",
@@ -262,6 +289,7 @@ const arms = (...names: string[]) => ({
     ...POINTS,
     xLabel: "Hours after injection",
     yLabel: "HLX-101 (ng/mL)",
+    yScale: "log10", // a decay on a log axis, as pharmacokinetics plots it
     legend: { x: 0.8, y: 0.98 },
     note: { x: 280, y: 90 }, // its half-life, where the curve isn't
   });
@@ -504,13 +532,28 @@ const TOP_GENES = ["CDKN1A", "GADD45A", "BAX", "PMAIP1", "TP53I3", "MYC", "CCND1
     dependent: "Tumor size (mm)",
     predictors: ["CA 19-9 (U/mL)", "CEA (ng/mL)", "Ki-67 (%)"],
   });
+  // The correlation drawn: its line, 95% band, and r, R² and P on the graph.
+  analysis("t-markers", "a-markers-lin", "Linear regression (tumor size vs. Ki-67)", "linear-regression", {
+    x: "Ki-67 (%)",
+    y: "Tumor size (mm)",
+    forceOrigin: false,
+  });
   graph("t-markers", "g-markers", "Ki-67 vs. tumor size", "xy-scatter", {
+    regAnalysisId: "a-markers-lin",
     xVariable: "Ki-67 (%)",
     ...POINTS,
     yVariable: "Tumor size (mm)",
     xLabel: "Ki-67 (%)",
     yLabel: "Tumor size (mm)",
     series: { "Tumor size (mm)": { color: ARM_COLORS[DRUG] } },
+  });
+  graph("t-markers", "g-markers-ki67", "Ki-67 distribution", "histogram", {
+    xVariable: "Ki-67 (%)",
+    binWidth: 10,
+    xLabel: "Ki-67 (%)",
+    yLabel: "Patients",
+    outlineColor: "#000000",
+    series: { "Ki-67 (%)": { color: ARM_COLORS[DRUG] } },
   });
 }
 
@@ -524,12 +567,37 @@ const TOP_GENES = ["CDKN1A", "GADD45A", "BAX", "PMAIP1", "TP53I3", "MYC", "CCND1
   });
   analysis("t-response", "a-response", "Fisher's exact test", "chi-square");
   graph("t-response", "g-response", "Stacked bars", "grouped-stacked", {
-    yLabel: "Patients",
+    stackAs: "percent",
+    yLabel: "Patients (%)",
     outlineColor: "#000000",
     series: {
       Responder: { color: ARM_COLORS[DRUG] },
       "Non-responder": { color: ARM_COLORS[VEHICLE], pattern: "diagonal" },
     },
+  });
+}
+
+{
+  // The 50 patients on HLX-101: their exposure (plasma AUC), and whether they responded, the
+  // 19 responders of the RECIST table being those exposure favored most, give or take chance.
+  const exposure = range(50).map(() => Math.exp(added(Math.log(40), 0.45)));
+  const chance = exposure.map((auc) => 0.09 * (auc - 40) + 1.6 * added(0, 1));
+  const responders = new Set([...chance.keys()].sort((a, b) => chance[b] - chance[a]).slice(0, 19));
+  table("t-exposure", "Response vs. exposure", "xy", {
+    columns: ["Title", "HLX-101 AUC (µg·h/mL)", "Response"],
+    rows: rows(
+      [exposure.map((auc) => fixed(auc, 1)), exposure.map((_, i) => (responders.has(i) ? "1" : "0"))],
+      range(50).map((i) => `P${String(i + 1).padStart(2, "0")}`),
+    ),
+  });
+  analysis("t-exposure", "a-exposure", "Simple logistic regression", "logistic-regression");
+  graph("t-exposure", "g-exposure", "Probability of response", "xy-scatter", {
+    regAnalysisId: "a-exposure",
+    ...POINTS,
+    pointFill: 0.5,
+    xLabel: "HLX-101 exposure, AUC (µg·h/mL)",
+    yLabel: "Probability of response",
+    series: { Response: { color: ARM_COLORS[DRUG] } },
   });
 }
 

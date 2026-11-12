@@ -62,7 +62,7 @@ function InspectorToggle() {
 }
 
 /** A titled inspector group with a hairline divider. With `onToggle`, clicking
- *  the title collapses or expands it. */
+ *  the title collapses or expands it (`all`: with ⌥, its siblings too). */
 export function Section({
   title,
   icon,
@@ -76,7 +76,7 @@ export function Section({
   icon?: React.ReactNode;
   action?: React.ReactNode;
   collapsed?: boolean;
-  onToggle?: () => void;
+  onToggle?: (all: boolean) => void;
   children: React.ReactNode;
 }) {
   return (
@@ -84,7 +84,7 @@ export function Section({
       <div className="flex items-center justify-between">
         <button
           type="button"
-          onClick={onToggle}
+          onClick={(e) => onToggle?.(e.altKey)}
           disabled={!onToggle}
           className="flex items-center gap-1.5 text-small-strong uppercase tracking-wide text-primary"
         >

@@ -10,6 +10,8 @@ import type {
   CorrelationParams,
   MultipleRegressionParams,
   MultipleTTestsParams,
+  LinearRegressionParams,
+  LogisticRegressionParams,
   NonlinearRegressionParams,
   OutliersParams,
   SurvivalParams,
@@ -28,9 +30,10 @@ import { friedmanSpec } from "./column/friedman";
 import { runNormality } from "./column/shapiro-wilk";
 import { runGrubbs, runRout } from "./column/rout";
 import { runXYCorrelation } from "./xy/correlation";
-import { linearRegressionSpec } from "./xy/linear-regression";
+import { linearRegressionSpec, runLinearRegressions } from "./xy/linear-regression";
 import { runAreaUnderCurve } from "./xy/area-under-curve";
 import { runNonlinearRegression } from "./xy/nonlinear-regression";
+import { runLogisticRegression } from "./xy/logistic-regression";
 import { runTwoWayAnova } from "./grouped/two-way-anova";
 import { runMultipleTTests } from "./grouped/multiple-t-tests";
 import { runCorrelationMatrix } from "./multiple/correlation-matrix";
@@ -86,7 +89,22 @@ export const ANALYSES: Record<AnalysisType, Analysis> = {
     run: (c, p) => ((p as OutliersParams | undefined)?.grubbs ? runGrubbs(c) : runRout(c, p as OutliersParams)),
   },
   correlation: { label: "Correlation", minColumns: 2, run: (c, p) => runXYCorrelation(c, p as XYCorrelationParams) },
-  "linear-regression": spec("Linear regression", linearRegressionSpec),
+  "linear-regression": {
+    ...spec("Linear regression", linearRegressionSpec),
+    // Several Y data sets: each regressed on its own, side by side; one: as the spec says.
+    run: (c, p) => {
+      const params = p as LinearRegressionParams | undefined;
+      const ys = params?.ys ?? [];
+      return ys.length > 1
+        ? runLinearRegressions(c, { ...params!, ys })
+        : runColumnTest(c, linearRegressionSpec, ys.length ? { ...params!, y: ys[0], ys: undefined } : params);
+    },
+  },
+  "logistic-regression": {
+    label: "Simple logistic regression",
+    minColumns: 2,
+    run: (c, p) => runLogisticRegression(c, p as LogisticRegressionParams),
+  },
   "area-under-curve": {
     label: "Area under the curve",
     minColumns: 2,
@@ -142,12 +160,15 @@ export function runAnalysis(
   // A data set or a column the analysis names (a regression's Y…) must still be there.
   // prettier-ignore
   const named = params as
-    { x?: string; y?: string; dependent?: string; reference?: string; control?: string; compareWith?: string; predictors?: string[]; datasets?: string[] } | undefined;
+    { x?: string; y?: string; ys?: string[]; dependent?: string; reference?: string; control?: string; compareWith?: string; predictors?: string[]; datasets?: string[] } | undefined;
   // prettier-ignore
-  const chosen = [named?.x, named?.y, named?.dependent, named?.reference, named?.control, named?.compareWith, ...(named?.predictors ?? []), ...(named?.datasets ?? [])];
+  const chosen = [named?.x, named?.y, named?.dependent, named?.reference, named?.control, named?.compareWith, ...(named?.ys ?? []), ...(named?.predictors ?? []), ...(named?.datasets ?? [])];
   const gone =
     params?.sets?.find((name) => !table.sets.some((s) => s.name === name)) ??
-    chosen.find((name) => name !== undefined && !table.columns.some((c) => c.name === name));
+    chosen.find(
+      (name) =>
+        name !== undefined && !table.columns.some((c) => c.name === name) && !table.sets.some((s) => s.name === name),
+    );
   if (gone) return Promise.resolve({ error: missingColumn(gone) });
   const byTest = results.get(data) ?? new Map<string, Promise<AnalysisOutcome>>();
   results.set(data, byTest);

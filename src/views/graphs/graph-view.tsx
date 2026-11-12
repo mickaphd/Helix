@@ -17,17 +17,17 @@ import {
   type ProjectNode,
   type SeriesStyle,
 } from "../../store/types";
-import type { LinearRegressionParams, NonlinearRegressionParams } from "../../stats/types";
+import type { LinearRegressionParams, LogisticRegressionParams, NonlinearRegressionParams } from "../../stats/types";
 import { useProjectStore } from "../../store/use-project-store";
-import { groupsOf, readTable, xyProblem } from "../../lib/dataset";
+import { groupsOf, isGrouped, readTable, splitXY, xyProblem, type Column } from "../../lib/dataset";
 import { paletteOf } from "../../lib/palettes";
 import { computeGroupedDEG } from "../../lib/deg";
 import { useAnalysis } from "../analyses/use-analysis";
 import { GRAPHS, graphSeries, plotColumns } from ".";
-import { addFittedCurve } from "./fitted-curve";
+import { addFittedCurves, addLogisticCurve } from "./fitted-curve";
 import { FormatPanel } from "./format-panel";
 import { copyGraphImage, saveGraphImage } from "./graph-export";
-import { INK, MOVABLE, marginsFor, movedText, paintOf, withCaps } from "./plot-helpers";
+import { INK, MOVABLE, marginsFor, movedText, onAxis, paintOf, withCaps } from "./plot-helpers";
 import { useStartAnalysis } from "../analyses/use-analysis-launcher";
 import { loadPlotly } from "./plotly";
 import { addRegression } from "./regression-overlay";
@@ -45,6 +45,7 @@ import {
 import { chooseSelectionStyle } from "./style-menus";
 import { genesNamed, volcanoAxes, volcanoPair } from "./volcano";
 import { titleCase } from "../../lib/format";
+import { tooManyBins } from "../../lib/histogram";
 
 // The view's zoom, 25 % to 400 %, as in Pages; WebGL's resolution, which Plotly takes up to 4.
 const ZOOM = { min: 0.25, max: 4 };
@@ -99,11 +100,14 @@ export function GraphView({ node }: { node: ProjectNode }) {
     () => (dataset && parent?.tableType ? plotColumns(dataset, type, options, parent.tableType) : []),
     [dataset, type, options.center, options.xVariable, options.yVariable, parent?.tableType],
   );
-  // A graph of a table with an X needs numbers in X and in a Y column, and says which it lacks.
+  // A graph of a table with an X needs numbers in X and in a Y column, and says which it lacks;
+  // a survival curve, one column per group (each row a subject, or a count), never replicates.
   const xyLack =
-    family === "xy" && parent?.tableType && hasXColumn(parent.tableType) && dataset
-      ? xyProblem(dataset.columns)
-      : undefined;
+    type === "survival" && parent?.data && isGrouped(parent.data)
+      ? "Each group needs one column of event codes or survivor counts, not replicates."
+      : family === "xy" && parent?.tableType && hasXColumn(parent.tableType) && dataset
+        ? xyProblem(dataset.columns)
+        : undefined;
 
   // A volcano on a grouped table: Helix computes the DEGs between two of its groups
   // (per-row Welch t test + BH FDR) and plots them, read like any other table.
@@ -147,6 +151,32 @@ export function GraphView({ node }: { node: ProjectNode }) {
     : family === "volcano" && parent?.tableType === "xy"
       ? { ...options, volcanoX: dataset?.columns[0]?.name }
       : options;
+  // What a graph can't draw, said in its Format panel: values at or under 0 on a log axis
+  // (X: only a numeric one; on XY, its first column is X), a volcano's P values under 0.
+  const atOrUnder0 = (cols: Column[]) => cols.reduce((n, c) => n + c.values.filter((v) => v <= 0).length, 0);
+  const logLeftOut = {
+    x: family === "xy" && options.xScale !== "linear" ? atOrUnder0(columns.slice(0, 1)) : 0,
+    // A histogram's Y counts values: an empty bin is simply not drawn.
+    y:
+      options.yScale !== "linear" && family !== "histogram"
+        ? atOrUnder0(family === "xy" ? columns.slice(1) : columns)
+        : 0,
+  };
+  const binsTooMany =
+    family === "histogram" &&
+    tooManyBins(
+      columns.flatMap((c) => c.values),
+      options.binWidth,
+    );
+  const volcanoY =
+    family === "volcano" && !volcanoGroups
+      ? volcanoAxes(
+          volcanoColumns.filter((c) => c.values.length > 0),
+          volcanoColumns,
+          buildOptions,
+        ).y
+      : undefined;
+  const volcanoBelowZero = volcanoY?.values.filter((p) => p < 0).length ?? 0;
   // A volcano whose chosen column is gone says so, and draws no other in its place.
   const gone = family === "volcano" ? volcanoAxes([], volcanoColumns, buildOptions).gone : undefined;
   const lack = xyLack ?? (gone === undefined ? undefined : `The column “${gone}” is no longer in the table.`);
@@ -257,17 +287,18 @@ export function GraphView({ node }: { node: ProjectNode }) {
     [sigAnalysis, sigOutcome],
   );
   // An XY scatter draws a regression of its table: a linear one's line and band it computes
-  // itself; a nonlinear one's curve, from its result.
+  // itself; a nonlinear or logistic one's curve, from its result.
   const regNode = options.regAnalysisId ? nodes[options.regAnalysisId] : undefined;
   const regParams = regNode?.analysisParams as LinearRegressionParams | undefined;
   const curveParams =
     regNode?.analysisType === "nonlinear-regression"
       ? (regNode.analysisParams as NonlinearRegressionParams)
       : undefined;
+  const logistic = regNode?.analysisType === "logistic-regression";
   const curveOutcome = useAnalysis(
-    type === "xy-scatter" && curveParams ? "nonlinear-regression" : undefined,
+    type === "xy-scatter" && (curveParams || logistic) ? regNode!.analysisType : undefined,
     data,
-    curveParams,
+    regNode?.analysisParams,
   );
   const curveFit = curveOutcome && !("error" in curveOutcome) ? curveOutcome : null;
 
@@ -344,15 +375,27 @@ export function GraphView({ node }: { node: ProjectNode }) {
       fig.data = withCaps(fig.data, options);
       if (family === "column" && options.sigAnalysisId) addSignificance(fig, columns, type, options, comparisons ?? []);
       if (type === "xy-scatter" && curveParams) {
-        const [x, ...ys] = columns;
-        const y = ys.find((c) => c.name === curveParams.y) ?? ys[0];
+        const { x, ys } = splitXY(columns);
+        const fitted = curveParams.ys ?? [curveParams.y ?? ys[0]?.name ?? ""];
+        if (curveFit && x && options.regShowLine)
+          addFittedCurves(fig, x, fitted, ys, curveParams.model, curveFit, options.regShowEquation, options, paint);
+      } else if (type === "xy-scatter" && logistic) {
+        const { x, ys } = splitXY(columns);
+        const y = ys.find((s) => s.name === (regNode.analysisParams as LogisticRegressionParams)?.y) ?? ys[0];
         if (curveFit && x && y && options.regShowLine)
-          addFittedCurve(fig, x, y, ys, curveParams.model, curveFit, options.regShowEquation, options, paint);
+          addLogisticCurve(fig, x, y, ys, curveFit, options.regShowEquation, options, paint);
       } else if (type === "xy-scatter" && regNode) addRegression(fig, columns, options, regParams, paint);
       // The points' names are part of the figure (the volcano places its own, among the
       // genes it names); the selection ring only of the view.
       const labels =
-        family === "volcano" ? [] : pointLabels(fig.data, options.points, dataset?.titles, options.fontSize);
+        family === "volcano"
+          ? []
+          : pointLabels(fig.data, options.points, dataset?.titles, options.fontSize).map((label) => ({
+              ...label,
+              // A text sits at the log10 of its place on a log axis (X: only a numeric one).
+              x: family === "xy" ? onAxis(label.x, options.xScale) : label.x,
+              y: onAxis(label.y, options.yScale),
+            }));
       if (labels.length) fig.layout.annotations = [...((fig.layout.annotations as unknown[]) ?? []), ...labels];
       const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent");
       const ring = selectionRing(fig.data, selected, accent);
@@ -469,6 +512,10 @@ export function GraphView({ node }: { node: ProjectNode }) {
           }
           volcanoGroups={volcanoGroups}
           volcanoLeftOut={volcanoLeftOut}
+          volcanoBelowZero={volcanoBelowZero}
+          logLeftOut={logLeftOut}
+          binsTooMany={binsTooMany}
+          replicates={parent?.tableType === "xy" && Boolean(parent.data && isGrouped(parent.data))}
           onFindGenes={findGenes}
           numericNames={dataset?.numeric.map((c) => c.name) ?? []}
           allNames={dataset?.columns.map((c) => c.name) ?? []}

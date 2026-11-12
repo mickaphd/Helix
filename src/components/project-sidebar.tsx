@@ -150,12 +150,14 @@ export function ProjectSidebar() {
     listRef.current?.focus();
   };
 
-  // Tables whose analyses and graphs are hidden.
-  const [collapsed, setCollapsed] = React.useState<ReadonlySet<string>>(new Set());
-  const setOpen = (id: string, open: boolean) => {
+  // Tables whose analyses and graphs are hidden; with ⌥, a triangle folds or unfolds them all.
+  const { foldedTables: collapsed, setFoldedTables: setCollapsed } = useLayout();
+  const setOpen = (id: string, open: boolean, all = false) => {
     const next = new Set(collapsed);
-    if (open) next.delete(id);
-    else next.add(id);
+    for (const t of all ? tables.map((t) => t.id) : [id]) {
+      if (open) next.delete(t);
+      else next.add(t);
+    }
     setCollapsed(next);
   };
   // An analysis or graph that comes to show (a new one, one brought back by Undo) is
@@ -240,7 +242,7 @@ export function ProjectSidebar() {
             renaming={renaming === table.id}
             onRename={(name) => rename(table, name)}
             open={!collapsed.has(table.id)}
-            onToggle={() => setOpen(table.id, collapsed.has(table.id))}
+            onToggle={(all) => setOpen(table.id, collapsed.has(table.id), all)}
             onClick={() => select(table.id)}
             onContextMenu={(e) => {
               e.preventDefault();

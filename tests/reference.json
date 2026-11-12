@@ -14,7 +14,11 @@
     "ciHigh": 19.66483206,
     "min": 10.9,
     "max": 30,
-    "range": 19.1
+    "range": 19.1,
+    "q1": 11.5,
+    "q3": 13.1,
+    "cv": 44.44461939,
+    "geoMean": 13.53168056
    },
    {
     "name": "Low",
@@ -27,7 +31,11 @@
     "ciHigh": 15.62371243,
     "min": 13.8,
     "max": 16.2,
-    "range": 2.4
+    "range": 2.4,
+    "q1": 14.1,
+    "q3": 15.5,
+    "cv": 5.688316403,
+    "geoMean": 14.82247051
    },
    {
     "name": "High",
@@ -40,7 +48,11 @@
     "ciHigh": 20.75358218,
     "min": 18.2,
     "max": 21.3,
-    "range": 3.1
+    "range": 3.1,
+    "q1": 18.65,
+    "q3": 20.4,
+    "cv": 5.522645577,
+    "geoMean": 19.5919028
    },
    {
     "name": "Sparse",
@@ -53,10 +65,14 @@
     "ciHigh": 12.61402894,
     "min": 9,
     "max": 12,
-    "range": 3
+    "range": 3,
+    "q1": 9.375,
+    "q3": 11.75,
+    "cv": 11.76470588,
+    "geoMean": 10.56821001
    }
   ],
-  "notes": "Per-column summary. Range is Max − Min. 95% CI is the t-based confidence interval of the mean; columns with fewer than 2 values have no SD, SEM, or CI."
+  "notes": "Range is Max − Min. 95% CI is the t-based confidence interval of the mean. The 25th and 75th percentiles are R's type 6, the (n + 1)p method. The coefficient of variation is SD ÷ mean. Columns with fewer than 2 values have no SD, SEM, CI or CV; the geometric mean needs every value above 0."
  },
  "compare-two-groups column {\"paired\":false,\"gaussian\":true,\"equalVariance\":false,\"ratio\":false,\"tails\":\"two-sided\"}": {
   "testType": "compare-two-groups",
@@ -2755,7 +2771,7 @@
     "n": 8
    }
   ],
-  "notes": "Trapezoidal-rule area under the curve for each Y data set vs. X, measured from a baseline of Y = 0. Area below the baseline counts as negative. Points are sorted by X first; a data set needs at least 2 points.",
+  "notes": "Trapezoidal-rule area under the curve for each Y data set vs. X, measured from a baseline of Y = 0. Area below the baseline counts as negative. Points are sorted by X first, replicates as their mean; a data set needs at least 2 points.",
   "areas": [
    {
     "variable": "Y1",
@@ -2812,7 +2828,7 @@
     "n": 8
    }
   ],
-  "notes": "Trapezoidal-rule area under the curve for each Y data set vs. X, measured from a baseline of Y = 2. Area below the baseline counts as negative. Points are sorted by X first; a data set needs at least 2 points.",
+  "notes": "Trapezoidal-rule area under the curve for each Y data set vs. X, measured from a baseline of Y = 2. Area below the baseline counts as negative. Points are sorted by X first, replicates as their mean; a data set needs at least 2 points.",
   "areas": [
    {
     "variable": "Y1",
@@ -2828,6 +2844,1212 @@
     "variable": "Y3",
     "area": -0.85,
     "n": 7
+   }
+  ]
+ },
+ "linear-regression xyReps {\"y\":\"A\",\"forceOrigin\":false}": {
+  "testType": "linear-regression",
+  "subtitle": "Simple linear regression",
+  "equation": "Y = 1.987*X + 1.09",
+  "stats": [
+   {
+    "label": "Slope",
+    "value": 1.987407407
+   },
+   {
+    "label": "Slope 95% CI lower",
+    "value": 1.80002633
+   },
+   {
+    "label": "Slope 95% CI upper",
+    "value": 2.174788485
+   },
+   {
+    "label": "Y-intercept",
+    "value": 1.09037037
+   },
+   {
+    "label": "Intercept 95% CI lower",
+    "value": 0.6179194305
+   },
+   {
+    "label": "Intercept 95% CI upper",
+    "value": 1.56282131
+   },
+   {
+    "label": "Pearson r",
+    "value": 0.9889504609
+   },
+   {
+    "label": "R squared",
+    "value": 0.9780230142
+   },
+   {
+    "label": "P value (slope ≠ 0)",
+    "value": 2.565969849e-11,
+    "p": true
+   }
+  ],
+  "groups": [
+   {
+    "name": "X",
+    "mean": 2.071428571,
+    "sd": 1.491735474,
+    "sem": 0.3986830755,
+    "median": 2,
+    "n": 14
+   },
+   {
+    "name": "A",
+    "mean": 5.207142857,
+    "sd": 2.997810556,
+    "sem": 0.8011985723,
+    "median": 5.35,
+    "n": 14
+   }
+  ],
+  "notes": "Ordinary least-squares linear regression of “A” on “X”. Assumes a linear relationship and homoscedastic residuals."
+ },
+ "linear-regression xy {\"ys\":[\"Y1\",\"Y2\",\"Y3\"],\"forceOrigin\":false}": {
+  "testType": "linear-regression",
+  "subtitle": "Simple linear regression",
+  "stats": [],
+  "fit": {
+   "sets": [
+    "Y1",
+    "Y2",
+    "Y3"
+   ],
+   "rows": [
+    {
+     "label": "Slope",
+     "values": [
+      2.012280702,
+      2.015178571,
+      -0.7231213873
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       1.933369143,
+       2.091192261
+      ],
+      [
+       1.899387903,
+       2.13096924
+      ],
+      [
+       -0.7768233515,
+       -0.6694194231
+      ]
+     ]
+    },
+    {
+     "label": "Y-intercept",
+     "values": [
+      0.9929824561,
+      2.027678571,
+      4.814450867
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       0.6456371133,
+       1.340327799
+      ],
+      [
+       1.514180355,
+       2.541176788
+      ],
+      [
+       4.569196032,
+       5.059705703
+      ]
+     ]
+    },
+    {
+     "label": "Pearson r",
+     "values": [
+      0.9992303609,
+      0.9991445113,
+      -0.997919928
+     ]
+    },
+    {
+     "label": "R squared",
+     "values": [
+      0.9984613141,
+      0.9982897544,
+      0.9958441826
+     ]
+    },
+    {
+     "label": "P value (slope ≠ 0)",
+     "values": [
+      1.139070697e-9,
+      0.000001097478352,
+      3.785869715e-7
+     ],
+     "p": true
+    },
+    {
+     "label": "N",
+     "values": [
+      8,
+      6,
+      7
+     ]
+    }
+   ]
+  },
+  "groups": [
+   {
+    "name": "X",
+    "mean": 3.625,
+    "sd": 2.669269563,
+    "sem": 0.9437293044,
+    "median": 3.5,
+    "n": 8
+   },
+   {
+    "name": "Y1",
+    "mean": 9.033333333,
+    "sd": 5.503635162,
+    "sem": 1.834545054,
+    "median": 9.1,
+    "n": 9
+   },
+   {
+    "name": "Y2",
+    "mean": 10.21428571,
+    "sd": 5.455709111,
+    "sem": 2.062064219,
+    "median": 9.7,
+    "n": 7
+   },
+   {
+    "name": "Y3",
+    "mean": 3.7375,
+    "sd": 4.941352475,
+    "sem": 1.747031922,
+    "median": 2.55,
+    "n": 8
+   }
+  ],
+  "notes": "Ordinary least-squares linear regression of each Y data set on “X”, each on its own. Assumes a linear relationship and homoscedastic residuals."
+ },
+ "linear-regression xyReps {\"ys\":[\"A\",\"B\"],\"forceOrigin\":true}": {
+  "testType": "linear-regression",
+  "subtitle": "Simple linear regression (through origin)",
+  "stats": [],
+  "fit": {
+   "sets": [
+    "A",
+    "B"
+   ],
+   "rows": [
+    {
+     "label": "Slope",
+     "values": [
+      2.342696629,
+      0.806779661
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       2.163305288,
+       2.52208797
+      ],
+      [
+       -0.1966055033,
+       1.810164825
+      ]
+     ]
+    },
+    {
+     "label": "Y-intercept",
+     "values": [
+      0,
+      0
+     ]
+    },
+    {
+     "label": "R squared",
+     "values": [
+      0.9839297528,
+      0.2429782465
+     ]
+    },
+    {
+     "label": "P value (slope ≠ 0)",
+     "values": [
+      4.773286924e-13,
+      0.1034654102
+     ],
+     "p": true
+    },
+    {
+     "label": "N",
+     "values": [
+      14,
+      11
+     ]
+    }
+   ]
+  },
+  "groups": [
+   {
+    "name": "X",
+    "mean": 2,
+    "sd": 1.58113883,
+    "sem": 0.7071067812,
+    "median": 2,
+    "n": 5
+   },
+   {
+    "name": "A",
+    "mean": 5.358823529,
+    "sd": 2.725357505,
+    "sem": 0.6609962859,
+    "median": 5.8,
+    "n": 17
+   },
+   {
+    "name": "B",
+    "mean": 3.572727273,
+    "sd": 1.328225063,
+    "sem": 0.4004749247,
+    "median": 3.9,
+    "n": 11
+   }
+  ],
+  "notes": "Ordinary least-squares linear regression of each Y data set on “X”, each on its own, forced through the origin. Assumes a linear relationship and homoscedastic residuals."
+ },
+ "nonlinear-regression doseTwo {\"ys\":[\"Control\",\"Treated\"],\"model\":\"sigmoidal-4pl-logx\"}": {
+  "testType": "nonlinear-regression",
+  "subtitle": "Sigmoidal, 4PL, X is log(concentration)",
+  "stats": [],
+  "fit": {
+   "sets": [
+    "Control",
+    "Treated"
+   ],
+   "rows": [
+    {
+     "label": "EC50",
+     "values": [
+      0.1438862706,
+      0.4145094891
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       0.137793742,
+       0.1502481795
+      ],
+      [
+       0.4007107084,
+       0.4287834414
+      ]
+     ]
+    },
+    {
+     "label": "Span",
+     "values": [
+      97.96387721,
+      98.60451872
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       96.62588276,
+       99.30187167
+      ],
+      [
+       97.5323415,
+       99.67669593
+      ]
+     ]
+    },
+    {
+     "label": "R squared",
+     "values": [
+      0.9999224337,
+      0.9999559518
+     ]
+    },
+    {
+     "label": "Sy.x",
+     "values": [
+      0.4474730704,
+      0.3319585961
+     ]
+    },
+    {
+     "label": "Sum of squares",
+     "values": [
+      1.201392892,
+      0.6611790572
+     ]
+    },
+    {
+     "label": "Degrees of freedom",
+     "values": [
+      6,
+      6
+     ]
+    },
+    {
+     "label": "N",
+     "values": [
+      10,
+      10
+     ]
+    }
+   ]
+  },
+  "groups": [
+   {
+    "name": "X",
+    "mean": -0.75,
+    "sd": 1.513825177,
+    "sem": 0.4787135539,
+    "median": -0.75,
+    "n": 10
+   },
+   {
+    "name": "Control",
+    "mean": 52.05,
+    "sd": 41.48438126,
+    "sem": 13.11851321,
+    "median": 55.05,
+    "n": 10
+   },
+   {
+    "name": "Treated",
+    "mean": 43.21,
+    "sd": 40.83893703,
+    "sem": 12.91440582,
+    "median": 32.6,
+    "n": 10
+   }
+  ],
+  "notes": "Least-squares fit (\"Sigmoidal, 4PL, X is log(concentration)\") of “Control” and “Treated” on “X”. 95% CIs are asymptotic (from each parameter's standard error). Each data set is fitted on its own.",
+  "coefficients": [
+   {
+    "term": "Control — Bottom",
+    "estimate": 1.278310063,
+    "stdError": 0.3572701809,
+    "t": 3.577992598,
+    "p": 0.01167127022,
+    "low": 0.404101423,
+    "high": 2.152518702
+   },
+   {
+    "term": "Control — Top",
+    "estimate": 99.24218728,
+    "stdError": 0.3272161451,
+    "t": 303.2924529,
+    "p": 8.670812482e-14,
+    "low": 98.44151821,
+    "high": 100.0428563
+   },
+   {
+    "term": "Control — LogEC50",
+    "estimate": -0.8419806437,
+    "stdError": 0.007679010652,
+    "t": -109.6470212,
+    "p": 3.879305116e-11,
+    "low": -0.8607705059,
+    "high": -0.8231907816
+   },
+   {
+    "term": "Control — Hill slope",
+    "estimate": 0.9769513568,
+    "stdError": 0.01584450365,
+    "t": 61.65869113,
+    "p": 1.223320237e-9,
+    "low": 0.9381812531,
+    "high": 1.015721461
+   },
+   {
+    "term": "Treated — Bottom",
+    "estimate": 1.092058539,
+    "stdError": 0.2214461903,
+    "t": 4.931484882,
+    "p": 0.002626293756,
+    "low": 0.5501992321,
+    "high": 1.633917847
+   },
+   {
+    "term": "Treated — Top",
+    "estimate": 99.69657726,
+    "stdError": 0.3190498134,
+    "t": 312.4796601,
+    "p": 7.249418996e-14,
+    "low": 98.91589049,
+    "high": 100.477264
+   },
+   {
+    "term": "Treated — LogEC50",
+    "estimate": -0.382465523,
+    "stdError": 0.006009014417,
+    "t": -63.64862795,
+    "p": 1.011305267e-9,
+    "low": -0.3971690516,
+    "high": -0.3677619944
+   },
+   {
+    "term": "Treated — Hill slope",
+    "estimate": 0.9515258252,
+    "stdError": 0.01168112183,
+    "t": 81.45842829,
+    "p": 2.304927268e-10,
+    "low": 0.9229431497,
+    "high": 0.9801085006
+   }
+  ]
+ },
+ "logistic-regression shuttle {}": {
+  "testType": "logistic-regression",
+  "subtitle": "Simple logistic regression",
+  "stats": [
+   {
+    "label": "Odds ratio (per unit of X)",
+    "value": 0.7928170864
+   },
+   {
+    "label": "Odds ratio 95% CI lower",
+    "value": 0.5972187885
+   },
+   {
+    "label": "Odds ratio 95% CI upper",
+    "value": 0.9409918865
+   },
+   {
+    "label": "X at 50% probability",
+    "value": 64.79464092
+   },
+   {
+    "label": "Tjur's R squared",
+    "value": 0.3378403393
+   },
+   {
+    "label": "P value (likelihood ratio test)",
+    "value": 0.00480353251,
+    "p": true
+   },
+   {
+    "label": "N",
+    "value": 23
+   },
+   {
+    "label": "Number of 0s",
+    "value": 16
+   },
+   {
+    "label": "Number of 1s",
+    "value": 7
+   }
+  ],
+  "coefficients": [
+   {
+    "term": "B0 (intercept)",
+    "estimate": 15.04290165,
+    "stdError": 7.378630132,
+    "t": 2.03871198,
+    "p": 0.04147878138,
+    "low": 3.330584774,
+    "high": 34.34215133
+   },
+   {
+    "term": "B1 (slope)",
+    "estimate": -0.2321627442,
+    "stdError": 0.1082364295,
+    "t": -2.144959374,
+    "p": 0.03195609531,
+    "low": -0.5154717528,
+    "high": -0.06082076162
+   }
+  ],
+  "coefficientStatistic": "z",
+  "groups": [
+   {
+    "name": "Temperature",
+    "mean": 69.56521739,
+    "sd": 7.057079533,
+    "sem": 1.471502804,
+    "median": 70,
+    "n": 23
+   },
+   {
+    "name": "Damage",
+    "mean": 0.3043478261,
+    "sd": 0.4704719689,
+    "sem": 0.09810018692,
+    "median": 0,
+    "n": 23
+   }
+  ],
+  "notes": "Logistic regression of “Damage” (1 or 0) on “Temperature”: the probability that Y is 1, P = 1 / (1 + e^−(B0 + B1·X)), fitted by maximum likelihood. The odds ratio is e^B1, how the odds of a 1 are multiplied for each unit of X; the CIs are profile likelihood ones. The P value tests the model against none (likelihood ratio); Tjur's R² is the mean probability of the 1s minus that of the 0s."
+ },
+ "logistic-regression shuttle {\"y\":\"Codes\"}": {
+  "error": "“Codes” holds 2: enter 1 for an event, 0 for none."
+ },
+ "logistic-regression shuttle {\"y\":\"Split\"}": {
+  "error": "In “Split”, an X splits the 0s from the 1s exactly (every 0 below it, every 1 above, or the reverse): the logistic curve is then a step, its slope endless, and can't be estimated."
+ },
+ "nonlinear-regression decayOutlier {\"y\":\"B\",\"model\":\"one-phase-decay\",\"rout\":true}": {
+  "testType": "nonlinear-regression",
+  "subtitle": "One-phase decay",
+  "stats": [],
+  "fit": {
+   "sets": [
+    "B"
+   ],
+   "rows": [
+    {
+     "label": "Half-life",
+     "values": [
+      1.377832771
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       1.282942595,
+       1.487880772
+      ]
+     ]
+    },
+    {
+     "label": "Tau",
+     "values": [
+      1.987792505
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       1.850894919,
+       2.146558211
+      ]
+     ]
+    },
+    {
+     "label": "Span",
+     "values": [
+      1815.190513
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       1761.439531,
+       1868.941496
+      ]
+     ]
+    },
+    {
+     "label": "R squared",
+     "values": [
+      0.9985106531
+     ]
+    },
+    {
+     "label": "Sy.x",
+     "values": [
+      24.33873224
+     ]
+    },
+    {
+     "label": "Sum of squares",
+     "values": [
+      5331.364985
+     ]
+    },
+    {
+     "label": "Degrees of freedom",
+     "values": [
+      9
+     ]
+    },
+    {
+     "label": "N",
+     "values": [
+      12
+     ]
+    },
+    {
+     "label": "Outliers (ROUT)",
+     "values": [
+      1
+     ]
+    }
+   ]
+  },
+  "groups": [
+   {
+    "name": "X",
+    "mean": 6,
+    "sd": 3.894440482,
+    "sem": 1.08012345,
+    "median": 6,
+    "n": 13
+   },
+   {
+    "name": "B",
+    "mean": 622.1538462,
+    "sd": 601.5991656,
+    "sem": 166.8535876,
+    "median": 325.6,
+    "n": 13
+   }
+  ],
+  "notes": "Least-squares fit (\"One-phase decay\") of “B” on “X”. 95% CIs are asymptotic (from each parameter's standard error). Outliers found by ROUT (Q = 1%; Motulsky & Brown, 2006), each left out of its data set's fit, which is then least squares on the other points.",
+  "coefficients": [
+   {
+    "term": "Y0",
+    "estimate": 2018.75278,
+    "stdError": 23.10778555,
+    "t": 87.36245088,
+    "p": 1.70943937e-14,
+    "low": 1966.479337,
+    "high": 2071.026223
+   },
+   {
+    "term": "Plateau",
+    "estimate": 203.5622666,
+    "stdError": 10.89749114,
+    "t": 18.67973683,
+    "p": 1.656844313e-8,
+    "low": 178.9104289,
+    "high": 228.2141042
+   },
+   {
+    "term": "K",
+    "estimate": 0.5030706159,
+    "stdError": 0.01644826916,
+    "t": 30.58501847,
+    "p": 2.090639947e-10,
+    "low": 0.4658620461,
+    "high": 0.5402791858
+   }
+  ],
+  "curveOutliers": [
+   {
+    "set": "B",
+    "label": "Row 4",
+    "x": 3,
+    "y": 1461.6,
+    "key": "B#3"
+   }
+  ]
+ },
+ "nonlinear-regression decayOutlier {\"ys\":[\"A\",\"B\"],\"model\":\"one-phase-decay\",\"rout\":true}": {
+  "testType": "nonlinear-regression",
+  "subtitle": "One-phase decay",
+  "stats": [],
+  "fit": {
+   "sets": [
+    "A",
+    "B"
+   ],
+   "rows": [
+    {
+     "label": "Half-life",
+     "values": [
+      1.348083588,
+      1.377832771
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       1.259601805,
+       1.449935522
+      ],
+      [
+       1.282942595,
+       1.487880772
+      ]
+     ]
+    },
+    {
+     "label": "Tau",
+     "values": [
+      1.944873507,
+      1.987792505
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       1.817221278,
+       2.091814787
+      ],
+      [
+       1.850894919,
+       2.146558211
+      ]
+     ]
+    },
+    {
+     "label": "Span",
+     "values": [
+      1817.319777,
+      1815.190513
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       1760.767797,
+       1873.871756
+      ],
+      [
+       1761.439531,
+       1868.941496
+      ]
+     ]
+    },
+    {
+     "label": "R squared",
+     "values": [
+      0.9981163687,
+      0.9985106531
+     ]
+    },
+    {
+     "label": "Sy.x",
+     "values": [
+      25.96714311,
+      24.33873224
+     ]
+    },
+    {
+     "label": "Sum of squares",
+     "values": [
+      6742.925213,
+      5331.364985
+     ]
+    },
+    {
+     "label": "Degrees of freedom",
+     "values": [
+      10,
+      9
+     ]
+    },
+    {
+     "label": "N",
+     "values": [
+      13,
+      12
+     ]
+    },
+    {
+     "label": "Outliers (ROUT)",
+     "values": [
+      0,
+      1
+     ]
+    }
+   ]
+  },
+  "groups": [
+   {
+    "name": "X",
+    "mean": 6,
+    "sd": 3.894440482,
+    "sem": 1.08012345,
+    "median": 6,
+    "n": 13
+   },
+   {
+    "name": "A",
+    "mean": 552.9230769,
+    "sd": 546.1797554,
+    "sem": 151.4830088,
+    "median": 325.6,
+    "n": 13
+   },
+   {
+    "name": "B",
+    "mean": 622.1538462,
+    "sd": 601.5991656,
+    "sem": 166.8535876,
+    "median": 325.6,
+    "n": 13
+   }
+  ],
+  "notes": "Least-squares fit (\"One-phase decay\") of “A” and “B” on “X”. 95% CIs are asymptotic (from each parameter's standard error). Each data set is fitted on its own. Outliers found by ROUT (Q = 1%; Motulsky & Brown, 2006), each left out of its data set's fit, which is then least squares on the other points.",
+  "coefficients": [
+   {
+    "term": "A — Y0",
+    "estimate": 2022.935849,
+    "stdError": 24.56118367,
+    "t": 82.36312535,
+    "p": 1.701532578e-15,
+    "low": 1968.210122,
+    "high": 2077.661577
+   },
+   {
+    "term": "A — Plateau",
+    "estimate": 205.6160724,
+    "stdError": 11.38096207,
+    "t": 18.0666688,
+    "p": 5.784173585e-9,
+    "low": 180.2577087,
+    "high": 230.9744362
+   },
+   {
+    "term": "A — K",
+    "estimate": 0.5141722566,
+    "stdError": 0.01621014789,
+    "t": 31.7191589,
+    "p": 2.281371929e-11,
+    "low": 0.4780537963,
+    "high": 0.5502907169
+   },
+   {
+    "term": "B — Y0",
+    "estimate": 2018.75278,
+    "stdError": 23.10778555,
+    "t": 87.36245088,
+    "p": 1.70943937e-14,
+    "low": 1966.479337,
+    "high": 2071.026223
+   },
+   {
+    "term": "B — Plateau",
+    "estimate": 203.5622666,
+    "stdError": 10.89749114,
+    "t": 18.67973683,
+    "p": 1.656844313e-8,
+    "low": 178.9104289,
+    "high": 228.2141042
+   },
+   {
+    "term": "B — K",
+    "estimate": 0.5030706159,
+    "stdError": 0.01644826916,
+    "t": 30.58501847,
+    "p": 2.090639947e-10,
+    "low": 0.4658620461,
+    "high": 0.5402791858
+   }
+  ],
+  "curveOutliers": [
+   {
+    "set": "B",
+    "label": "Row 4",
+    "x": 3,
+    "y": 1461.6,
+    "key": "B#3"
+   }
+  ]
+ },
+ "linear-regression xyReps {\"y\":\"B\",\"forceOrigin\":true}": {
+  "testType": "linear-regression",
+  "subtitle": "Simple linear regression (through origin)",
+  "equation": "Y = 0.8068*X",
+  "stats": [
+   {
+    "label": "Slope",
+    "value": 0.806779661
+   },
+   {
+    "label": "Slope 95% CI lower",
+    "value": -0.1966055033
+   },
+   {
+    "label": "Slope 95% CI upper",
+    "value": 1.810164825
+   },
+   {
+    "label": "Y-intercept",
+    "value": 0
+   },
+   {
+    "label": "R squared",
+    "value": 0.2429782465
+   },
+   {
+    "label": "P value (slope ≠ 0)",
+    "value": 0.1034654102,
+    "p": true
+   }
+  ],
+  "groups": [
+   {
+    "name": "X",
+    "mean": 1.727272727,
+    "sd": 1.61807967,
+    "sem": 0.4878693769,
+    "median": 1,
+    "n": 11
+   },
+   {
+    "name": "B",
+    "mean": 3.572727273,
+    "sd": 1.328225063,
+    "sem": 0.4004749247,
+    "median": 3.9,
+    "n": 11
+   }
+  ],
+  "notes": "Ordinary least-squares linear regression of “B” on “X”, forced through the origin. Assumes a linear relationship and homoscedastic residuals."
+ },
+ "area-under-curve xyReps {\"baseline\":0}": {
+  "testType": "area-under-curve",
+  "subtitle": "Area under the curve (trapezoidal rule, baseline Y = 0)",
+  "stats": [],
+  "groups": [
+   {
+    "name": "X",
+    "mean": 2,
+    "sd": 1.58113883,
+    "sem": 0.7071067812,
+    "median": 2,
+    "n": 5
+   },
+   {
+    "name": "A",
+    "mean": 5.358823529,
+    "sd": 2.725357505,
+    "sem": 0.6609962859,
+    "median": 5.8,
+    "n": 17
+   },
+   {
+    "name": "B",
+    "mean": 3.572727273,
+    "sd": 1.328225063,
+    "sem": 0.4004749247,
+    "median": 3.9,
+    "n": 11
+   }
+  ],
+  "notes": "Trapezoidal-rule area under the curve for each Y data set vs. X, measured from a baseline of Y = 0. Area below the baseline counts as negative. Points are sorted by X first, replicates as their mean; a data set needs at least 2 points.",
+  "areas": [
+   {
+    "variable": "A",
+    "area": 20.18333333,
+    "n": 5
+   },
+   {
+    "variable": "B",
+    "area": 13.05833333,
+    "n": 4
+   }
+  ]
+ },
+ "correlation xyReps {\"method\":\"pearson\",\"mode\":\"x-vs-every-y\"}": {
+  "testType": "correlation",
+  "subtitle": "Pearson correlation",
+  "stats": [],
+  "groups": [
+   {
+    "name": "X",
+    "mean": 2,
+    "sd": 1.58113883,
+    "sem": 0.7071067812,
+    "median": 2,
+    "n": 5
+   },
+   {
+    "name": "A",
+    "mean": 5.358823529,
+    "sd": 2.725357505,
+    "sem": 0.6609962859,
+    "median": 5.8,
+    "n": 17
+   },
+   {
+    "name": "B",
+    "mean": 3.572727273,
+    "sd": 1.328225063,
+    "sem": 0.4004749247,
+    "median": 3.9,
+    "n": 11
+   }
+  ],
+  "notes": "Pearson correlation between X and each Y data set; assumes a linear relationship.",
+  "correlations": [
+   {
+    "variable": "A",
+    "r": 0.9889504609,
+    "p": 2.565969849e-11
+   },
+   {
+    "variable": "B",
+    "r": -0.9437029505,
+    "p": 0.0000128593615
+   }
+  ]
+ },
+ "correlation xyReps {\"method\":\"pearson\",\"mode\":\"matrix\"}": {
+  "error": "Correlating Y data sets with each other needs one value per row: this table has replicates."
+ },
+ "nonlinear-regression doseReps {\"model\":\"sigmoidal-4pl-logx\",\"interpolate\":true}": {
+  "testType": "nonlinear-regression",
+  "subtitle": "Sigmoidal, 4PL, X is log(concentration)",
+  "stats": [],
+  "fit": {
+   "sets": [
+    "R"
+   ],
+   "rows": [
+    {
+     "label": "EC50",
+     "values": [
+      0.1431744402
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       0.1278782774,
+       0.1603002539
+      ]
+     ]
+    },
+    {
+     "label": "Span",
+     "values": [
+      98.40065226
+     ]
+    },
+    {
+     "label": "95% CI",
+     "ranges": [
+      [
+       94.93824171,
+       101.8630628
+      ]
+     ]
+    },
+    {
+     "label": "R squared",
+     "values": [
+      0.9974245121
+     ]
+    },
+    {
+     "label": "Sy.x",
+     "values": [
+      2.173156615
+     ]
+    },
+    {
+     "label": "Sum of squares",
+     "values": [
+      108.6200225
+     ]
+    },
+    {
+     "label": "Degrees of freedom",
+     "values": [
+      23
+     ]
+    },
+    {
+     "label": "N",
+     "values": [
+      27
+     ]
+    }
+   ]
+  },
+  "groups": [
+   {
+    "name": "X",
+    "mean": -0.75,
+    "sd": 1.513825177,
+    "sem": 0.4787135539,
+    "median": -0.75,
+    "n": 10
+   },
+   {
+    "name": "R",
+    "mean": 50.040625,
+    "sd": 38.34503483,
+    "sem": 6.778508539,
+    "median": 49.5,
+    "n": 32
+   }
+  ],
+  "notes": "Least-squares fit (\"Sigmoidal, 4PL, X is log(concentration)\") of “R” on “X”. 95% CIs are asymptotic (from each parameter's standard error). Each unknown's X is read off the curve (the lowest, if the curve reaches its Y twice); “extrapolated”: beyond the standards' X.",
+  "coefficients": [
+   {
+    "term": "Bottom",
+    "estimate": 1.367217869,
+    "stdError": 1.112538349,
+    "t": 1.22891752,
+    "p": 0.2315284187,
+    "low": -0.9342430536,
+    "high": 3.668678791
+   },
+   {
+    "term": "Top",
+    "estimate": 99.76787013,
+    "stdError": 0.9748413281,
+    "t": 102.3426759,
+    "p": 4.309277487e-32,
+    "low": 97.7512572,
+    "high": 101.7844831
+   },
+   {
+    "term": "LogEC50",
+    "estimate": -0.8441345062,
+    "stdError": 0.02372007628,
+    "t": -35.58734367,
+    "p": 1.288645874e-21,
+    "low": -0.8932032225,
+    "high": -0.7950657899
+   },
+   {
+    "term": "Hill slope",
+    "estimate": 0.9743331484,
+    "stdError": 0.04612005819,
+    "t": 21.12601733,
+    "p": 1.460409766e-16,
+    "low": 0.8789265391,
+    "high": 1.069739758
+   }
+  ],
+  "interpolated": [
+   {
+    "label": "Sample 1",
+    "y": 50.33333333,
+    "x": -0.8483782465,
+    "concentration": 0.1417822139,
+    "extrapolated": false
+   },
+   {
+    "label": "Sample 2",
+    "y": 10.25,
+    "x": -1.873926761,
+    "concentration": 0.01336820936,
+    "extrapolated": false
    }
   ]
  },
@@ -7022,7 +8244,11 @@
     "ciHigh": 84.89123492,
     "min": 58,
     "max": 95,
-    "range": 37
+    "range": 37,
+    "q1": 67.25,
+    "q3": 88.5,
+    "cv": 15.74012882,
+    "geoMean": 75.45021301
    },
    {
     "name": "Height",
@@ -7035,7 +8261,11 @@
     "ciHigh": 182.1437496,
     "min": 160,
     "max": 188,
-    "range": 28
+    "range": 28,
+    "q1": 169,
+    "q3": 183,
+    "cv": 5.053244814,
+    "geoMean": 175.1327303
    },
    {
     "name": "Age",
@@ -7048,7 +8278,11 @@
     "ciHigh": 46.93696944,
     "min": 25,
     "max": 55,
-    "range": 30
+    "range": 30,
+    "q1": 32,
+    "q3": 48.75,
+    "cv": 24.65414778,
+    "geoMean": 38.7729186
    },
    {
     "name": "Dose",
@@ -7061,10 +8295,14 @@
     "ciHigh": 2.526362956,
     "min": 1,
     "max": 3,
-    "range": 2
+    "range": 2,
+    "q1": 1,
+    "q3": 3,
+    "cv": 46.08394925,
+    "geoMean": 1.711769859
    }
   ],
-  "notes": "Per-column summary. Range is Max − Min. 95% CI is the t-based confidence interval of the mean; columns with fewer than 2 values have no SD, SEM, or CI."
+  "notes": "Range is Max − Min. 95% CI is the t-based confidence interval of the mean. The 25th and 75th percentiles are R's type 6, the (n + 1)p method. The coefficient of variation is SD ÷ mean. Columns with fewer than 2 values have no SD, SEM, CI or CV; the geometric mean needs every value above 0."
  },
  "outliers multiple {\"q\":1}": {
   "testType": "outliers",
@@ -8334,7 +9572,11 @@
     "ciHigh": 12.61402894,
     "min": 9,
     "max": 12,
-    "range": 3
+    "range": 3,
+    "q1": 9.375,
+    "q3": 11.75,
+    "cv": 11.76470588,
+    "geoMean": 10.56821001
    },
    {
     "name": "Low",
@@ -8347,10 +9589,14 @@
     "ciHigh": 15.62371243,
     "min": 13.8,
     "max": 16.2,
-    "range": 2.4
+    "range": 2.4,
+    "q1": 14.1,
+    "q3": 15.5,
+    "cv": 5.688316403,
+    "geoMean": 14.82247051
    }
   ],
-  "notes": "Per-column summary. Range is Max − Min. 95% CI is the t-based confidence interval of the mean; columns with fewer than 2 values have no SD, SEM, or CI."
+  "notes": "Range is Max − Min. 95% CI is the t-based confidence interval of the mean. The 25th and 75th percentiles are R's type 6, the (n + 1)p method. The coefficient of variation is SD ÷ mean. Columns with fewer than 2 values have no SD, SEM, CI or CV; the geometric mean needs every value above 0."
  },
  "compare-two-groups column {\"paired\":false,\"gaussian\":true,\"equalVariance\":false,\"ratio\":false,\"tails\":\"two-sided\",\"sets\":[\"High\",\"Control\"]}": {
   "testType": "compare-two-groups",
@@ -9971,6 +11217,290 @@
    }
   }
  },
+ "graph histogram column": {
+  "data": [
+   {
+    "type": "bar",
+    "name": "Control",
+    "x": [
+     7.5,
+     12.5,
+     17.5,
+     22.5,
+     27.5
+    ],
+    "y": [
+     0,
+     7,
+     0,
+     0,
+     1
+    ],
+    "width": [
+     5,
+     5,
+     5,
+     5,
+     5
+    ],
+    "marker": {
+     "color": "rgba(0,0,0,0.5)",
+     "line": {
+      "color": "#000000",
+      "width": 1.5
+     }
+    },
+    "hoverinfo": "x+y"
+   },
+   {
+    "type": "bar",
+    "name": "Low",
+    "x": [
+     7.5,
+     12.5,
+     17.5,
+     22.5,
+     27.5
+    ],
+    "y": [
+     0,
+     4,
+     3,
+     0,
+     0
+    ],
+    "width": [
+     5,
+     5,
+     5,
+     5,
+     5
+    ],
+    "marker": {
+     "color": "rgba(213,94,0,0.5)",
+     "line": {
+      "color": "#D55E00",
+      "width": 1.5
+     }
+    },
+    "hoverinfo": "x+y"
+   },
+   {
+    "type": "bar",
+    "name": "High",
+    "x": [
+     7.5,
+     12.5,
+     17.5,
+     22.5,
+     27.5
+    ],
+    "y": [
+     0,
+     0,
+     4,
+     2,
+     0
+    ],
+    "width": [
+     5,
+     5,
+     5,
+     5,
+     5
+    ],
+    "marker": {
+     "color": "rgba(86,180,233,0.5)",
+     "line": {
+      "color": "#56B4E9",
+      "width": 1.5
+     }
+    },
+    "hoverinfo": "x+y"
+   },
+   {
+    "type": "bar",
+    "name": "Sparse",
+    "x": [
+     7.5,
+     12.5,
+     17.5,
+     22.5,
+     27.5
+    ],
+    "y": [
+     1,
+     3,
+     0,
+     0,
+     0
+    ],
+    "width": [
+     5,
+     5,
+     5,
+     5,
+     5
+    ],
+    "marker": {
+     "color": "rgba(0,158,115,0.5)",
+     "line": {
+      "color": "#009E73",
+      "width": 1.5
+     }
+    },
+    "hoverinfo": "x+y"
+   }
+  ],
+  "layout": {
+   "paper_bgcolor": "#ffffff",
+   "plot_bgcolor": "#ffffff",
+   "dragmode": false,
+   "font": {
+    "color": "#111827",
+    "family": "system-ui, -apple-system, sans-serif",
+    "size": 13
+   },
+   "margin": {
+    "l": 16,
+    "r": 16,
+    "t": 16,
+    "b": 16
+   },
+   "showlegend": true,
+   "legend": {
+    "x": 1.02,
+    "y": 1,
+    "xanchor": "left"
+   },
+   "xaxis": {
+    "type": "linear",
+    "showgrid": false,
+    "zeroline": false,
+    "linecolor": "#111827",
+    "linewidth": 1,
+    "ticks": "outside",
+    "tickwidth": 1,
+    "fixedrange": true,
+    "automargin": true
+   },
+   "yaxis": {
+    "showgrid": false,
+    "zeroline": false,
+    "linecolor": "#111827",
+    "linewidth": 1,
+    "ticks": "outside",
+    "tickwidth": 1,
+    "fixedrange": true,
+    "automargin": true,
+    "rangemode": "tozero",
+    "title": {
+     "text": "Count",
+     "standoff": 2
+    }
+   },
+   "barmode": "overlay"
+  }
+ },
+ "graph histogram multiple": {
+  "data": [
+   {
+    "type": "bar",
+    "name": "Weight",
+    "x": [
+     57.5,
+     62.5,
+     67.5,
+     72.5,
+     77.5,
+     82.5,
+     87.5,
+     92.5
+    ],
+    "y": [
+     10,
+     10,
+     20,
+     20,
+     0,
+     10,
+     20,
+     10
+    ],
+    "width": [
+     5,
+     5,
+     5,
+     5,
+     5,
+     5,
+     5,
+     5
+    ],
+    "marker": {
+     "color": "rgba(0,0,0,0.5)",
+     "line": {
+      "color": "#000000",
+      "width": 1.5
+     }
+    },
+    "hoverinfo": "x+y"
+   }
+  ],
+  "layout": {
+   "paper_bgcolor": "#ffffff",
+   "plot_bgcolor": "#ffffff",
+   "dragmode": false,
+   "font": {
+    "color": "#111827",
+    "family": "system-ui, -apple-system, sans-serif",
+    "size": 13
+   },
+   "margin": {
+    "l": 16,
+    "r": 16,
+    "t": 16,
+    "b": 16
+   },
+   "showlegend": false,
+   "legend": {
+    "x": 1.02,
+    "y": 1,
+    "xanchor": "left"
+   },
+   "xaxis": {
+    "type": "linear",
+    "showgrid": false,
+    "zeroline": false,
+    "linecolor": "#111827",
+    "linewidth": 1,
+    "ticks": "outside",
+    "tickwidth": 1,
+    "fixedrange": true,
+    "automargin": true,
+    "title": {
+     "text": "Weight",
+     "standoff": 12
+    }
+   },
+   "yaxis": {
+    "showgrid": false,
+    "zeroline": false,
+    "linecolor": "#111827",
+    "linewidth": 1,
+    "ticks": "outside",
+    "tickwidth": 1,
+    "fixedrange": true,
+    "automargin": true,
+    "rangemode": "tozero",
+    "title": {
+     "text": "Percent of total",
+     "standoff": 2
+    }
+   },
+   "barmode": "overlay"
+  }
+ },
  "graph pie column": {
   "data": [
    {
@@ -10543,6 +12073,682 @@
    },
    "barmode": "group",
    "bargroupgap": 0.1
+  }
+ },
+ "graph xy-scatter xyReps": {
+  "data": [
+   {
+    "type": "scatter",
+    "mode": "markers",
+    "name": "A",
+    "x": [
+     0,
+     1,
+     2,
+     3,
+     4
+    ],
+    "y": [
+     1.1,
+     3.1,
+     5.166666667,
+     6.766666667,
+     9.2
+    ],
+    "marker": {
+     "color": "rgba(0,0,0,1)",
+     "size": 7,
+     "symbol": "circle",
+     "line": {
+      "color": "#000000",
+      "width": 1.5
+     }
+    },
+    "error_y": {
+     "type": "data",
+     "array": [
+      0.3,
+      0.2828427125,
+      0.3511884584,
+      0.6506407099,
+      0.6557438524
+     ],
+     "color": "#000000",
+     "thickness": 1.5,
+     "width": 6
+    },
+    "hoverinfo": "x+y"
+   },
+   {
+    "type": "scatter",
+    "mode": "markers",
+    "name": "B",
+    "x": [
+     0,
+     1,
+     2,
+     4
+    ],
+    "y": [
+     5,
+     4.2,
+     2.95,
+     1.933333333
+    ],
+    "marker": {
+     "color": "rgba(230,159,0,1)",
+     "size": 7,
+     "symbol": "circle",
+     "line": {
+      "color": "#E69F00",
+      "width": 1.5
+     }
+    },
+    "error_y": {
+     "type": "data",
+     "array": [
+      0.6,
+      0.3605551275,
+      0.3535533906,
+      0.4509249753
+     ],
+     "color": "#E69F00",
+     "thickness": 1.5,
+     "width": 6
+    },
+    "hoverinfo": "x+y"
+   }
+  ],
+  "layout": {
+   "paper_bgcolor": "#ffffff",
+   "plot_bgcolor": "#ffffff",
+   "dragmode": false,
+   "font": {
+    "color": "#111827",
+    "family": "system-ui, -apple-system, sans-serif",
+    "size": 13
+   },
+   "margin": {
+    "l": 16,
+    "r": 16,
+    "t": 16,
+    "b": 16
+   },
+   "showlegend": true,
+   "legend": {
+    "x": 1.02,
+    "y": 1,
+    "xanchor": "left"
+   },
+   "xaxis": {
+    "type": "linear",
+    "showgrid": false,
+    "zeroline": false,
+    "linecolor": "#111827",
+    "linewidth": 1,
+    "ticks": "outside",
+    "tickwidth": 1,
+    "fixedrange": true,
+    "automargin": true,
+    "title": {
+     "text": "X",
+     "standoff": 12
+    }
+   },
+   "yaxis": {
+    "showgrid": false,
+    "zeroline": false,
+    "linecolor": "#111827",
+    "linewidth": 1,
+    "ticks": "outside",
+    "tickwidth": 1,
+    "fixedrange": true,
+    "automargin": true
+   }
+  }
+ },
+ "graph xy-scatter xyRepsEach": {
+  "data": [
+   {
+    "type": "scatter",
+    "mode": "lines+markers",
+    "name": "A",
+    "x": [
+     0,
+     0,
+     0,
+     1,
+     1,
+     2,
+     2,
+     2,
+     3,
+     3,
+     3,
+     4,
+     4,
+     4
+    ],
+    "y": [
+     1.1,
+     1.4,
+     0.8,
+     2.9,
+     3.3,
+     5.2,
+     4.8,
+     5.5,
+     6.8,
+     7.4,
+     6.1,
+     9.1,
+     8.6,
+     9.9
+    ],
+    "customdata": [
+     "A:Y1#0",
+     "A:Y2#0",
+     "A:Y3#0",
+     "A:Y1#1",
+     "A:Y2#1",
+     "A:Y1#2",
+     "A:Y2#2",
+     "A:Y3#2",
+     "A:Y1#3",
+     "A:Y2#3",
+     "A:Y3#3",
+     "A:Y1#4",
+     "A:Y2#4",
+     "A:Y3#4"
+    ],
+    "marker": {
+     "color": [
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)",
+      "rgba(0,0,0,1)"
+     ],
+     "size": [
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7
+     ],
+     "symbol": [
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle"
+     ],
+     "line": {
+      "color": [
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000",
+       "#000000"
+      ],
+      "width": [
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5
+      ]
+     }
+    },
+    "line": {
+     "color": "#000000",
+     "width": 2,
+     "dash": "solid"
+    },
+    "hoverinfo": "x+y"
+   },
+   {
+    "type": "scatter",
+    "mode": "lines+markers",
+    "name": "B",
+    "x": [
+     0,
+     0,
+     0,
+     1,
+     1,
+     1,
+     2,
+     2,
+     4,
+     4,
+     4
+    ],
+    "y": [
+     5,
+     5.6,
+     4.4,
+     4.1,
+     3.9,
+     4.6,
+     3.2,
+     2.7,
+     1.9,
+     2.4,
+     1.5
+    ],
+    "customdata": [
+     "B:Y1#0",
+     "B:Y2#0",
+     "B:Y3#0",
+     "B:Y1#1",
+     "B:Y2#1",
+     "B:Y3#1",
+     "B:Y1#2",
+     "B:Y3#2",
+     "B:Y1#4",
+     "B:Y2#4",
+     "B:Y3#4"
+    ],
+    "marker": {
+     "color": [
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)",
+      "rgba(230,159,0,1)"
+     ],
+     "size": [
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7,
+      7
+     ],
+     "symbol": [
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle",
+      "circle"
+     ],
+     "line": {
+      "color": [
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00",
+       "#E69F00"
+      ],
+      "width": [
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5,
+       1.5
+      ]
+     }
+    },
+    "line": {
+     "color": "#E69F00",
+     "width": 2,
+     "dash": "solid"
+    },
+    "hoverinfo": "x+y"
+   }
+  ],
+  "layout": {
+   "paper_bgcolor": "#ffffff",
+   "plot_bgcolor": "#ffffff",
+   "dragmode": false,
+   "font": {
+    "color": "#111827",
+    "family": "system-ui, -apple-system, sans-serif",
+    "size": 13
+   },
+   "margin": {
+    "l": 16,
+    "r": 16,
+    "t": 16,
+    "b": 16
+   },
+   "showlegend": true,
+   "legend": {
+    "x": 1.02,
+    "y": 1,
+    "xanchor": "left"
+   },
+   "xaxis": {
+    "type": "linear",
+    "showgrid": false,
+    "zeroline": false,
+    "linecolor": "#111827",
+    "linewidth": 1,
+    "ticks": "outside",
+    "tickwidth": 1,
+    "fixedrange": true,
+    "automargin": true,
+    "title": {
+     "text": "X",
+     "standoff": 12
+    }
+   },
+   "yaxis": {
+    "showgrid": false,
+    "zeroline": false,
+    "linecolor": "#111827",
+    "linewidth": 1,
+    "ticks": "outside",
+    "tickwidth": 1,
+    "fixedrange": true,
+    "automargin": true
+   }
+  }
+ },
+ "graph xy-bar xyReps": {
+  "data": [
+   {
+    "type": "bar",
+    "name": "A",
+    "x": [
+     0,
+     1,
+     2,
+     3,
+     4
+    ],
+    "y": [
+     1.1,
+     3.1,
+     5.2,
+     6.8,
+     9.1
+    ],
+    "marker": {
+     "color": "rgba(0,0,0,1)",
+     "line": {
+      "color": "#000000",
+      "width": 1.5
+     }
+    },
+    "error_y": {
+     "type": "data",
+     "array": [
+      0.7452413135,
+      2.541240947,
+      0.8724004935,
+      1.616281124,
+      1.628958033
+     ],
+     "color": "#000000",
+     "thickness": 1.5,
+     "width": 6
+    },
+    "hoverinfo": "x+y"
+   },
+   {
+    "type": "bar",
+    "name": "B",
+    "x": [
+     0,
+     1,
+     2,
+     4
+    ],
+    "y": [
+     5,
+     4.1,
+     2.95,
+     1.9
+    ],
+    "marker": {
+     "color": "rgba(230,159,0,1)",
+     "line": {
+      "color": "#E69F00",
+      "width": 1.5
+     }
+    },
+    "error_y": {
+     "type": "data",
+     "array": [
+      1.490482627,
+      0.8956685895,
+      3.176551184,
+      1.120159736
+     ],
+     "color": "#E69F00",
+     "thickness": 1.5,
+     "width": 6
+    },
+    "hoverinfo": "x+y"
+   }
+  ],
+  "layout": {
+   "paper_bgcolor": "#ffffff",
+   "plot_bgcolor": "#ffffff",
+   "dragmode": false,
+   "font": {
+    "color": "#111827",
+    "family": "system-ui, -apple-system, sans-serif",
+    "size": 13
+   },
+   "margin": {
+    "l": 16,
+    "r": 16,
+    "t": 16,
+    "b": 16
+   },
+   "showlegend": true,
+   "legend": {
+    "x": 1.02,
+    "y": 1,
+    "xanchor": "left"
+   },
+   "xaxis": {
+    "type": "linear",
+    "showgrid": false,
+    "zeroline": false,
+    "linecolor": "#111827",
+    "linewidth": 1,
+    "ticks": "outside",
+    "tickwidth": 1,
+    "fixedrange": true,
+    "automargin": true,
+    "title": {
+     "text": "X",
+     "standoff": 12
+    }
+   },
+   "yaxis": {
+    "showgrid": false,
+    "zeroline": false,
+    "linecolor": "#111827",
+    "linewidth": 1,
+    "ticks": "outside",
+    "tickwidth": 1,
+    "fixedrange": true,
+    "automargin": true,
+    "rangemode": "tozero"
+   },
+   "barmode": "group",
+   "bargroupgap": 0.1
+  }
+ },
+ "graph xy-area xyReps": {
+  "data": [
+   {
+    "type": "scatter",
+    "mode": "lines",
+    "name": "A",
+    "x": [
+     0,
+     1,
+     2,
+     3,
+     4
+    ],
+    "y": [
+     1.1,
+     3.1,
+     5.166666667,
+     6.766666667,
+     9.2
+    ],
+    "line": {
+     "color": "#000000",
+     "width": 2
+    },
+    "fill": "tozeroy",
+    "fillcolor": "rgba(0,0,0,0.5)",
+    "hoverinfo": "x+y"
+   },
+   {
+    "type": "scatter",
+    "mode": "lines",
+    "name": "B",
+    "x": [
+     0,
+     1,
+     2,
+     4
+    ],
+    "y": [
+     5,
+     4.2,
+     2.95,
+     1.933333333
+    ],
+    "line": {
+     "color": "#E69F00",
+     "width": 2
+    },
+    "fill": "tozeroy",
+    "fillcolor": "rgba(230,159,0,0.5)",
+    "hoverinfo": "x+y"
+   }
+  ],
+  "layout": {
+   "paper_bgcolor": "#ffffff",
+   "plot_bgcolor": "#ffffff",
+   "dragmode": false,
+   "font": {
+    "color": "#111827",
+    "family": "system-ui, -apple-system, sans-serif",
+    "size": 13
+   },
+   "margin": {
+    "l": 16,
+    "r": 16,
+    "t": 16,
+    "b": 16
+   },
+   "showlegend": true,
+   "legend": {
+    "x": 1.02,
+    "y": 1,
+    "xanchor": "left"
+   },
+   "xaxis": {
+    "type": "linear",
+    "showgrid": false,
+    "zeroline": false,
+    "linecolor": "#111827",
+    "linewidth": 1,
+    "ticks": "outside",
+    "tickwidth": 1,
+    "fixedrange": true,
+    "automargin": true,
+    "title": {
+     "text": "X",
+     "standoff": 12
+    }
+   },
+   "yaxis": {
+    "showgrid": false,
+    "zeroline": false,
+    "linecolor": "#111827",
+    "linewidth": 1,
+    "ticks": "outside",
+    "tickwidth": 1,
+    "fixedrange": true,
+    "automargin": true,
+    "rangemode": "tozero"
+   }
   }
  },
  "graph xy-area xy": {

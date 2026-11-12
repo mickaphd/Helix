@@ -9,20 +9,21 @@ import { fileURLToPath } from "node:url";
 import { runAnalysis } from "../src/stats";
 import type { AnalysisParams, AnalysisType } from "../src/stats/types";
 import type { GraphOptions, GraphType, TableData } from "../src/store/types";
-import { GRAPHS, graphSeries, newGraphOptions, plotColumns } from "../src/views/graphs";
-import { paintOf } from "../src/views/graphs/plot-helpers";
-import { pairUp, readTable, splitXY } from "../src/lib/dataset";
+import { GRAPHS, graphSeries, newGraphOptions, plotColumns, type GraphFigure } from "../src/views/graphs";
+import { errorOf, paintOf } from "../src/views/graphs/plot-helpers";
+import { pairUp, readTable, splitXY, xyPoints } from "../src/lib/dataset";
 import { countDataColumns, countDataGroups } from "../src/views/analyses";
 import { fitLinear } from "../src/views/graphs/regression-overlay";
 import { computeGroupedDEG } from "../src/lib/deg";
 import { tCrit95 } from "../src/lib/student-t";
 import { kaplanMeier } from "../src/lib/kaplan-meier";
+import { binCounts, binEdges } from "../src/lib/histogram";
 import { rVec } from "../src/stats/column/base";
 import { R_MAXIMUM_T } from "../src/stats/column/anova";
 import { R_GRUBBS } from "../src/stats/column/rout";
-import { evaluate as doseCurveAt } from "../src/views/graphs/fitted-curve";
+import { addFittedCurves, evaluate as doseCurveAt, logisticAt } from "../src/views/graphs/fitted-curve";
 import { NONLINEAR_MODELS, type NonlinearModel } from "../src/stats/types";
-import { positiveXOnly } from "../src/stats/xy/nonlinear-regression";
+import { positiveXOnly, R_ROUT_CURVE, rFit } from "../src/stats/xy/nonlinear-regression";
 import { evalNamedVector, startR } from "../src/stats/webr";
 import { sampleProject } from "./sample-project";
 
@@ -130,6 +131,63 @@ const doseUnknowns = table(doseLog.columns, [
   ["", "", "1.5"],
   ["Sample 4", "", "150"],
 ]);
+
+/** An XY table of replicates: two data sets of three, a value missing here and there, a row
+ *  without X (an unknown). */
+const xyReps = table(
+  ["Title", "X", "A:Y1", "A:Y2", "A:Y3", "B:Y1", "B:Y2", "B:Y3"],
+  [
+    ["", "0", "1.1", "1.4", "0.8", "5", "5.6", "4.4"],
+    ["", "1", "2.9", "3.3", "", "4.1", "3.9", "4.6"],
+    ["", "2", "5.2", "4.8", "5.5", "3.2", "", "2.7"],
+    ["", "3", "6.8", "7.4", "6.1", "", "", ""],
+    ["", "4", "9.1", "8.6", "9.9", "1.9", "2.4", "1.5"],
+    ["", "", "6", "6.4", "5.8", "", "", ""],
+  ],
+  { groups: 2, replicates: 3 },
+);
+
+/** A dose-response curve measured in triplicate, with two unknowns (rows without X). */
+const doseReps = table(
+  ["Title", "X", "R:Y1", "R:Y2", "R:Y3"],
+  [
+    ...doseLog.rows.map((r, i) => {
+      const y = Number(r[2]);
+      return [
+        "",
+        r[1] ?? "",
+        String(+(y * 1.04).toFixed(2)),
+        String(+(y * 0.97).toFixed(2)),
+        i % 4 ? String(+(y + 0.6).toFixed(2)) : "",
+      ];
+    }),
+    ["Sample 1", "", "48", "52", "51"],
+    ["Sample 2", "", "11", "9.5", ""],
+  ],
+  { groups: 1, replicates: 3 },
+);
+
+/** A one-phase decay, as Motulsky & Brown's example (13 points, 3 parameters), with a point
+ *  far off the curve at X = 3 (B), and the same without it (A). */
+const decayY = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(
+  (x, i) => 1800 * Math.exp(-0.5 * x) + 200 + [31, -22, 15, -40, 27, -8, 36, -30, 12, -19, 24, -11, 5][i],
+);
+const decayOutlier = table(
+  ["Title", "X", "A", "B"],
+  decayY.map((y, i) => ["", String(i), y.toFixed(1), (i === 3 ? y + 900 : y).toFixed(1)]),
+);
+
+/** The 23 space shuttle flights before Challenger: launch temperature (°F) and whether an
+ *  O-ring was damaged (Dalal, Fowlkes & Hoadley, JASA 1989), with a column that isn't 0/1
+ *  and one an X splits exactly. */
+// prettier-ignore
+const shuttle = table(
+  ["Title", "Temperature", "Damage", "Codes", "Split"],
+  [[53, 1], [57, 1], [58, 1], [63, 1], [66, 0], [67, 0], [67, 0], [67, 0], [68, 0], [69, 0], [70, 0], [70, 1],
+    [70, 0], [70, 1], [72, 0], [73, 0], [75, 0], [75, 1], [76, 0], [76, 0], [78, 0], [79, 0], [81, 0]].map(
+    ([t, d], i) => ["", String(t), String(d), i === 5 ? "2" : String(d), String(t < 69 ? 1 : 0)],
+  ),
+);
 
 /** Two dose-response curves on one X, the second shifted right (a higher EC50). */
 const doseTwo = table(
@@ -502,6 +560,20 @@ const ANALYSES: [string, TableData, AnalysisType, AnalysisParams?][] = [
   ["xy", xy, "linear-regression", { y: "Y3", forceOrigin: true }],
   ["xy", xy, "area-under-curve", { baseline: 0 }],
   ["xy", xy, "area-under-curve", { baseline: 2 }],
+  ["xyReps", xyReps, "linear-regression", { y: "A", forceOrigin: false }],
+  ["xy", xy, "linear-regression", { ys: ["Y1", "Y2", "Y3"], forceOrigin: false }],
+  ["xyReps", xyReps, "linear-regression", { ys: ["A", "B"], forceOrigin: true }],
+  ["doseTwo", doseTwo, "nonlinear-regression", { ys: ["Control", "Treated"], model: "sigmoidal-4pl-logx" }],
+  ["shuttle", shuttle, "logistic-regression"],
+  ["shuttle", shuttle, "logistic-regression", { y: "Codes" }],
+  ["shuttle", shuttle, "logistic-regression", { y: "Split" }],
+  ["decayOutlier", decayOutlier, "nonlinear-regression", { y: "B", model: "one-phase-decay", rout: true }],
+  ["decayOutlier", decayOutlier, "nonlinear-regression", { ys: ["A", "B"], model: "one-phase-decay", rout: true }],
+  ["xyReps", xyReps, "linear-regression", { y: "B", forceOrigin: true }],
+  ["xyReps", xyReps, "area-under-curve", { baseline: 0 }],
+  ["xyReps", xyReps, "correlation", { method: "pearson", mode: "x-vs-every-y" }],
+  ["xyReps", xyReps, "correlation", { method: "pearson", mode: "matrix" }],
+  ["doseReps", doseReps, "nonlinear-regression", { model: "sigmoidal-4pl-logx", interpolate: true }],
   ["xy", xy, "nonlinear-regression", { model: "line" }],
   ["xy", xy, "nonlinear-regression", { y: "Y3", model: "quadratic" }],
   ["xy", xy, "nonlinear-regression", { y: "Y1", model: "cubic" }],
@@ -642,10 +714,16 @@ const GRAPH_CASES: [string, TableData, GraphType, Partial<GraphOptions>?][] = [
   ["column", column, "individual"],
   ["column", column, "box-violin", { kind: "violin", showPoints: true }],
   ["column", column, "mean-error", { error: "sd" }],
+  ["column", column, "histogram"],
+  ["multiple", multiple, "histogram", { xVariable: "Weight", binWidth: 5, stackAs: "percent" }],
   ["column", column, "pie"],
   ["column", column, "donut", { pieValue: "mean" }],
   ["xy", xy, "xy-scatter", { xyStyle: "points+line" }],
   ["xy", xy, "xy-bar"],
+  ["xyReps", xyReps, "xy-scatter", { error: "sd" }],
+  ["xyRepsEach", xyReps, "xy-scatter", { xyReplicates: "each", xyStyle: "points+line" }],
+  ["xyReps", xyReps, "xy-bar", { center: "median", error: "ci" }],
+  ["xyReps", xyReps, "xy-area", { error: "none" }],
   ["xy", xy, "xy-area"],
   ["survival", survivalTable, "survival"],
   ["freireich", freireich, "survival", { survivalShowBand: true }],
@@ -710,7 +788,7 @@ async function disagreements(): Promise<string[]> {
   for (const y of ys) {
     for (const forceOrigin of [false, true]) {
       const r = await runAnalysis("linear-regression", xy, { y: y.name, forceOrigin });
-      const pairs = pairUp(x!, y);
+      const pairs = xyPoints(x!, y);
       const js = fitLinear(pairs.x, pairs.y, forceOrigin);
       const stat = (label: string) => ("error" in r ? null : r.stats.find((s) => s.label === label)?.value);
       const [rSlope, rR] = [stat("Slope"), stat("Pearson r")];
@@ -722,6 +800,120 @@ async function disagreements(): Promise<string[]> {
         out.push(`Regression of ${y.name}: graph r ${js?.r}, R's ${rR}`);
     }
   }
+  // ROUT finds the point far off the curve, and nothing in the same data without it, whose
+  // fit is then the plain least-squares one; its robust fit minimizes the sum of
+  // ln(1 + (residual / RSDR)²) at its RSDR (no step of optim lowers it).
+  const routed = await runAnalysis("nonlinear-regression", decayOutlier, {
+    ys: ["A", "B"],
+    model: "one-phase-decay",
+    rout: true,
+  });
+  const found = "error" in routed ? "error" : routed.curveOutliers?.map((o) => `${o.set}@${o.x}`).join();
+  if (found !== "B@3") out.push(`ROUT on a decay: ${found}, not B@3`);
+  const plain = await runAnalysis("nonlinear-regression", decayOutlier, { y: "A", model: "one-phase-decay" });
+  const k = (r: typeof plain, i: number) =>
+    "error" in r ? null : r.coefficients?.filter((c) => c.term.endsWith("K"))[i]?.estimate;
+  if (k(routed, 0) == null || Math.abs(k(routed, 0)! - k(plain, 0)!) > 1e-9)
+    out.push(`ROUT without outliers: K ${k(routed, 0)}, least squares ${k(plain, 0)}`);
+  // On the scatter, the point left out is drawn hollow, the others as they were.
+  if (!("error" in routed)) {
+    const options = newGraphOptions("xy-scatter");
+    const columns = plotColumns(readTable(decayOutlier), "xy-scatter", options, "xy");
+    const fig = GRAPHS["xy-scatter"].build(columns, options, paintOf(options, 2));
+    const { x: hours, ys: sets } = splitXY(columns);
+    addFittedCurves(fig, hours!, ["A", "B"], sets, "one-phase-decay", routed, false, options, paintOf(options, 2));
+    const b = fig.data.at(-1) as { marker: { color: string[] } };
+    const clear = b.marker.color.flatMap((c, i) => (c === "rgba(0,0,0,0)" ? [i] : []));
+    if (clear.join() !== "3") out.push(`Points drawn hollow: ${clear}, not B's at X = 3`);
+  }
+  const merit = await evalNamedVector(
+    `${rFit("one-phase-decay")}\n${R_ROUT_CURVE}\nx<-0:12;y<-${rVec(decayY.map((y, i) => +(i === 3 ? y + 900 : y).toFixed(1)))}\n` +
+      `ro<-routOf(x,y,3,0.01);s<-ro$rsdr;cf<-coef(ro$m);f<-function(p)sum(log(1+((y-((p[1]-p[2])*exp(-p[3]*x)+p[2]))/s)^2))\n` +
+      `c(at=f(cf[c("Y0","Plateau","K")]),best=optim(cf[c("Y0","Plateau","K")],f,control=list(reltol=1e-14,maxit=5000))$value)`,
+  );
+  if (merit.at == null || merit.best == null || merit.at - merit.best > 1e-6 * merit.at)
+    out.push(`ROUT's robust fit: merit ${merit.at}, optim finds ${merit.best}`);
+  // A logistic regression gives the published fit of the shuttle data (logit = 15.043 −
+  // 0.232 × temperature), and the graph's S curve is R's own probability.
+  const oring = await runAnalysis("logistic-regression", shuttle);
+  const [b0, b1] = "error" in oring ? [] : oring.coefficients!.map((c) => c.estimate!);
+  if (b0 == null || Math.abs(b0 - 15.0429) > 5e-4 || Math.abs(b1 - -0.232163) > 5e-6)
+    out.push(`Logistic regression of the shuttle data: ${b0}, ${b1}, not 15.0429, -0.232163`);
+  if (!("error" in oring)) {
+    const p = await evalNamedVector(
+      `x<-c(53,57,58,63,66,67,67,67,68,69,70,70,70,70,72,73,75,75,76,76,78,79,81);` +
+        `y<-c(1,1,1,1,0,0,0,0,0,0,0,1,0,1,0,0,0,1,0,0,0,0,0);m<-glm(y~x,family=binomial);` +
+        `c(p=unname(predict(m,data.frame(x=60),type="response")))`,
+    );
+    if (p.p == null || Math.abs(logisticAt(oring.coefficients!, 60) - p.p) > 1e-9)
+      out.push(`Logistic curve at 60 °F: graph ${logisticAt(oring.coefficients!, 60)}, R ${p.p}`);
+  }
+  // Data sets fitted together are each fitted as alone.
+  const together = await runAnalysis("nonlinear-regression", doseTwo, {
+    ys: ["Control", "Treated"],
+    model: "sigmoidal-4pl-logx",
+  });
+  const lines = await runAnalysis("linear-regression", xy, { ys: ["Y1", "Y2", "Y3"], forceOrigin: false });
+  for (const [i, y] of ["Control", "Treated"].entries()) {
+    const alone = await runAnalysis("nonlinear-regression", doseTwo, { y, model: "sigmoidal-4pl-logx" });
+    const ec50 = (r: typeof alone, k: number) =>
+      "error" in r ? null : r.fit?.rows.find((w) => w.label === "EC50")?.values?.[k];
+    if (ec50(together, i) == null || Math.abs(ec50(together, i)! - ec50(alone, 0)!) > 1e-9)
+      out.push(`EC50 of ${y} fitted with another: ${ec50(together, i)}, alone ${ec50(alone, 0)}`);
+  }
+  // A scatter draws each one's curve, as its own fit gives it.
+  if (!("error" in together)) {
+    const fig: GraphFigure = { data: [], layout: {} };
+    const { x: dose, ys: sets } = splitXY(readTable(doseTwo).columns);
+    const options = newGraphOptions("xy-scatter");
+    addFittedCurves(
+      fig,
+      dose!,
+      ["Control", "Treated"],
+      sets,
+      "sigmoidal-4pl-logx",
+      together,
+      true,
+      options,
+      paintOf(options, 2),
+    );
+    for (const [i, y] of ["Control", "Treated"].entries()) {
+      const alone = await runAnalysis("nonlinear-regression", doseTwo, { y, model: "sigmoidal-4pl-logx" });
+      const curve = fig.data[i] as { x: number[]; y: number[] };
+      const at = "error" in alone ? NaN : doseCurveAt("sigmoidal-4pl-logx", alone.coefficients!, curve.x[40]);
+      if (!(Math.abs(curve.y[40] - at) < 1e-9))
+        out.push(`Curve of ${y} drawn with another: ${curve.y[40]}, alone ${at}`);
+    }
+    const note = (fig.layout.annotations as { text: string }[] | undefined)?.[0]?.text ?? "";
+    if (!note.startsWith("Control: EC50 = ") || !note.includes("<br>Treated: EC50 = "))
+      out.push(`Two curves' note: ${note}`);
+  }
+  for (const [i, y] of ["Y1", "Y2", "Y3"].entries()) {
+    const alone = await runAnalysis("linear-regression", xy, { y, forceOrigin: false });
+    const slope = "error" in alone ? null : alone.stats.find((w) => w.label === "Slope")?.value;
+    const many = "error" in lines ? null : lines.fit?.rows[0].values?.[i];
+    if (slope == null || many == null || Math.abs(slope - many) > 1e-9)
+      out.push(`Slope of ${y} regressed with others: ${many}, alone ${slope}`);
+  }
+  // With replicates, every replicate is a point of the regression (R's lm on them all), and
+  // an area joins each X's mean.
+  const reps = splitXY(readTable(xyReps).columns);
+  for (const y of reps.ys) {
+    const pts = xyPoints(reps.x!, y);
+    const r = await runAnalysis("linear-regression", xyReps, { y: y.name, forceOrigin: false });
+    const lm = await evalNamedVector(`c(s=unname(coef(lm(${rVec(pts.y)}~${rVec(pts.x)}))[2]))`);
+    const slope = "error" in r ? null : r.stats.find((s) => s.label === "Slope")?.value;
+    const js = fitLinear(pts.x, pts.y, false);
+    if (slope == null || lm.s == null || Math.abs(slope - lm.s) > 1e-9 || Math.abs(js!.slope - lm.s) > 1e-9)
+      out.push(`Regression of replicates ${y.name}: Helix ${slope}, graph ${js?.slope}, lm ${lm.s}`);
+  }
+  const area = await runAnalysis("area-under-curve", xyReps, { baseline: 0 });
+  const meansA = await evalNamedVector(
+    "x<-c(0,1,2,3,4);y<-c(mean(c(1.1,1.4,0.8)),mean(c(2.9,3.3)),mean(c(5.2,4.8,5.5)),mean(c(6.8,7.4,6.1)),mean(c(9.1,8.6,9.9)));" +
+      "c(a=sum(diff(x)*(head(y,-1)+tail(y,-1))/2))",
+  );
+  const areaA = "error" in area ? null : area.areas?.[0].area;
+  if (areaA == null || Math.abs(areaA - meansA.a!) > 1e-9) out.push(`AUC of replicates: ${areaA}, R ${meansA.a}`);
   // Grubbs' P is 0.05 at his published critical values of G (two-sided, alpha = 0.05).
   const grubbs = await evalNamedVector(
     `${R_GRUBBS}\nc(n5=grubbsP(1.715,5),n10=grubbsP(2.290,10),n20=grubbsP(2.709,20))`,
@@ -740,6 +932,69 @@ async function disagreements(): Promise<string[]> {
   const slope = "error" in twoVariables ? null : twoVariables.stats.find((s) => s.label === "Slope")?.value;
   if (slope == null || Math.abs(slope - fitLinear(pairs.x, pairs.y, false)!.slope) > 1e-9)
     out.push(`Regression of Weight on Height: R slope ${slope}`);
+  // A graph's 95% CI error bar is R's t.test interval of the mean, half its width.
+  for (const c of readTable(column).numeric) {
+    const r = await evalNamedVector(`ci<-t.test(${rVec(c.values)})$conf.int;c(h=(ci[2]-ci[1])/2)`);
+    if (r.h == null || Math.abs(errorOf(c.values, "ci") - r.h) > 1e-9)
+      out.push(`95% CI error bar of ${c.name}: graph ${errorOf(c.values, "ci")}, R ${r.h}`);
+  }
+  // Descriptive statistics' quartiles are the (n + 1)p method, worked out here by hand;
+  // a value at or under 0 leaves no geometric mean.
+  const atP = (values: number[], p: number) => {
+    const x = [...values].sort((a, b) => a - b);
+    const h = Math.min(Math.max((x.length + 1) * p, 1), x.length) - 1;
+    return x[Math.floor(h)] + (h - Math.floor(h)) * ((x[Math.ceil(h)] ?? 0) - x[Math.floor(h)]);
+  };
+  const described = await runAnalysis("descriptive-statistics", column);
+  for (const [i, c] of readTable(column).numeric.entries()) {
+    const g = "error" in described ? undefined : described.groups[i];
+    if (g?.q1 == null || Math.abs(g.q1 - atP(c.values, 0.25)) > 1e-9 || Math.abs(g.q3! - atP(c.values, 0.75)) > 1e-9)
+      out.push(`Quartiles of ${c.name}: ${g?.q1}, ${g?.q3}, by hand ${atP(c.values, 0.25)}, ${atP(c.values, 0.75)}`);
+  }
+  const withZero = await runAnalysis(
+    "descriptive-statistics",
+    table(
+      ["Title", "A"],
+      [
+        ["", "0"],
+        ["", "2"],
+      ],
+    ),
+  );
+  if ("error" in withZero || withZero.groups[0].geoMean != null) out.push("A geometric mean with a value of 0");
+  // A histogram's bins and counts are R's hist(): its own bins (Sturges, pretty), and a
+  // typed width's, with values on the edges, negatives, one value, a wide spread.
+  const spreads: [number[], number?][] = [
+    ...readTable(column).numeric.map((c): [number[]] => [c.values]),
+    [readTable(column).numeric.flatMap((c) => c.values)],
+    [[1, 2, 2, 3, 3, 3, 4, 4, 5, 10]],
+    [[-3.2, -1, 0, 0.5, 2, 2, 7.25]],
+    [[42]],
+    [[0.001, 0.0042, 0.013, 0.02, 0.0205]],
+    [[120, 3400, 56000, 780000, 1e6]],
+    [[1, 2, 2, 3, 3, 3, 4, 4, 5, 10], 2],
+    [[-3.2, -1, 0, 0.5, 2, 2, 7.25], 0.5],
+  ];
+  for (const [values, width] of spreads) {
+    const edges = binEdges(values, width);
+    const counts = binCounts(values, edges);
+    const breaks = width ? `seq(${edges[0]},${edges.at(-1)},by=${width})` : '"Sturges"';
+    const r = await evalNamedVector(
+      `h<-hist(${rVec(values)},breaks=${breaks},plot=FALSE);c(setNames(h$breaks,paste0("b",seq_along(h$breaks))),setNames(h$counts,paste0("c",seq_along(h$counts))))`,
+    );
+    const rBreaks = Object.keys(r)
+      .filter((k) => k[0] === "b")
+      .map((k) => r[k] ?? NaN);
+    const rCounts = Object.keys(r)
+      .filter((k) => k[0] === "c")
+      .map((k) => r[k] ?? NaN);
+    if (
+      rBreaks.length !== edges.length ||
+      rBreaks.some((b, i) => Math.abs(b - edges[i]) > 1e-9 * Math.max(1, Math.abs(b))) ||
+      rCounts.join() !== counts.join()
+    )
+      out.push(`Histogram of ${values.join(",")}: ${edges} / ${counts}, R ${rBreaks} / ${rCounts}`);
+  }
   const tests = await runAnalysis("multiple-t-tests", twoGroups, {
     paired: false,
     gaussian: true,
@@ -826,7 +1081,7 @@ async function disagreements(): Promise<string[]> {
       continue;
     }
     const { x: dose, ys } = splitXY(readTable(data).columns);
-    const pairs = pairUp(dose!, ys[0]);
+    const pairs = xyPoints(dose!, ys[0]);
     const ss = pairs.x.reduce(
       (sum, x, i) =>
         positiveXOnly(model) && x <= 0 ? sum : sum + (pairs.y[i] - doseCurveAt(model, r.coefficients!, x)) ** 2,
@@ -846,7 +1101,7 @@ async function disagreements(): Promise<string[]> {
     for (const u of interpolated.interpolated ?? [])
       if (u.x != null) {
         const y = doseCurveAt("sigmoidal-4pl-logx", interpolated.coefficients!, u.x);
-        if (Math.abs(y - u.y) > 1e-6 || Math.abs(10 ** u.x - u.concentration!) > 1e-9 * 10 ** u.x)
+        if (u.y == null || Math.abs(y - u.y) > 1e-6 || Math.abs(10 ** u.x - u.concentration!) > 1e-9 * 10 ** u.x)
           out.push(`Interpolation: ${u.label}'s X gives ${y}, not ${u.y}`);
       }
   // Comparing two curves: F from the two fits on their own and one fit on all their points.
@@ -917,7 +1172,7 @@ async function disagreements(): Promise<string[]> {
   for (const data of [freireich, survival3]) {
     const { x, ys } = splitXY(readTable(data).columns);
     for (const y of ys) {
-      const { x: t, y: s } = pairUp(x!, y);
+      const { x: t, y: s } = xyPoints(x!, y);
       const km = kaplanMeier(t, s);
       const r = await evalNamedVector(
         `library(survival);f<-survfit(Surv(${rVec(t)},${rVec(s)})~1,conf.type="log-log");e<-f$n.event>0;` +

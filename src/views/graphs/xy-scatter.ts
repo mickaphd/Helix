@@ -1,39 +1,37 @@
-// "XY scatter": each Y series plotted against the shared X, as points, a
+// "XY scatter": each Y data set plotted against the shared X, as points, a
 // connecting line, or both (Prism's Scatter / Scatter+line / Line-only icons
-// collapsed into one graph type via a style toggle).
+// collapsed into one graph type via a style toggle). Replicates are drawn each, or
+// as each X's center with its error bars (`xyDrawn`).
 import type { GraphOptions } from "../../store/types";
 import type { GraphModule, GraphFigure } from ".";
-import { pairUp, type Column } from "../../lib/dataset";
-import { seriesPoints, xyLayout, type Paint } from "./plot-helpers";
-import { pointKeyOf } from "../../lib/columns";
+import { splitXY, type Column } from "../../lib/dataset";
+import { seriesMarker, seriesPoints, xyDrawn, xyLayout, type Paint } from "./plot-helpers";
 
 function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFigure {
-  const [xCol, ...ySeries] = columns;
-  if (!xCol || ySeries.length === 0) return { data: [], layout: xyLayout(options, xCol?.name ?? "X", 0) };
+  const { x: xCol, ys } = splitXY(columns);
+  if (!xCol || ys.length === 0) return { data: [], layout: xyLayout(options, columns[0]?.name ?? "X", 0) };
 
   const mode = options.xyStyle === "line" ? "lines" : options.xyStyle === "points+line" ? "lines+markers" : "markers";
-  const data = ySeries.map((y, i) => {
-    const { x, y: yy, rows } = pairUp(xCol, y);
+  const data = ys.map((set, i) => {
+    const drawn = xyDrawn(xCol, set, options);
     return {
       type: "scatter",
       mode,
-      name: y.name,
-      x,
-      y: yy,
+      name: set.name,
+      x: drawn.x,
+      y: drawn.y,
       ...(mode !== "lines"
-        ? seriesPoints(
-            paint,
-            y.name,
-            i,
-            rows.map((r) => pointKeyOf(y.name, r)),
-          )
+        ? drawn.keys
+          ? seriesPoints(paint, set.name, i, drawn.keys)
+          : { marker: seriesMarker(paint, set.name, i) }
         : {}),
-      ...(mode !== "markers" ? { line: paint.line(y.name, i) } : {}),
+      ...(mode !== "markers" ? { line: paint.line(set.name, i) } : {}),
+      ...(drawn.errors ? { error_y: paint.errorBars(set.name, i, drawn.errors) } : {}),
       hoverinfo: "x+y",
     };
   });
 
-  return { data, layout: xyLayout(options, xCol.name, ySeries.length) };
+  return { data, layout: xyLayout(options, xCol.name, ys.length) };
 }
 
 export const xyScatter: GraphModule = {

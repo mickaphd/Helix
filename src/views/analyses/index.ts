@@ -37,7 +37,14 @@ export const ANALYSIS_OPTIONS_BY_TABLE: Record<TableType, SelectorOption<Analysi
     "one-sample-t",
     "outliers",
   ]),
-  xy: optionsFor(["correlation", "linear-regression", "area-under-curve", "nonlinear-regression", "interpolate"]),
+  xy: optionsFor([
+    "correlation",
+    "linear-regression",
+    "area-under-curve",
+    "nonlinear-regression",
+    "interpolate",
+    "logistic-regression",
+  ]),
   grouped: optionsFor(["two-way-anova", "multiple-t-tests"]),
   multiple: optionsFor([
     "descriptive-statistics",

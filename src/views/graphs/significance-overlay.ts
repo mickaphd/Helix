@@ -64,14 +64,20 @@ function columnTops(
  *  Every bracket clears the tallest column (`maxTop`) so it always sits above every
  *  bar/point/error bar; overlapping spans stack on separate levels. `columnNames`
  *  is the plotted column order (X index = position); `tops[i]` is column i's drawn
- *  top. Comparisons whose columns aren't both plotted, or with no P value, are skipped. */
+ *  top. Comparisons whose columns aren't both plotted, or with no P value, are skipped.
+ *  On a log Y axis the spacing is reckoned in log10, so it looks the same at any height:
+ *  shapes take values, texts the log10 of them (`onAxis`). */
 function significanceOverlay(
   columnNames: string[],
-  tops: number[],
+  drawnTops: number[],
   comparisons: SigComparison[],
   display: "stars" | "pvalue",
+  scale: GraphOptions["yScale"],
 ): { shapes: unknown[]; annotations: unknown[]; top: number } {
-  const maxTop = Math.max(0, ...tops);
+  const log = scale !== "linear";
+  const tops = log ? drawnTops.filter((t) => t > 0).map(Math.log10) : drawnTops;
+  const value = (y: number) => (log ? 10 ** y : y);
+  const maxTop = log ? Math.max(...tops) : Math.max(0, ...tops);
   const resolved = comparisons
     .map((c) => ({ ...c, i: columnNames.indexOf(c.group1), j: columnNames.indexOf(c.group2) }))
     .filter((c) => c.i >= 0 && c.j >= 0 && c.p != null && !Number.isNaN(c.p))
@@ -79,11 +85,13 @@ function significanceOverlay(
     // Narrowest span first, so short brackets sit low and wide ones rise above them.
     .sort((a, b) => a.hi - a.lo - (b.hi - b.lo));
 
-  if (resolved.length === 0) return { shapes: [], annotations: [], top: maxTop };
+  if (resolved.length === 0 || !tops.length) return { shapes: [], annotations: [], top: value(maxTop) };
 
   // Stack unit scaled to the data extent (so spacing looks right at any scale).
-  const floor = Math.min(0, ...tops);
-  const unit = Math.max((maxTop - floor) * 0.08, Math.abs(maxTop) * 0.05, 0.5);
+  const floor = log ? Math.min(...tops) : Math.min(0, ...tops);
+  const unit = log
+    ? Math.max((maxTop - floor) * 0.08, 0.1)
+    : Math.max((maxTop - floor) * 0.08, Math.abs(maxTop) * 0.05, 0.5);
 
   // Interval-graph packing: each bracket takes the lowest free level (no X overlap).
   const levels: [number, number][][] = [];
@@ -105,9 +113,29 @@ function significanceOverlay(
     const yL = maxTop + unit * (1 + level * 1.7);
     const line = { color: INK, width: 1.2 };
     shapes.push(
-      { type: "line", xref: "x", yref: "y", x0: c.lo, x1: c.hi, y0: yL, y1: yL, line, layer: "above" },
-      { type: "line", xref: "x", yref: "y", x0: c.lo, x1: c.lo, y0: yL, y1: yL - unit * 0.35, line, layer: "above" },
-      { type: "line", xref: "x", yref: "y", x0: c.hi, x1: c.hi, y0: yL, y1: yL - unit * 0.35, line, layer: "above" },
+      { type: "line", xref: "x", yref: "y", x0: c.lo, x1: c.hi, y0: value(yL), y1: value(yL), line, layer: "above" },
+      {
+        type: "line",
+        xref: "x",
+        yref: "y",
+        x0: c.lo,
+        x1: c.lo,
+        y0: value(yL),
+        y1: value(yL - unit * 0.35),
+        line,
+        layer: "above",
+      },
+      {
+        type: "line",
+        xref: "x",
+        yref: "y",
+        x0: c.hi,
+        x1: c.hi,
+        y0: value(yL),
+        y1: value(yL - unit * 0.35),
+        line,
+        layer: "above",
+      },
     );
     annotations.push({
       xref: "x",
@@ -124,7 +152,7 @@ function significanceOverlay(
     top = Math.max(top, yL + unit * 1.6); // headroom for the bracket + its label
   }
 
-  return { shapes, annotations, top };
+  return { shapes, annotations, top: value(top) };
 }
 
 /** Draws the chosen comparisons as brackets above the columns, growing the Y range
@@ -144,6 +172,7 @@ export function addSignificance(
     tops,
     selected,
     options.sigDisplay,
+    options.yScale,
   );
   fig.layout.shapes = [...((fig.layout.shapes as unknown[]) ?? []), ...overlay.shapes];
   fig.layout.annotations = [...((fig.layout.annotations as unknown[]) ?? []), ...overlay.annotations];

@@ -4,7 +4,7 @@
 // list, a single scalar pair, or a matrix).
 import type { AnalysisOutcome, Column, CorrelationRow, XYCorrelationParams } from "../types";
 import { dataGroups, describe, pRow, rVec } from "../column/base";
-import { pairUp, splitXY, xyProblem } from "../../lib/dataset";
+import { pairUp, splitXY, xyPoints, xyProblem } from "../../lib/dataset";
 import { evalNamedVector } from "../webr";
 import { runCorrelationMatrix } from "../multiple/correlation-matrix";
 
@@ -20,12 +20,19 @@ export async function runXYCorrelation(
   const methodLabel = method === "spearman" ? "Spearman" : "Pearson";
   const vars = dataGroups(columns);
   const { x: xCol, ys: yCols } = splitXY(columns);
+  // Two data sets pair up row by row: one value each, not replicates.
+  if (mode !== "x-vs-every-y" && yCols.some((y) => y.columns.length > 1)) {
+    return { error: "Correlating Y data sets with each other needs one value per row: this table has replicates." };
+  }
 
   if (mode === "matrix") {
     if (yCols.length < 2) {
       return { error: "A correlation matrix needs at least 2 Y data sets holding numbers." };
     }
-    const outcome = await runCorrelationMatrix(yCols, { method });
+    const outcome = await runCorrelationMatrix(
+      yCols.map((y) => y.columns[0]),
+      { method },
+    );
     if ("error" in outcome) return outcome;
     return {
       ...outcome,
@@ -58,13 +65,13 @@ export async function runXYCorrelation(
     };
   }
 
-  // "x-vs-every-y": correlate X against every Y series individually.
+  // "x-vs-every-y": correlate X against every Y series individually, each replicate a point.
   if (!xCol || yCols.length < 1) return { error: xyProblem(columns)! };
   const stmts: string[] = [];
   const assigns: string[] = [];
   const computed = new Set<number>();
   yCols.forEach((y, i) => {
-    const { x: xs, y: ys } = pairUp(xCol, y);
+    const { x: xs, y: ys } = xyPoints(xCol, y);
     if (xs.length < MIN_PAIRS) return;
     computed.add(i);
     stmts.push(`ct_${i}<-cor.test(${rVec(xs)},${rVec(ys)},method="${method}")`);
@@ -79,7 +86,10 @@ export async function runXYCorrelation(
     r: computed.has(i) ? (v[`r_${i}`] ?? null) : null,
     p: computed.has(i) ? (v[`p_${i}`] ?? null) : null,
   }));
-  const { groups: described } = await describe([xCol, ...yCols]);
+  const { groups: described } = await describe([
+    xCol,
+    ...yCols.map((y) => ({ name: y.name, values: y.columns.flatMap((c) => c.values) })),
+  ]);
   return {
     testType: "correlation",
     subtitle: `${methodLabel} correlation`,

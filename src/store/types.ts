@@ -27,16 +27,21 @@ export type GraphType =
   | "donut"
   | "heatmap"
   | "survival"
-  | "volcano";
+  | "volcano"
+  | "histogram";
 
 /** The choices of a graph's options, one list each: the types come from them, and a
  *  file's value outside them is read as the option's default. */
 export const GRAPH_CHOICES = {
   center: ["mean", "median"],
-  error: ["none", "sd", "sem"],
+  error: ["none", "sd", "sem", "ci"],
+  xScale: ["linear", "log10", "log2"],
+  yScale: ["linear", "log10", "log2"],
+  stackAs: ["values", "percent"],
   shape: ["bar", "point", "line"],
   kind: ["box", "violin"],
   xyStyle: ["points", "line", "points+line"],
+  xyReplicates: ["mean", "each"],
   pieValue: ["sum", "mean"],
   groupLayout: ["interleaved", "separated"],
   sigDisplay: ["stars", "pvalue"],
@@ -96,6 +101,8 @@ export interface GraphOptions {
   showPoints: boolean; // overlay individual points on box/violin
   // XY scatter: markers only, connecting line only, or both
   xyStyle: Choice<"xyStyle">;
+  // An XY table's replicates: each X's center and error (`center`, `error`), or each value.
+  xyReplicates: Choice<"xyReplicates">;
   // Pie/donut (axis-less proportion charts): each column is one slice, sized by the
   // column's total (sum) or mean; percentages vs. raw values on the slice labels.
   pieValue: Choice<"pieValue">;
@@ -106,10 +113,16 @@ export interface GraphOptions {
   // lines (groups must share the same X axis to show interaction) or stacked
   // bars (stacking already combines groups per category).
   groupLayout: Choice<"groupLayout">;
+  // Stacked bars: each group's value, or its share of the row's total (100 % bars).
+  stackAs: Choice<"stackAs">;
   // Titles
   title: string;
   xLabel: string;
   yLabel: string;
+  // Each axis's scale: linear, or logarithmic with ticks at powers of 10 or of 2. The
+  // value axis is Y (X on horizontal bars); X only where it is numeric (XY).
+  xScale: Choice<"xScale">;
+  yScale: Choice<"yScale">;
   // Y-axis scale (Prism-style). All optional — blank = auto. Manual min+max set
   // the range; yStep sets the tick interval (every 1, 10, …).
   yMin?: number;
@@ -119,6 +132,8 @@ export interface GraphOptions {
   xMin?: number;
   xMax?: number;
   xStep?: number;
+  // A histogram's bin width, in the values' units; omitted (or 0 and under), R's own bins.
+  binWidth?: number;
   // Significance annotations (Column family only): read a sibling analysis's
   // pairwise comparisons and draw brackets. `sigAnalysisId` is the source analysis
   // node; `sigPairs` are the comparison keys (see significance-overlay) to draw;
@@ -233,6 +248,7 @@ export const DEFAULT_GRAPH_OPTIONS: GraphOptions = {
   kind: "box",
   showPoints: false,
   xyStyle: "points",
+  xyReplicates: "mean",
   pieValue: "sum",
   pieShowPercent: true,
   groupLayout: "interleaved",
@@ -252,9 +268,12 @@ export const DEFAULT_GRAPH_OPTIONS: GraphOptions = {
   volcanoLabelCount: 10,
   volcanoEffect: "log2ratio",
   volcanoSignificance: "pvalue",
+  stackAs: "values",
   title: "",
   xLabel: "",
   yLabel: "",
+  xScale: "linear",
+  yScale: "linear",
   axisWidth: 1,
   fontSize: 13,
   fill: 1,

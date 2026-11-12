@@ -98,13 +98,14 @@ export function SidePanel({
   );
 }
 
-type SidebarItemProps = Omit<React.ComponentProps<"div">, "title"> & {
+type SidebarItemProps = Omit<React.ComponentProps<"div">, "title" | "onToggle"> & {
   icon: React.ReactNode;
   title: string;
   selected: boolean;
-  /** Whether its children show, for a row that has some. */
+  /** Whether its children show, for a row that has some; `onToggle`'s `all`: with ⌥,
+   *  every row like it too. */
   open?: boolean;
-  onToggle?: () => void;
+  onToggle?: (all: boolean) => void;
   /** Its name being edited in place, and what to do with the name typed (unchanged if
    *  Escape). */
   renaming?: boolean;
@@ -143,7 +144,7 @@ export function SidebarItem({
           aria-label={open ? "Collapse" : "Expand"}
           onClick={(e) => {
             e.stopPropagation();
-            onToggle?.();
+            onToggle?.(e.altKey);
           }}
           onPointerDown={(e) => e.stopPropagation()}
           className={cn("text-secondary", selected && "group-focus:text-white", !hasChildren && "invisible")}

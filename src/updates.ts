@@ -13,8 +13,14 @@ export async function checkForUpdates(quiet = false) {
   const current = await appVersion();
   try {
     latest = await checkUpdate();
-  } catch {
-    if (!quiet) await alert("Couldn't Check for Updates", "Check your internet connection and try again.");
+  } catch (failure) {
+    if (!quiet)
+      await alert(
+        "Couldn't Check for Updates",
+        failure === "offline"
+          ? "Check your internet connection and try again."
+          : "The latest version's details aren't available yet. Try again later.",
+      );
     return;
   }
   if (!latest) {

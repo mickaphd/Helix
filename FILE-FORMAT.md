@@ -76,6 +76,9 @@ Every item has `id`, `type` (`"table"`, `"analysis"` or `"graph"`), `name`, and
   be shorter than `columns`: the missing cells are empty.
 - A grouped table names its sub-columns `<group>:<sub-column>` (`"A:Y1"`) and gives
   `groups` and `replicates` (sub-columns per group).
+- An XY table whose data sets hold replicates (Helix 1.0.9 and later) names them the same
+  way after its X (`"Title", "X", "A:Y1", "A:Y2"…`), with `groups` (its data sets) and
+  `replicates`; without them, each Y column is a data set of its own.
 
 Optional fields:
 
@@ -175,6 +178,17 @@ A graph's colors and style are its own:
   each sits in its usual place.
 - `xTitleGap`, `yTitleGap`: the space in pixels between each axis title and its tick
   labels, 0 to 40.
+- `xScale`, `yScale` (Helix 1.0.9 and later): `"linear"`, `"log10"` or `"log2"`, each axis's
+  scale (Y is the value axis; X only where it holds numbers). On a log axis, `xMin`/`yMin`
+  and `xMax`/`yMax` are values above 0, and the step is not used.
+- `error`: `"none"`, `"sd"`, `"sem"` or `"ci"` (the 95% CI of the mean, Helix 1.0.9 and later).
+- `stackAs` (Helix 1.0.9 and later): stacked bars show each group's `"values"`, or its
+  `"percent"` of the row's total; a histogram each data set's counts (`"values"`), or
+  their percent of its values.
+- `xyReplicates` (Helix 1.0.9 and later): an XY scatter of replicates draws each X's
+  `"mean"` (its `center`, mean or median, with its `error`), or `"each"` replicate.
+- `binWidth` (Helix 1.0.9 and later): a `"histogram"` graph's bin width, in the values'
+  units; without it (or at 0 and under), R's own bins.
 
 A `"dose-response"` graph (before Helix 1.0.7) fitted its own curve, from `doseY` (its data
 set) and `doseModel`. It opens as an `"xy-scatter"` drawing the curve of a new

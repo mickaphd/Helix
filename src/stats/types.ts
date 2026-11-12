@@ -14,6 +14,7 @@ export type AnalysisType =
   | "linear-regression"
   | "area-under-curve"
   | "nonlinear-regression"
+  | "logistic-regression"
   | "two-way-anova"
   | "multiple-t-tests"
   | "correlation-matrix"
@@ -128,7 +129,15 @@ export interface LinearRegressionParams {
   x?: string;
   /** Omitted defaults to the first Y data column. */
   y?: string;
+  /** An XY table's Y data sets, each regressed on its own (`y` then unused). */
+  ys?: string[];
   forceOrigin: boolean;
+}
+
+/** Params for "logistic-regression": the Y data set (0s and 1s) regressed on X. */
+export interface LogisticRegressionParams {
+  /** Omitted defaults to the first Y data column. */
+  y?: string;
 }
 
 /** Params for "area-under-curve": trapezoidal-rule AUC of every Y series against X,
@@ -147,12 +156,17 @@ export type NonlinearModel = (typeof NONLINEAR_MODELS)[number];
 export interface NonlinearRegressionParams {
   /** Omitted defaults to the first Y data column. */
   y?: string;
+  /** The Y data sets fitted, each on its own (`y` then unused; no comparison). */
+  ys?: string[];
   model: NonlinearModel;
   /** A dose-response curve compared with this other Y data set's (an extra sum-of-squares F test). */
   compareWith?: string;
   compare?: (typeof CURVE_COMPARISONS)[number];
   /** Interpolate the unknowns: the rows holding a Y but no X get the X the curve gives them. */
   interpolate?: boolean;
+  /** Find each data set's outliers by ROUT (at `q`, in %) and leave them out of its fit. */
+  rout?: boolean;
+  q?: number;
 }
 
 /** Params for "correlation-matrix": Pearson (parametric) vs. Spearman
@@ -238,6 +252,7 @@ export type AnalysisParams = DataSetsParam &
     | LinearRegressionParams
     | AreaUnderCurveParams
     | NonlinearRegressionParams
+    | LogisticRegressionParams
     | TwoWayAnovaParams
     | MultipleTTestsParams
     | MultipleRegressionParams
@@ -264,10 +279,9 @@ export interface CoxParams {
 /** What every test reads: the table's data columns, parsed once (see lib/dataset.ts). */
 export type { Column } from "../lib/dataset";
 
-/** Descriptive statistics for one group (computed in JS, not R). `ciLow`/`ciHigh`
- *  (95% confidence interval of the mean) and `min`/`max`/`range` are only populated
- *  by the standalone "descriptive-statistics" analysis — every other test leaves
- *  them undefined, so the results view only shows those columns for that analysis. */
+/** Descriptive statistics for one group (computed by R). `ciLow`/`ciHigh` (95% confidence
+ *  interval of the mean) and what follows are only populated by the standalone
+ *  "descriptive-statistics" analysis — every other test leaves them undefined. */
 export interface GroupDescriptives {
   name: string;
   mean: number | null;
@@ -280,6 +294,10 @@ export interface GroupDescriptives {
   min?: number | null;
   max?: number | null;
   range?: number | null;
+  q1?: number | null;
+  q3?: number | null;
+  cv?: number | null;
+  geoMean?: number | null;
 }
 
 /** One displayed statistic. `p: true` marks a P value (rendered with significance colour + stars). */
@@ -344,6 +362,8 @@ export interface RegressionCoefficient {
 export interface FitRow {
   label: string;
   values?: (number | null)[];
+  /** The values are P values. */
+  p?: boolean;
   ranges?: [number | null, number | null][];
 }
 
@@ -352,7 +372,7 @@ export interface FitRow {
  *  standards' X. */
 export interface InterpolatedRow {
   label: string;
-  y: number;
+  y: number | null;
   x: number | null;
   concentration?: number | null;
   extrapolated: boolean;
@@ -418,6 +438,10 @@ export interface AnalysisResult {
   fit?: { sets: string[]; rows: FitRow[] };
   /** A standard curve's unknowns, interpolated. */
   interpolated?: InterpolatedRow[];
+  /** The statistic of the coefficients' tests, when not t (a logistic regression's Wald z). */
+  coefficientStatistic?: "z";
+  /** The points a curve's ROUT left out: data set, row, X, Y and key (`pointKeyOf`). */
+  curveOutliers?: { set: string; label: string; x: number; y: number; key: string }[];
   /** Optional per-Y correlations table ("correlation", "x-vs-every-y" mode). */
   correlations?: CorrelationRow[];
   /** Optional per-Y area-under-curve table ("area-under-curve"). */

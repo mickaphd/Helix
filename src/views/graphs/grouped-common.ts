@@ -42,8 +42,18 @@ export function buildGroupedBars(
   const separated =
     mode === "group" && options.groupLayout === "separated" ? separatedPositions(groups.length, labels) : undefined;
 
+  const stats = groups.map((g) => perRowStats(g.columns, rows, options.center, showError ? options.error : "none"));
+  // 100 % stacked bars: each group's share of its row's total.
+  const percent = mode === "stack" && options.stackAs === "percent";
+  if (percent) {
+    for (let r = 0; r < rows; r++) {
+      const total = stats.reduce((sum, s) => sum + (s.center[r] ?? 0), 0);
+      for (const s of stats) s.center[r] = s.center[r] == null || total === 0 ? null : (100 * s.center[r]!) / total;
+    }
+  }
+
   const data = groups.map((g, i) => {
-    const { center, error } = perRowStats(g.columns, rows, options.center, showError ? options.error : "none");
+    const { center, error } = stats[i];
     const errArr = error ? error.map((e) => e ?? NaN) : null; // NaN: no error bar
     const x = separated ? Array.from({ length: rows }, (_, r) => separated.posOf(i, r)) : labels;
     return {
@@ -66,7 +76,16 @@ export function buildGroupedBars(
   const gap = mode === "group" && !separated ? { bargroupgap: options.barGap } : {};
   return {
     data,
-    layout: { ...groupedBarLayout(options, groups.length, { horizontal, separated }), barmode: mode, ...gap },
+    layout: {
+      ...groupedBarLayout(
+        // Percent bars say so on their axis, until it is titled by hand.
+        percent && !options.yLabel ? { ...options, yLabel: "Percent of total" } : options,
+        groups.length,
+        { horizontal, separated },
+      ),
+      barmode: mode,
+      ...gap,
+    },
   };
 }
 

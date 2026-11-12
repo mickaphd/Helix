@@ -54,6 +54,15 @@ const choice = (id: string, ask: string, options: [string, string][], normality 
 });
 
 const names = (list: string[]) => list.map((n): [string, string] => [n, n]);
+
+/** The Y data sets to fit, all ticked at first (asked when there is a choice); one answered
+ *  is the regression's `y`, several its `ys`. */
+const ysQuestion = (table: Dataset, ask: string): Question | false =>
+  yNames(table).length > 1 && { id: "ys", ask, kind: "names", options: yNames(table), min: 1 };
+const fittedYs = (a: Answers) => {
+  const ys = a.ys as string[] | undefined;
+  return ys === undefined ? {} : ys.length === 1 ? { y: ys[0] } : { ys };
+};
 const yNames = (table: Dataset) => splitXY(table.columns).ys.map((c) => c.name);
 const dataNames = (table: Dataset) => table.numeric.map((c) => c.name);
 
@@ -336,7 +345,7 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
       type === "multiple" && choice("x", "Which variable is X?", names(dataNames(table))),
       type === "multiple"
         ? choice("y", "Which variable is Y?", names(dataNames(table).filter((n) => n !== a.x)))
-        : choice("y", "Which Y data set should be regressed on X?", names(yNames(table))),
+        : ysQuestion(table, "Which Y data sets should be regressed on X? Each is regressed on its own."),
       choice("origin", "Force the line through the origin (0,0)?", [
         ["no", "No — fit both slope and Y-intercept (recommended)"],
         ["yes", "Yes — assume Y = 0 when X = 0"],
@@ -344,8 +353,18 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
     ],
     finish: (a) => ({
       type: "linear-regression",
-      params: { ...(a.x === undefined ? {} : { x: a.x as string }), y: a.y as string, forceOrigin: a.origin === "yes" },
+      params: {
+        ...(a.x === undefined ? { ...fittedYs(a) } : { x: a.x as string, y: a.y as string }),
+        forceOrigin: a.origin === "yes",
+      },
     }),
+  },
+
+  "logistic-regression": {
+    questions: (_, table) => [
+      yNames(table).length > 1 && choice("y", "Which Y data set holds the outcome, 1 or 0?", names(yNames(table))),
+    ],
+    finish: (a) => ({ type: "logistic-regression", params: a.y === undefined ? {} : { y: a.y as string } }),
   },
 
   "area-under-curve": {
@@ -367,10 +386,12 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
       const models = (dose ? DOSE_MODELS : NONLINEAR_MODELS.filter((m) => !isDoseModel(m))).map(
         (m): [string, string] => [m, MODEL_LABEL[m]],
       );
-      const others = yNames(table).filter((n) => n !== (a.y ?? yNames(table)[0]));
+      // One data set fitted can be compared with another's curve; several are each fitted.
+      const ys = (a.ys as string[] | undefined) ?? yNames(table).slice(0, 1);
+      const others = ys.length === 1 ? yNames(table).filter((n) => n !== ys[0]) : [];
       const midpoint = String(a.model).startsWith("inhibitor") ? "IC50" : "EC50";
       return [
-        choice("y", "Which Y data set should be fitted?", names(yNames(table))),
+        ysQuestion(table, "Which Y data sets should be fitted? Each is fitted on its own."),
         choice("kind", "Which kind of curve?", [
           ["dose", "Dose-response (sigmoidal)"],
           ["other", "Another curve (line, polynomial, exponential, Michaelis-Menten…)"],
@@ -389,16 +410,27 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
             ["ec50", `Is the ${midpoint} different between the two data sets?`],
             ["all", "Does one curve fit both data sets?"],
           ]),
+        // Outliers are looked for in a curve fitted on its own, not in two compared.
+        (!dose || ys.length > 1 || others.length === 0 || a.compareWith === "none") &&
+          choice("rout", "Identify outliers, points too far from the curve, and leave them out of the fit?", [
+            ["no", "No — fit every point"],
+            ["yes", "Yes — ROUT method (Q = 1%)"],
+          ]),
       ];
     },
     finish: (a) => {
       const compare =
-        a.kind !== "other" && a.compareWith !== undefined && a.compareWith !== "none"
+        a.kind !== "other" && a.compareWith !== undefined && a.compareWith !== "none" && fittedYs(a).ys === undefined
           ? { compareWith: a.compareWith as string, compare: a.compare as NonlinearRegressionParams["compare"] }
           : {};
       return {
         type: "nonlinear-regression",
-        params: { y: a.y as string, model: a.model as NonlinearRegressionParams["model"], ...compare },
+        params: {
+          ...fittedYs(a),
+          model: a.model as NonlinearRegressionParams["model"],
+          ...compare,
+          ...(a.rout === "yes" && !compare.compareWith ? { rout: true } : {}),
+        },
       };
     },
   },
@@ -531,7 +563,7 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
 
   survival: {
     questions: (_, table) => {
-      const groups = splitXY(table.columns).ys.filter((c) => c.values.length > 0).length;
+      const groups = splitXY(table.columns).ys.length;
       return [
         choice("curveTest", "Which test should compare the survival curves?", [
           ["logrank", "Log-rank (Mantel-Cox) test (recommended)"],
@@ -562,11 +594,7 @@ export const WIZARDS: Partial<Record<AnalysisPickerValue, Wizard>> = {
       choice(
         "reference",
         "Which group's hazard should the others be compared to?",
-        names(
-          splitXY(table.columns)
-            .ys.filter((c) => c.values.length > 0)
-            .map((c) => c.name),
-        ),
+        names(splitXY(table.columns).ys.map((s) => s.name)),
       ),
     ],
     finish: (a) => ({ type: "cox", params: { reference: a.reference as CoxParams["reference"] } }),

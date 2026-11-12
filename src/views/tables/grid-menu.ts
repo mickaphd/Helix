@@ -5,7 +5,7 @@
 import { hasXColumn, type TableData, type TableType } from "../../store/types";
 import type { TableMove } from "../../store/references";
 import type { MenuItems } from "../../native";
-import { isGrouped } from "../../lib/dataset";
+import { isGrouped, leadOf } from "../../lib/dataset";
 import {
   convertCommaDecimals,
   deleteColumns,
@@ -93,7 +93,8 @@ export function gridMenu({ data, type, zone, range, update, rename, showGroups }
 
   if (onCells) {
     items.push(SEPARATOR, {
-      text: grouped && range.c0 > 0 ? "Rename Group" : "Rename Column",
+      text:
+        grouped && range.c0 >= leadOf(data) ? (type === "xy" ? "Rename Data Set" : "Rename Group") : "Rename Column",
       action: () => rename(range.c0),
     });
   }
@@ -106,7 +107,8 @@ export function gridMenu({ data, type, zone, range, update, rename, showGroups }
     });
   }
 
-  if (grouped) items.push(SEPARATOR, { text: "Show Groups", action: showGroups });
+  if (grouped || type === "xy")
+    items.push(SEPARATOR, { text: type === "xy" ? "Show Replicates" : "Show Groups", action: showGroups });
 
   if (zone === "row") {
     const text = `Delete ${plural(rows, "Row")}`;

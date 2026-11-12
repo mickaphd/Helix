@@ -62,14 +62,15 @@ And a spreadsheet that feels like one:
 - **Grouped data:** two-way ANOVA (ordinary, repeated measures with the Geisser-Greenhouse
   correction, Scheirer-Ray-Hare) and multiple t tests with Holm or FDR correction
 - **Curves:** dose-response (4PL, 3PL, 5PL) with the EC50 or IC50 and every parameter's 95% CI,
-  two curves compared; standard curves read for your unknowns (ELISA); exponential growth
-  and decay (doubling time, half-life), Michaelis-Menten, lines and polynomials
+  several data sets at once or two curves compared, outliers left out by ROUT; standard
+  curves read for your unknowns (ELISA); exponential growth and decay (doubling time,
+  half-life), Michaelis-Menten, lines and polynomials; replicates taken as they are
 - **Before you test:** a normality and lognormality test that says in plain words which
   tests suit your data; outliers found by ROUT or Grubbs
 - **Counts:** Fisher's exact and chi-square tests, with the odds ratio, the relative risk,
   Phi and Cramér's V
 - **Two variables:** a regression line through any two variables of a table, with its
-  equation, r, R² and P
+  equation, r, R² and P; a logistic regression for a yes/no outcome, with its odds ratio
 - **Survival:** Kaplan-Meier with median survival, log-rank, trend and Gehan-Breslow-Wilcoxon
   tests, hazard ratios, and Cox regression
 - **Clear results:** the exact test that ran, whether it is significant, every statistic,
@@ -82,7 +83,7 @@ And a spreadsheet that feels like one:
 - **Statistics on the graph:** significance stars or P values from your analyses, regression
   lines with their confidence band and equation, any fitted curve with its best-fit values,
   Kaplan-Meier curves with their confidence band
-- **Every kind of figure:** dot plots, bars, box and violin, lines, heatmaps, volcano plots
+- **Every kind of figure:** dot plots, bars, box and violin, histograms, lines, heatmaps, volcano plots
   (from your own results, or computed by Helix from replicates), survival curves
 - **Colors that work:** 15 palettes from the scientific literature (Okabe-Ito, Paul Tol,
   Viridis, Batlow…), colorblind-friendly ones first, each reversible; or make your own,

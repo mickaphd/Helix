@@ -41,7 +41,7 @@ const PROPERTIES: Property[] = [
   { id: "text", label: "Text size and spacing", keys: ["fontSize", "xTitleGap", "yTitleGap"] },
   { id: "titles", label: "Titles", keys: ["title", "xLabel", "yLabel"], off: true },
   { id: "ranges", label: "Axis ranges", keys: ["xMin", "xMax", "xStep", "yMin", "yMax", "yStep"], off: true },
-  { id: "axes", label: "Axis thickness", keys: ["axisWidth"] },
+  { id: "axes", label: "Axis scales and thickness", keys: ["xScale", "yScale", "axisWidth"] },
   { id: "sheet", label: "Size and background", keys: ["width", "height", "background"] },
 ];
 
@@ -129,7 +129,7 @@ export function MatchSection({
   graphId: string;
   set: (options: GraphOptions) => void;
   collapsed: boolean;
-  onToggle: () => void;
+  onToggle: (all: boolean) => void;
 }) {
   const { nodes } = useProjectStore();
   const { tables } = useOutline();

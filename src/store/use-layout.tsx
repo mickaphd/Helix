@@ -45,8 +45,25 @@ function load(): Layout {
   }
 }
 
+// The Format panel's sections open, kept for every graph and launch (Statistics at first).
+const OPEN_KEY = "helix.graph.openSections";
+function readOpen(): ReadonlySet<string> {
+  try {
+    const saved = localStorage.getItem(OPEN_KEY);
+    return new Set(saved ? (JSON.parse(saved) as string[]) : ["Statistics"]);
+  } catch {
+    return new Set(["Statistics"]);
+  }
+}
+
 /** The layout, with the panels' widths as shown (see `fitWidths`). */
 type LayoutValue = Layout & {
+  /** The Format panel's sections open (this Mac's), and the sidebar's tables folded (this
+   *  window's): each one by its triangle, all at once by ⌥ or the View menu. */
+  openSections: ReadonlySet<string>;
+  setOpenSections: (open: ReadonlySet<string>) => void;
+  foldedTables: ReadonlySet<string>;
+  setFoldedTables: (folded: ReadonlySet<string>) => void;
   setLayout: (patch: Partial<Layout>) => void;
   /** Whether the view shown has an inspector (a graph, a grouped table), as it says
    *  while it does (`WithInspector`). */
@@ -80,6 +97,16 @@ export function LayoutProvider({ children }: { children: React.ReactNode }) {
   const [layout, setState] = React.useState(load);
   const [windowWidth, setWindowWidth] = React.useState(window.innerWidth);
   const [inspectorHere, setInspectorHere] = React.useState(false);
+  const [openSections, setOpen] = React.useState(readOpen);
+  const [foldedTables, setFoldedTables] = React.useState<ReadonlySet<string>>(new Set());
+  const setOpenSections = React.useCallback((open: ReadonlySet<string>) => {
+    setOpen(open);
+    try {
+      localStorage.setItem(OPEN_KEY, JSON.stringify([...open]));
+    } catch {
+      // Not saved: the next launch opens Statistics alone.
+    }
+  }, []);
   React.useEffect(() => {
     const onResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener("resize", onResize);
@@ -97,8 +124,19 @@ export function LayoutProvider({ children }: { children: React.ReactNode }) {
   // otherwise the value stays the same object, and nothing redraws.
   const { sidebarWidth, inspectorWidth } = fitWidths(layout, windowWidth, inspectorHere);
   const value = React.useMemo(
-    () => ({ ...layout, sidebarWidth, inspectorWidth, setLayout, inspectorHere, setInspectorHere }),
-    [layout, sidebarWidth, inspectorWidth, setLayout, inspectorHere],
+    () => ({
+      ...layout,
+      sidebarWidth,
+      inspectorWidth,
+      setLayout,
+      inspectorHere,
+      setInspectorHere,
+      openSections,
+      setOpenSections,
+      foldedTables,
+      setFoldedTables,
+    }),
+    [layout, sidebarWidth, inspectorWidth, setLayout, inspectorHere, openSections, setOpenSections, foldedTables],
   );
   return <LayoutContext.Provider value={value}>{children}</LayoutContext.Provider>;
 }

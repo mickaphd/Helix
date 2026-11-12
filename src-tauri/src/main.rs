@@ -428,10 +428,15 @@ fn close_projects(app: &AppHandle, relaunch: bool) -> bool {
 #[derive(Default)]
 struct Found(Mutex<Option<Update>>);
 
-/// The newer version out ("1.0.8"), if any.
+/// The newer version out ("1.0.8"), if any. Fails with "offline" when GitHub can't be
+/// reached, "unavailable" when it answers without the latest release's `latest.json`.
 #[tauri::command]
-async fn check_update(app: AppHandle, found: State<'_, Found>) -> Result<Option<String>, String> {
-    let update = app.updater().map_err(|e| e.to_string())?.check().await.map_err(|e| e.to_string())?;
+async fn check_update(app: AppHandle, found: State<'_, Found>) -> Result<Option<String>, &'static str> {
+    let failed = |e: tauri_plugin_updater::Error| match e {
+        tauri_plugin_updater::Error::Reqwest(_) => "offline",
+        _ => "unavailable",
+    };
+    let update = app.updater().map_err(failed)?.check().await.map_err(failed)?;
     let version = update.as_ref().map(|u| u.version.clone());
     *found.0.lock().unwrap() = update;
     Ok(version)

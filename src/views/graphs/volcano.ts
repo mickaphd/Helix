@@ -92,7 +92,8 @@ function build(columns: Column[], options: GraphOptions, paint: Paint, titles?: 
   const yTitle = options.yLabel || (yIsP ? `-log10(${yName})` : yName);
 
   // The XY family's numeric-axis layout (clean spines, no legend), Y titled by default.
-  const layout = xyLayout(options, xName, 0, { yName: yTitle });
+  // Its axes stay linear: Y is already −log10 (a scale another graph may pass by Match).
+  const layout = xyLayout({ ...options, xScale: "linear", yScale: "linear" }, xName, 0, { yName: yTitle });
 
   if (!xCol || !yCol) return { data: [], layout };
 

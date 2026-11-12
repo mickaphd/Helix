@@ -23,6 +23,7 @@ import {
   regroupLoses,
   regroupTable,
   renameGroup,
+  replicateXY,
   rowsDeleted,
   rowsInserted,
   writeBlock,
@@ -42,11 +43,19 @@ import {
 } from "../src/lib/palettes";
 import { deletePalette, keepPalette, loadMyPalettes } from "../src/store/my-palettes";
 import { GRAPHS, newGraphOptions, plotColumns, type GraphFigure } from "../src/views/graphs";
-import { readTable, setColumns } from "../src/lib/dataset";
+import { readTable, setColumns, splitXY, xyPoints } from "../src/lib/dataset";
 import { incompleteRows, missingColumn } from "../src/stats/column/base";
 import { toggled, WIZARDS, type Answers } from "../src/views/analyses/wizards";
 import { addRegression } from "../src/views/graphs/regression-overlay";
-import { addNote, movedText, paintOf, vectorTraces, visibleOutline, withCaps } from "../src/views/graphs/plot-helpers";
+import {
+  addNote,
+  curveXs,
+  movedText,
+  paintOf,
+  vectorTraces,
+  visibleOutline,
+  withCaps,
+} from "../src/views/graphs/plot-helpers";
 import {
   drawnKeys,
   drawnStyle,
@@ -61,7 +70,7 @@ import {
 import { cutoffAsP, cutoffOfP, genesNamed } from "../src/views/graphs/volcano";
 import { examplesFor, matched, type Matched } from "../src/views/graphs/match-graph";
 import type { OutlineNode } from "../src/store/use-project-store";
-import { deriveComparisons } from "../src/views/graphs/significance-overlay";
+import { addSignificance, deriveComparisons } from "../src/views/graphs/significance-overlay";
 import { headline } from "../src/views/analyses/analysis-results-view";
 import { fitWidths } from "../src/store/use-layout";
 import { computeGroupedDEG } from "../src/lib/deg";
@@ -201,6 +210,7 @@ check("a table that doesn't hold together is put straight", () => {
   ok(issues.some((i) => i.message.includes("2 values beyond its last column")));
   ok(updated);
   const grouped = JSON.parse(serializeProjectFile(payload));
+  grouped.project.nodes.t1.tableType = "grouped";
   grouped.project.nodes.t1.data = {
     columns: ["Title", "A:Y1", "A:Y2", "B:Y1", "B:Y2"],
     rows: [["r", "1", "2", "3", "4"]],
@@ -570,6 +580,55 @@ check("a column gone takes its width with it: a new one of its name starts at th
   deepStrictEqual(regroupTable(t, 2, 2).widths, { "A:Y1": 90 });
 });
 
+check("an XY table takes replicates and gives them back, every value in its data set", () => {
+  const single: TableData = {
+    columns: ["Title", "Dose", "Ctl", "Dose: 5"],
+    rows: [
+      ["a", "1", "10", "20"],
+      ["b", "2", "11", null],
+    ],
+    excluded: ["1,2"],
+  };
+  const { data: three, renamed } = replicateXY(single, 3);
+  deepStrictEqual(three.columns, [
+    "Title",
+    "Dose",
+    "Ctl:Y1",
+    "Ctl:Y2",
+    "Ctl:Y3",
+    "Dose- 5:Y1",
+    "Dose- 5:Y2",
+    "Dose- 5:Y3",
+  ]);
+  deepStrictEqual(renamed, { "Dose: 5": "Dose- 5" });
+  deepStrictEqual([three.groups, three.replicates], [2, 3]);
+  deepStrictEqual(three.rows[0], ["a", "1", "10", null, null, "20", null, null]);
+  deepStrictEqual(three.excluded, ["1,2"]);
+  // Read: X, then each data set with its replicates.
+  const typed = writeBlock(three, 0, 3, [["12", "14"]], "xy");
+  const { x, ys } = splitXY(readTable(typed).columns);
+  deepStrictEqual([x?.name, ys.map((s) => s.name)], ["Dose", ["Ctl", "Dose- 5"]]);
+  deepStrictEqual(xyPoints(x!, ys[0]), {
+    x: [1, 1, 1],
+    y: [10, 12, 14],
+    rows: [0, 0, 0],
+    columns: ["Ctl:Y1", "Ctl:Y2", "Ctl:Y3"],
+  });
+  // More data sets are named as an XY table's are; one replicate gives the plain columns back.
+  deepStrictEqual(regroupTable(three, 3, 3, "xy").columns.slice(-3), ["C:Y1", "C:Y2", "C:Y3"]);
+  // A column still named as a new one takes the letter of its place.
+  const fresh = replicateXY({ columns: ["Title", "X", "Y1", "Dose", "Y3"], rows: [] }, 2);
+  deepStrictEqual(fresh.data.columns, ["Title", "X", "A:Y1", "A:Y2", "Dose:Y1", "Dose:Y2", "C:Y1", "C:Y2"]);
+  deepStrictEqual(fresh.renamed, { Y1: "A", Y3: "C" });
+  const back = replicateXY(typed, 1).data;
+  deepStrictEqual(back.columns, ["Title", "Dose", "Ctl", "Dose- 5"]);
+  deepStrictEqual([back.groups, back.replicates, back.rows[0]], [undefined, undefined, ["a", "1", "10", "20"]]);
+  // A file keeps an XY table's replicates after its X, and puts wrong counts straight.
+  const file = JSON.parse(serializeProjectFile(payload));
+  file.project.nodes.t1.data = { ...three, groups: 7 };
+  deepStrictEqual(read(JSON.stringify(file)).project.nodes.t1.data, JSON.parse(JSON.stringify(three)));
+});
+
 check("an XY table with a renamed X gets Y columns, not a second X", () => {
   deepStrictEqual(freshColumnNames(["Title", "Dose", "Y1"], "xy", 2), ["Y2", "Y3"]);
   deepStrictEqual(freshColumnNames(["Title"], "xy", 2), ["X", "Y1"]);
@@ -672,24 +731,39 @@ check("a two-way ANOVA of one value per cell asks nothing and runs the ordinary 
 check("fitting a curve asks its kind, then its model, then what to compare", () => {
   const wizard = WIZARDS["nonlinear-regression"]!;
   const table = readTable({ columns: ["Title", "X", "A", "B"], rows: [["", "1", "2", "3"]] });
-  const asked = (a: Record<string, string>) => wizard.questions(a, table).flatMap((q) => (q ? [q] : []));
-  const options = (a: Record<string, string>, id: string) => {
+  const asked = (a: Answers) => wizard.questions(a, table).flatMap((q) => (q ? [q] : []));
+  const options = (a: Answers, id: string) => {
     const q = asked(a).find((q) => q.id === id);
     return q?.kind === "choice" ? q.options.map((o) => o.value) : [];
   };
   ok(options({ kind: "dose" }, "model").includes("asymmetric-5pl-logx"));
   ok(!options({ kind: "other" }, "model").includes("sigmoidal-4pl-logx"));
-  deepStrictEqual(options({ y: "A", kind: "dose" }, "compareWith"), ["none", "B"]);
-  ok(!asked({ y: "A", kind: "other" }).some((q) => q.id === "compareWith"));
-  ok(!asked({ y: "A", kind: "dose", compareWith: "none" }).some((q) => q.id === "compare"));
+  deepStrictEqual(options({ ys: ["A"], kind: "dose" }, "compareWith"), ["none", "B"]);
+  ok(!asked({ ys: ["A"], kind: "other" }).some((q) => q.id === "compareWith"));
+  ok(!asked({ ys: ["A"], kind: "dose", compareWith: "none" }).some((q) => q.id === "compare"));
+  // Several data sets are each fitted: none is compared.
+  ok(!asked({ ys: ["A", "B"], kind: "dose" }).some((q) => q.id === "compareWith"));
+  deepStrictEqual(wizard.finish({ ys: ["A", "B"], kind: "dose", model: "sigmoidal-4pl-logx" }, table).params, {
+    ys: ["A", "B"],
+    model: "sigmoidal-4pl-logx",
+  });
   deepStrictEqual(
-    wizard.finish({ y: "A", kind: "dose", model: "inhibitor-3pl-logx", compareWith: "B", compare: "ec50" }, table),
+    wizard.finish({ ys: ["A"], kind: "dose", model: "inhibitor-3pl-logx", compareWith: "B", compare: "ec50" }, table),
     {
       type: "nonlinear-regression",
       params: { y: "A", model: "inhibitor-3pl-logx", compareWith: "B", compare: "ec50" },
     },
   );
-  deepStrictEqual(wizard.finish({ y: "A", kind: "other", model: "line", compareWith: "B" }, table).params, {
+  // Outliers are looked for in a curve fitted on its own, not in two compared.
+  ok(asked({ ys: ["A"], kind: "other" }).some((q) => q.id === "rout"));
+  ok(!asked({ ys: ["A"], kind: "dose", compareWith: "B" }).some((q) => q.id === "rout"));
+  ok(asked({ ys: ["A"], kind: "dose", compareWith: "none" }).some((q) => q.id === "rout"));
+  deepStrictEqual(wizard.finish({ ys: ["A"], kind: "other", model: "line", rout: "yes" }, table).params, {
+    y: "A",
+    model: "line",
+    rout: true,
+  });
+  deepStrictEqual(wizard.finish({ ys: ["A"], kind: "other", model: "line", compareWith: "B" }, table).params, {
     y: "A",
     model: "line",
   });
@@ -716,7 +790,7 @@ check("a linear regression takes two variables of a Multiple Variables table", a
   const wizard = WIZARDS["linear-regression"]!;
   const ids = (a: Answers, type?: TableType) =>
     wizard.questions(a, readTable(data), type).flatMap((q) => (q ? [q.id] : []));
-  deepStrictEqual(ids({}), ["y", "origin"]);
+  deepStrictEqual(ids({}), ["ys", "origin"]);
   deepStrictEqual(ids({ x: "Height" }, "multiple"), ["x", "y", "origin"]);
   const params = wizard.finish({ x: "Height", y: "Weight", origin: "no" }, readTable(data), "multiple").params!;
   deepStrictEqual(params, { x: "Height", y: "Weight", forceOrigin: false });
@@ -736,6 +810,18 @@ check("a linear regression takes two variables of a Multiple Variables table", a
   strictEqual(drawn(1, 2), 1);
   strictEqual(drawn(0, 2), 0);
   strictEqual(drawn(1, 0), 0);
+  // An XY table's data sets regressed together: a line each, in its color, a note line each.
+  const xy = readTable({ columns: ["Title", "X", "A", "B"], rows: [[null, "1", "2", "9"], [null, "2", "4", "7"], [null, "3", "5", "6"]] }); // prettier-ignore
+  const fig: GraphFigure = { data: [], layout: {} };
+  const options = { ...DEFAULT_GRAPH_OPTIONS, regShowLine: true, regShowBand: false, regShowEquation: true };
+  const paint = paintOf(options, 2);
+  addRegression(fig, xy.columns, options, { ys: ["A", "B"], forceOrigin: false }, paint);
+  deepStrictEqual(
+    (fig.data as { line: { color: string } }[]).map((t) => t.line.color),
+    [paint.color("A", 0), paint.color("B", 1)],
+  );
+  const note = (fig.layout.annotations as { text: string }[])[0].text;
+  ok(note.startsWith("A: Y = ") && note.includes("<br>B: Y = "));
 });
 
 check("a two-group test keeps only the answers to the questions it asked", () => {
@@ -947,6 +1033,75 @@ check("outlines take the color of what they outline, or the one chosen", () => {
     drawnStyle(GRAPHS.individual.build(readTable(data).numeric, half, paintOf(half, 2)).data, "A#0")!.color,
     color("A", 0),
   );
+});
+
+check("a log axis: ticks at the powers, a range typed in values, curves drawn evenly in log", () => {
+  type Axis = { type: string; tickvals: number[]; ticktext: string[]; range?: number[]; dtick?: number };
+  const xy = treatments(["X", "Y"]);
+  const draw = (o: Partial<GraphOptions>) => {
+    const options = { ...newGraphOptions("xy-scatter"), ...o };
+    const fig = GRAPHS["xy-scatter"].build(readTable(xy).columns, options, paintOf(options, 1));
+    return fig.layout as { xaxis: Axis; yaxis: Axis };
+  };
+  strictEqual(draw({}).yaxis.type, undefined); // linear, as before
+  const log10 = draw({ yScale: "log10", yMin: 1, yMax: 1000, yStep: 5 }).yaxis;
+  strictEqual(log10.type, "log");
+  deepStrictEqual(log10.range, [0, 3]);
+  strictEqual(log10.dtick, undefined); // no step on a log axis
+  ok(log10.tickvals.includes(0.01) && log10.ticktext[log10.tickvals.indexOf(0.01)] === "0.01");
+  strictEqual(log10.ticktext[log10.tickvals.indexOf(1e6)], "1000000");
+  strictEqual(log10.ticktext[log10.tickvals.indexOf(1e7)], "10<sup>7</sup>");
+  const log2 = draw({ xScale: "log2" }).xaxis;
+  strictEqual(log2.type, "log");
+  strictEqual(log2.ticktext[log2.tickvals.indexOf(8)], "8");
+  // A curve on a log X: from its smallest X above 0, evenly in log.
+  deepStrictEqual(curveXs([0, 1, 100], "log10", 2), [1, 10, 100]);
+  deepStrictEqual(curveXs([0, 1, 100], "linear", 2), [0, 50, 100]);
+  // A file's unknown scale is read as linear.
+  const file = JSON.parse(serializeProjectFile(payload));
+  file.project.nodes.g1.graphOptions.yScale = "ln";
+  strictEqual(read(JSON.stringify(file)).project.nodes.g1.graphOptions!.yScale, "linear");
+});
+
+check("on a log axis, the stars' brackets take values and their labels log10 values", () => {
+  const data = treatments(["A", "B"]); // A: 1, 2, 3; B: 2, 3, 4
+  const key = pairKey("A", "B");
+  const options = {
+    ...newGraphOptions("individual"),
+    yScale: "log10" as const,
+    sigPairs: [key],
+    error: "none" as const,
+  };
+  const fig: GraphFigure = { data: [], layout: {} };
+  addSignificance(fig, readTable(data).columns, "individual", options, [{ key, group1: "A", group2: "B", p: 0.01 }]);
+  const [bracket] = fig.layout.shapes as { y0: number }[];
+  const [label] = fig.layout.annotations as { y: number }[];
+  ok(bracket.y0 > 4, "the bracket sits above the highest value, 4");
+  ok(Math.abs(label.y - Math.log10(bracket.y0)) < 0.05, "its label at the log10 of the bracket");
+});
+
+check("100 % stacked bars: each row's segments make 100", () => {
+  const counts = writeBlock(
+    newGroupedTable(2, 1),
+    0,
+    0,
+    [
+      ["Arm 1", "3", "1"],
+      ["Arm 2", "2", "6"],
+    ],
+    "grouped",
+  );
+  const options = { ...newGraphOptions("grouped-stacked"), stackAs: "percent" as const };
+  const fig = GRAPHS["grouped-stacked"].build(readTable(counts).columns, options, paintOf(options, 2));
+  // Group A holds 3 and 2, B 1 and 6: in each arm, their shares.
+  deepStrictEqual(
+    (fig.data as { y: (number | null)[] }[]).map((b) => b.y),
+    [
+      [75, 25],
+      [25, 75],
+    ],
+  );
+  strictEqual((fig.layout.yaxis as { title: { text: string } }).title.text, "Percent of total");
 });
 
 check("error bars, the center line drawn with them, and lines take their own style", () => {

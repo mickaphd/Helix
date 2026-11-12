@@ -246,13 +246,20 @@ export function renameGroup(data: TableData, oldKey: string, newKey: string): Ta
 /** Changes how many groups and sub-columns a grouped table has. Every value stays
  *  in its group and sub-column (with its exclusion); groups keep their
  *  names; only groups or sub-columns beyond the new counts are dropped. */
-export function regroupTable(data: TableData, groups: number, replicates: number): TableData {
-  const keys = [...new Set(data.columns.slice(1).map(seriesKeyOf))].slice(0, groups);
+export function regroupTable(
+  data: TableData,
+  groups: number,
+  replicates: number,
+  type: "grouped" | "xy" = "grouped",
+): TableData {
+  // An XY table's X stays before its data sets.
+  const lead = type === "xy" ? 2 : 1;
+  const keys = [...new Set(data.columns.slice(lead).map(seriesKeyOf))].slice(0, groups);
   // A new group takes the letter of its place (C for the third), or the next free one.
   for (let i = keys.length; keys.length < groups; i++) if (!keys.includes(columnLetter(i))) keys.push(columnLetter(i));
-  const columns = [data.columns[0], ...subColumns(keys, replicates)];
-  const from = columns.map((name, c) => (c === 0 ? 0 : data.columns.indexOf(name)));
-  const to = (c: number) => (c === 0 ? 0 : columns.indexOf(data.columns[c]));
+  const columns = [...data.columns.slice(0, lead), ...subColumns(keys, replicates)];
+  const from = columns.map((name, c) => (c < lead ? c : data.columns.indexOf(name)));
+  const to = (c: number) => (c < lead ? c : columns.indexOf(data.columns[c]));
   return {
     ...data,
     columns,
@@ -262,6 +269,40 @@ export function regroupTable(data: TableData, groups: number, replicates: number
     excluded: remapExcluded(data, (r, c) => (to(c) < 0 ? null : [r, to(c)])),
     widths: widthsOf(data.widths, columns),
   };
+}
+
+/** Sets how many replicates each Y data set of an XY table holds: one column each, named
+ *  for its data set, or (2 and more) sub-columns "A:Y1", "A:Y2"… under its name. Every
+ *  value stays in its data set (the first replicate is the single column). A column still
+ *  named as a new one is ("Y2", the second) takes the letter of its place, as a grouped
+ *  table's groups do ("B"); a ":" in a name, which would split it, becomes "-" (`renamed`). */
+export function replicateXY(data: TableData, replicates: number): { data: TableData; renamed: Record<string, string> } {
+  const renamed: Record<string, string> = {};
+  if (isGrouped(data)) {
+    if (replicates > 1) return { data: regroupTable(data, data.groups!, replicates, "xy"), renamed };
+    const one = regroupTable(data, data.groups!, 1, "xy");
+    const columns = one.columns.map((n, c) => (c < 2 ? n : seriesKeyOf(n)));
+    return {
+      data: { ...one, columns, groups: undefined, replicates: undefined, widths: widthsOf(one.widths, columns) },
+      renamed,
+    };
+  }
+  if (replicates < 2) return { data, renamed };
+  const ys = data.columns.slice(2);
+  const names: string[] = [];
+  ys.forEach((n, i) => {
+    let name = n === columnLabel("xy", i + 1) ? columnLetter(i) : n.replaceAll(":", "-");
+    for (let k = i; names.includes(name) || ys.slice(i + 1).includes(name); k++) name = columnLetter(k + 1);
+    if (name !== n) renamed[n] = name;
+    names.push(name);
+  });
+  const single = {
+    ...data,
+    columns: [...data.columns.slice(0, 2), ...subColumns(names, 1)],
+    groups: names.length,
+    replicates: 1,
+  };
+  return { data: regroupTable(single, names.length, replicates, "xy"), renamed };
 }
 
 /** Whether regrouping to these counts deletes a value (a group or sub-column beyond them holding one). */

@@ -26,7 +26,7 @@ it doesn't.
 
 | Analysis | Computed with | Choices |
 | --- | --- | --- |
-| Descriptive statistics | `mean`, `sd`, `median`, `qt`… | SD and SEM use n − 1; the 95% CI of the mean is t-based. |
+| Descriptive statistics | `mean`, `sd`, `quantile`, `qt`… | SD and SEM use n − 1; the 95% CI of the mean is t-based; the 25th and 75th percentiles are `quantile` type 6, the (n + 1)p method (checked by hand); CV is SD ÷ mean; the geometric mean, exp of the mean of the logs, needs every value above 0. |
 | Unpaired t test | `t.test(var.equal = TRUE)` | Also reports the F test of equal variances (`var.test`). Needs 2 values per group. Effect size: Cohen's d, the mean difference over the pooled SD, and Hedges' g, d with its exact small-sample correction. |
 | Welch's t test | `t.test` | Welch-Satterthwaite degrees of freedom. Cohen's d and Hedges' g as for the unpaired t test (pooled SD). |
 | Paired t test | `t.test(paired = TRUE)` | Rows holding both values only. Cohen's d is the mean difference over the SD of the differences; Hedges' g corrects it. |
@@ -60,12 +60,25 @@ borderline points the two can disagree.
 
 X is the first data column. X and a Y pair on the rows where both hold a number.
 
+A linear or nonlinear regression may fit several Y data sets (Helix 1.0.9 and later): each
+on its own, as it would alone (checked), their best-fit values side by side, and a scatter
+draws each one's line or curve in its color.
+
+A Y data set may hold replicates (Helix 1.0.9 and later): each replicate is a point of the
+correlation with X and of the regressions (checked against `lm` on them all), as Prism
+does by default; the area under the curve joins each X's mean, and an unknown to
+interpolate is its replicates' mean, both computed by R. Correlating two Y data sets
+pairs one value per row, so it isn't offered with replicates. A graph draws each
+replicate, or each X's mean or median with its SD, SEM or 95% CI.
+
 | Analysis | Computed with | Choices |
 | --- | --- | --- |
 | Correlation | `cor.test` | Pearson or Spearman, at least 3 pairs. |
 | Linear regression | `lm`, `cor` | Of an XY table's Y on its X, or of one variable of a Multiple Variables table on another, on the rows holding both. 95% CIs with `confint`. Pearson's r is `cor`'s; none is given for a line through the origin, which it says nothing of. Through the origin, R² is R's uncentered one. The line, the band and r drawn on a graph are computed in TypeScript and checked against R. |
 | Area under the curve | written in R | Trapezoids from a baseline; area under the baseline is negative. |
 | Nonlinear regression | `lm` (line, semilog, polynomials), `nls` (dose-response, hyperbola, exponential growth, one-phase decay, Michaelis-Menten) | Least squares, no weighting. Curves in log or ratio of X fit the points with X > 0. Dose-response: 4PL; 3PL with a standard slope (Hill slope 1 for an agonist, −1 for an inhibitor, as chosen); 5PL, Prism's asymmetric sigmoid, whose asymmetry S is 1 for the 4PL and whose fit starts from the 4PL's. A 4PL starts from a slope of the curve's own sign, so Bottom stays under Top and a falling curve has a negative Hill slope. Each parameter's 95% CI is asymptotic (estimate ± t × SE, as Prism's default); an EC50's is 10 to its LogEC50's, so asymmetric; the asymmetry S's is taken on its log, so it stays above 0; Span's takes Top's and Bottom's covariance. Exponential growth, Y = Y0·e^(KX), reports the doubling time ln 2 / K and tau 1 / K; one-phase decay, Y = (Y0 − Plateau)·e^(−KX) + Plateau, the half-life ln 2 / K, tau and the span; each one's CI is taken from K's (none when K's includes 0). Michaelis-Menten is Y = Vmax·X / (Km + X). R² is 1 − SS residual / SS total. The curve on a graph is checked to draw R's fit, for every model. |
+| Outliers of a curve (ROUT) | the fit above, reweighted; `pt` | Motulsky & Brown's ROUT (2006): a robust fit minimizing the sum of ln(1 + (residual / RSDR)²), residuals taken as Lorentzian, its RSDR (the 68.27th percentile of the absolute residuals × N / (N − K)) recomputed at each step, as reweighted least squares (weights 1 / (1 + (residual / RSDR)²)); then, the points ranked by their distance to it, from the 70th percentile on, the first whose P (t = residual / RSDR, N − K df, two-sided) is under Q(N − (i − 1)) / N is an outlier, and every point farther. Q = 1%. The outliers are left out and the curve fitted again by least squares. Checked: the robust fit is at its merit's minimum (`optim` finds no lower), a point far off a curve is found, and none in the same data without it. Not offered when two curves are compared. |
+| Simple logistic regression | `glm` (binomial), `confint`, `pchisq` | Y holds 0s and 1s (at least two of each); P(Y = 1) = 1 / (1 + e^−(B0 + B1·X)) by maximum likelihood. Coefficients with Wald z and P, profile-likelihood 95% CIs; the odds ratio e^B1 with its CI; the X at 50% probability, −B0 / B1; the likelihood-ratio test of the model; Tjur's R² (the mean fitted probability of the 1s minus that of the 0s). Data an X splits exactly (separation) are refused: the slope can't be estimated. Checked on the space shuttle O-ring data (Dalal et al., 1989): 15.043 − 0.232 × temperature. The S curve on a graph is checked to draw R's probability. |
 | Interpolating a standard curve | the fit above, then `uniroot` | The unknowns are the rows holding a Y but no X. Each one's X is where the fitted curve reaches its Y: the lowest such X within the standards' X, else below them, else above them (as far again as their width; for a curve of X > 0, down to a tenth of the lowest X and up to ten times the highest). An X beyond the standards is marked extrapolated; a Y the curve never reaches gets none. When X is a log, the concentration (10^X) is given too. No confidence interval. Checked by putting each X back in the curve. |
 | Comparing two dose-response curves | `nls`, then the extra sum-of-squares F test | Each data set fitted on its own, against the midpoint (EC50 or IC50) shared (its fit started between the two midpoints, and at each one, keeping the best), or one curve for both: F = ((SS shared − SS own) / (df shared − df own)) / (SS own / df own). Checked by hand from separate fits. |
 
@@ -118,8 +131,13 @@ Graphs compute what they redraw at once in TypeScript; the tests check each agai
 - **Volcano plot of a grouped table**: per row, the difference of means or the log2 ratio,
   Welch's t test, then the Benjamini-Hochberg FDR across rows (checked against Multiple t
   tests).
-- **Error bars**: SD or SEM (n − 1), around the mean or the median.
+- **Error bars**: SD or SEM (n − 1), or the 95% CI of the mean (t × SEM, n − 1 df,
+  checked against R's `t.test`), around the mean or the median.
 - **Box**: quartiles, whiskers to the minimum and maximum.
+- **Histogram**: R's `hist()`: its own bins (Sturges' number of classes, made pretty by
+  `pretty()`, for all the data sets together) or every bin width typed from a multiple
+  of it; a bin holds the values above its left edge up to its right one, the first one
+  its left edge too (checked against `hist()`, values on the edges included).
 
 ## References
 

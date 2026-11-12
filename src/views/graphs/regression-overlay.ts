@@ -5,12 +5,12 @@
 // (checked by `npm test`).
 import type { GraphOptions } from "../../store/types";
 import type { LinearRegressionParams } from "../../stats/types";
-import { pairUp, type Column } from "../../lib/dataset";
+import { splitXY, xyPoints, type Column } from "../../lib/dataset";
 import type { GraphFigure } from ".";
 import { num, pText } from "../../lib/format";
 import { tCrit95, tTwoSidedP } from "../../lib/student-t";
 import { withOpacity } from "../../lib/palettes";
-import { addNote, extent, type Paint } from "./plot-helpers";
+import { addNote, curveXs, type Paint } from "./plot-helpers";
 import { mean } from "../../lib/summary";
 
 interface LinearFit {
@@ -53,22 +53,20 @@ export function fitLinear(x: number[], y: number[], forceOrigin: boolean): Linea
   return { slope, intercept, forceOrigin, n, dof, r, r2: 1 - ssRes / ssTot, p: tTwoSidedP(t, dof), xbar, sxx, s };
 }
 
-/** Evenly-spaced points across [xMin, xMax] with the fit line + 95% confidence band
- *  (of the mean response, matching R's `predict(interval="confidence")`) at each —
+/** Points across the data's X range (see `curveXs`) with the fit line + 95% confidence
+ *  band (of the mean response, matching R's `predict(interval="confidence")`) at each —
  *  ready to hand to Plotly as line/fill traces. */
 function regressionCurve(
   fit: LinearFit,
-  xMin: number,
-  xMax: number,
-  steps = 60,
+  xs: number[],
+  scale: GraphOptions["xScale"],
 ): { x: number[]; yFit: number[]; yLo: number[]; yHi: number[] } {
   const tCrit = tCrit95(fit.dof);
   const x: number[] = [];
   const yFit: number[] = [];
   const yLo: number[] = [];
   const yHi: number[] = [];
-  for (let i = 0; i <= steps; i++) {
-    const x0 = xMin + ((xMax - xMin) * i) / steps;
+  for (const x0 of curveXs(xs, scale, 60)) {
     const yHat = fit.intercept + fit.slope * x0;
     const variance = fit.forceOrigin
       ? (fit.s * x0) ** 2 / fit.sxx
@@ -94,8 +92,9 @@ function regressionLabel(fit: LinearFit): string {
 }
 
 /** Draws a linear-regression analysis's fit on an XY scatter (`columns` = X, then
- *  the Y series): its line, 95% CI band and equation as chosen, under the points. A
- *  regression of two named variables is drawn only on the scatter of those two. */
+ *  the Y series): each data set's line, 95% CI band and equation as chosen, under the
+ *  points (several equations one per line, after each one's name). A regression of two
+ *  named variables is drawn only on the scatter of those two. */
 export function addRegression(
   fig: GraphFigure,
   columns: Column[],
@@ -103,34 +102,40 @@ export function addRegression(
   params: LinearRegressionParams | undefined,
   paint: Paint,
 ) {
-  const [x, ...ys] = columns;
-  const y = ys.find((c) => c.name === params?.y) ?? (params?.x === undefined ? ys[0] : undefined);
-  if (!x || !y || (params?.x !== undefined && params.x !== x.name)) return;
-  const pairs = pairUp(x, y);
-  const fit = fitLinear(pairs.x, pairs.y, params?.forceOrigin ?? false);
-  if (!fit) return;
-  const i = ys.indexOf(y);
-  const curve = regressionCurve(fit, ...extent(pairs.x));
-  const line = (yv: number[], style: object) => ({
-    type: "scatter",
-    mode: "lines",
-    x: curve.x,
-    y: yv,
-    line: style,
-    hoverinfo: "skip",
-    showlegend: false,
-  });
+  const { x, ys } = splitXY(columns);
+  if (!x || (params?.x !== undefined && params.x !== x.name)) return;
+  const names = params?.ys ?? [params?.y ?? (params?.x === undefined ? ys[0]?.name : undefined)];
+  const many = names.length > 1;
   const traces: unknown[] = [];
-  if (options.regShowBand) {
-    traces.push(line(curve.yLo, { width: 0 }), {
-      ...line(curve.yHi, { width: 0 }),
-      fill: "tonexty",
-      fillcolor: withOpacity(paint.color(y.name, i), 0.5), // a band: always see-through
+  const notes: string[] = [];
+  for (const name of names) {
+    const y = ys.find((s) => s.name === name);
+    if (!y) continue;
+    const pairs = xyPoints(x, y);
+    const fit = fitLinear(pairs.x, pairs.y, params?.forceOrigin ?? false);
+    if (!fit) continue;
+    const color = paint.color(y.name, ys.indexOf(y));
+    const curve = regressionCurve(fit, pairs.x, options.xScale);
+    const line = (yv: number[], style: object) => ({
+      type: "scatter",
+      mode: "lines",
+      x: curve.x,
+      y: yv,
+      line: style,
+      hoverinfo: "skip",
+      showlegend: false,
     });
-  }
-  if (options.regShowLine) {
-    traces.push(line(curve.yFit, { color: paint.color(y.name, i), width: 1.5, dash: "dash" }));
+    if (options.regShowBand) {
+      traces.push(line(curve.yLo, { width: 0 }), {
+        ...line(curve.yHi, { width: 0 }),
+        fill: "tonexty",
+        fillcolor: withOpacity(color, 0.5), // a band: always see-through
+      });
+    }
+    if (options.regShowLine) traces.push(line(curve.yFit, { color, width: 1.5, dash: "dash" }));
+    const label = regressionLabel(fit);
+    notes.push(many ? `${y.name}: ${label.replace("<br>", ", ")}` : label);
   }
   fig.data = [...traces, ...fig.data];
-  if (options.regShowEquation) addNote(fig, regressionLabel(fit), options);
+  if (options.regShowEquation && notes.length) addNote(fig, notes.join("<br>"), options);
 }

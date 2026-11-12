@@ -17,6 +17,9 @@ export interface Column {
   values: number[];
   /** …and the row each one came from. */
   rows: number[];
+  /** The data set it belongs to: a grouped table's group or an XY table's data set of
+   *  replicates ("A" for "A:Y1"), else (absent) the column itself. */
+  set?: string;
 }
 
 export interface Dataset {
@@ -37,8 +40,14 @@ export interface DataSet {
   columns: Column[];
 }
 
-/** Whether a table is a grouped one (groups × sub-columns). */
+/** Whether a table is a grouped one (groups × sub-columns): a Grouped table, or an XY
+ *  table whose data sets have replicates. */
 export const isGrouped = (data: TableData) => Boolean(data.groups && data.replicates);
+
+/** How many columns come before a grouped table's groups (Title included): 1, or 2 when
+ *  an X column comes first (an XY table with replicates). */
+export const leadOf = (data: TableData) =>
+  isGrouped(data) ? data.columns.length - data.groups! * data.replicates! : data.columns.length;
 
 const cache = new WeakMap<TableData, Dataset>();
 
@@ -46,17 +55,20 @@ export function readTable(data: TableData): Dataset {
   let dataset = cache.get(data);
   if (!dataset) {
     const excluded = new Set(data.excluded);
+    // The columns from `lead` on are a grouped table's: each in its group.
+    const lead = leadOf(data);
     const columns = data.columns.slice(1).map((name, i): Column => {
       const cells = data.rows.map((row, r) => (excluded.has(excludedKey(r, i + 1)) ? null : (row[i + 1] ?? null)));
       const byRow = cells.map(parseCell);
       const rows = byRow.flatMap((v, r) => (v == null ? [] : [r]));
-      return { name, cells, byRow, values: rows.map((r) => byRow[r]!), rows };
+      const set = i + 1 >= lead ? seriesKeyOf(name) : undefined;
+      return { name, cells, byRow, values: rows.map((r) => byRow[r]!), rows, ...(set === undefined ? {} : { set }) };
     });
     dataset = {
       titles: data.rows.map((row) => row[0] ?? null),
       columns,
       numeric: columns.filter((c) => c.values.length > 0),
-      sets: isGrouped(data) ? byGroup(columns) : columns.map((c) => ({ name: c.name, columns: [c] })),
+      sets: byGroup(columns),
     };
     cache.set(data, dataset);
   }
@@ -64,10 +76,37 @@ export function readTable(data: TableData): Dataset {
 }
 
 /** An XY table's X (its first data column, whatever its name; undefined while it
- *  holds no number) and its Y series holding numbers. */
-export function splitXY(columns: Column[]): { x?: Column; ys: Column[] } {
+ *  holds no number) and its Y data sets holding numbers: a column, or its replicates. */
+export function splitXY(columns: Column[]): { x?: Column; ys: DataSet[] } {
   const [x, ...ys] = columns;
-  return { x: x?.values.length ? x : undefined, ys: ys.filter((c) => c.values.length > 0) };
+  return {
+    x: x?.values.length ? x : undefined,
+    ys: byGroup(ys).filter((s) => s.columns.some((c) => c.values.length > 0)),
+  };
+}
+
+/** A data set's points against X: every replicate's value where X has one, row by row
+ *  (each replicate a point, as regressions take them), with the column it is in. */
+export function xyPoints(x: Column, set: DataSet): { x: number[]; y: number[]; rows: number[]; columns: string[] } {
+  const points = set.columns
+    .flatMap((c) => pairUp(x, c).rows.map((r) => ({ r, y: c.byRow[r]!, column: c.name })))
+    .sort((a, b) => a.r - b.r);
+  return {
+    x: points.map((p) => x.byRow[p.r]!),
+    y: points.map((p) => p.y),
+    rows: points.map((p) => p.r),
+    columns: points.map((p) => p.column),
+  };
+}
+
+/** A data set's values at each X (the rows where X and a replicate hold a number). */
+export function xyRows(x: Column, set: DataSet): { x: number[]; values: number[][]; rows: number[] } {
+  const rows = x.rows.filter((r) => set.columns.some((c) => c.byRow[r] != null));
+  return {
+    x: rows.map((r) => x.byRow[r]!),
+    values: rows.map((r) => set.columns.flatMap((c) => (c.byRow[r] == null ? [] : [c.byRow[r]!]))),
+    rows,
+  };
 }
 
 /** Why an XY table can't be analyzed or drawn yet, if it can't: X (its first data column)
@@ -81,7 +120,7 @@ export function xyProblem(columns: Column[], y?: string): string | undefined {
       ? `“${name}”, the X column, holds text (“${text}”). X values must be numbers.`
       : `“${name}”, the X column, is empty. Type the X values (times, doses…) in it.`;
   }
-  const chosen = y === undefined ? ys : ys.filter((c) => c.name === y);
+  const chosen = y === undefined ? ys : ys.filter((c) => (c.set ?? c.name) === y);
   if (!chosen.some((c) => c.values.length))
     return y === undefined ? "No Y column holds numbers yet." : `“${y}” holds no numbers yet.`;
 }
@@ -96,17 +135,25 @@ export function pairUp(a: Column, b: Column): { x: number[]; y: number[]; rows: 
  *  its replicate columns. Groups without a single number are left out: `groups`
  *  on the table says how many exist, not how many hold data. */
 export function groupsOf(columns: Column[]): DataSet[] {
-  return byGroup(columns).filter((g) => g.columns.some((c) => c.values.length > 0));
+  const named = columns.map((c) => ({ ...c, set: c.set ?? seriesKeyOf(c.name) }));
+  return byGroup(named).filter((g) => g.columns.some((c) => c.values.length > 0));
 }
 
-/** Columns gathered by group ("A" for "A:Y1", "A:Y2"…), in table order. */
+/** Columns gathered by data set (a column alone, or a group: "A" for "A:Y1", "A:Y2"…),
+ *  in table order. */
 function byGroup(columns: Column[]): DataSet[] {
-  const groups = new Map<string, Column[]>();
+  const sets: DataSet[] = [];
+  const groups = new Map<string, DataSet>();
   for (const c of columns) {
-    const key = seriesKeyOf(c.name);
-    groups.set(key, [...(groups.get(key) ?? []), c]);
+    const group = c.set === undefined ? undefined : groups.get(c.set);
+    if (group) group.columns.push(c);
+    else {
+      const set = { name: c.set ?? c.name, columns: [c] };
+      if (c.set !== undefined) groups.set(c.set, set);
+      sets.push(set);
+    }
   }
-  return [...groups].map(([name, cols]) => ({ name, columns: cols }));
+  return sets;
 }
 
 /** The columns of the data sets named, in their order. */

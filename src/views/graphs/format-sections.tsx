@@ -24,6 +24,7 @@ import { GRAPHS, variablePair } from ".";
 import type { SigComparison } from "./significance-overlay";
 import { cutoffAsP, cutoffOfP, volcanoAxes, volcanoPair } from "./volcano";
 import { paletteOf } from "../../lib/palettes";
+import { MAX_BINS } from "../../lib/histogram";
 import {
   Choice,
   ColorRow,
@@ -53,6 +54,14 @@ export interface SectionContext {
   volcanoGroups?: string[];
   /** Its rows holding values of the two groups compared that gave no gene. */
   volcanoLeftOut: number;
+  /** A volcano's P values under 0, which it can't draw. */
+  volcanoBelowZero: number;
+  /** The values at or under 0 a log axis can't show, on X and on Y. */
+  logLeftOut: { x: number; y: number };
+  /** A histogram's typed bin width makes too many bins (its automatic ones are drawn). */
+  binsTooMany: boolean;
+  /** An XY table whose data sets hold replicates. */
+  replicates: boolean;
   numericNames: string[];
   allNames: string[];
   /** The chosen regression's failure, when it couldn't be fitted. */
@@ -92,6 +101,7 @@ const ERROR_ITEMS = [
   { value: "none" as const, label: "None" },
   { value: "sd" as const, label: "SD" },
   { value: "sem" as const, label: "SEM" },
+  { value: "ci" as const, label: "95% CI" },
 ];
 
 // ── Statistics: what's computed and drawn on the graph ──────────────────
@@ -110,17 +120,18 @@ export function statisticsControls(c: SectionContext): React.ReactNode {
     return <SignificanceControls analyses={sources} comparisons={c.comparisons} options={options} set={set} />;
   }
   if (graphType === "xy-scatter" && c.tableType === "xy") {
-    // A linear regression, or a nonlinear one of one data set (not two curves compared).
+    // A linear or logistic regression, or a nonlinear one (not two curves compared).
     const sources = c.analyses.filter(
       (a) =>
         a.analysisType === "linear-regression" ||
+        a.analysisType === "logistic-regression" ||
         (a.analysisType === "nonlinear-regression" &&
           (a.analysisParams as NonlinearRegressionParams | undefined)?.compareWith === undefined),
     );
     if (!sources.length) {
       return (
         <NoAnalysis onNewAnalysis={c.onNewAnalysis}>
-          Draw the fitted line or curve of a linear or nonlinear regression of this table.
+          Draw the fitted line or curve of a linear, nonlinear or logistic regression of this table.
         </NoAnalysis>
       );
     }
@@ -307,7 +318,8 @@ function RegressionControls({
   set: SetOptions;
 }) {
   const chosen = analyses.find((a) => a.id === options.regAnalysisId);
-  const curve = chosen?.analysisType === "nonlinear-regression";
+  // A linear regression's line has a band; a nonlinear or logistic curve doesn't.
+  const curve = chosen?.analysisType !== "linear-regression";
   return (
     <>
       <AnalysisRow
@@ -344,8 +356,23 @@ function RegressionControls({
 
 export function dataControls(c: SectionContext): React.ReactNode {
   const { graphType, options, set } = c;
-  // A contingency table holds one count per cell: nothing to summarize.
-  if (c.tableType === "contingency") return null;
+  // Stacked bars and a histogram show values (counts) or percents.
+  const showAs = (values: string) => (
+    <Choice
+      label="Show as"
+      value={options.stackAs}
+      // A title typed for values would name a percent axis wrongly: it goes (Undo brings it back).
+      onChange={(stackAs) => set(stackAs === "percent" ? { stackAs, yLabel: "" } : { stackAs })}
+      items={[
+        { value: "values", label: values },
+        { value: "percent", label: "Percent of total" },
+      ]}
+    />
+  );
+  const stackAs = showAs("Values");
+  // A contingency table holds one count per cell: nothing to summarize, but its stack
+  // can show shares.
+  if (c.tableType === "contingency") return graphType === "grouped-stacked" ? stackAs : null;
   const center = (
     <Choice label="Center" value={options.center} onChange={(center) => set({ center })} items={CENTER_ITEMS} />
   );
@@ -362,9 +389,34 @@ export function dataControls(c: SectionContext): React.ReactNode {
   }
   switch (graphType) {
     case "grouped-stacked":
-      return center; // stacked bars have no error bars
+      return (
+        <>
+          {center}
+          {stackAs}
+        </>
+      ); // stacked bars have no error bars
     case "heatmap":
       return c.tableType === "grouped" ? center : null; // a cell sums up a group's replicates
+    case "histogram":
+      return (
+        <>
+          {c.tableType === "multiple" && (
+            <ColumnSelectRow
+              label="Variable"
+              value={options.xVariable ?? c.numericNames[0]}
+              names={c.numericNames}
+              onChange={(xVariable) => set({ xVariable })}
+            />
+          )}
+          <NumRow label="Bin width" value={options.binWidth} onChange={(binWidth) => set({ binWidth })} />
+          {c.binsTooMany && (
+            <p className="text-small text-secondary">
+              A width this small makes more than {MAX_BINS} bins: Auto is drawn.
+            </p>
+          )}
+          {showAs("Count")}
+        </>
+      );
     case "pie":
     case "donut":
       return (
@@ -394,9 +446,38 @@ export function dataControls(c: SectionContext): React.ReactNode {
         )
       );
     case "xy-scatter":
-      return c.tableType === "multiple" ? (
-        <VariablePair numericNames={c.numericNames} options={options} set={set} />
-      ) : null;
+      if (c.tableType === "multiple") return <VariablePair numericNames={c.numericNames} options={options} set={set} />;
+      return (
+        c.replicates && (
+          <>
+            <Choice
+              label="Plot"
+              value={options.xyReplicates}
+              onChange={(xyReplicates) => set({ xyReplicates })}
+              items={[
+                { value: "mean", label: "Center and error" },
+                { value: "each", label: "Each replicate" },
+              ]}
+            />
+            {options.xyReplicates === "mean" && (
+              <>
+                {center}
+                {error}
+              </>
+            )}
+          </>
+        )
+      );
+    case "xy-bar":
+    case "xy-area":
+      return (
+        c.replicates && (
+          <>
+            {center}
+            {error}
+          </>
+        )
+      );
     case "volcano":
       return (
         <>
@@ -404,6 +485,7 @@ export function dataControls(c: SectionContext): React.ReactNode {
             <GroupedVolcanoData groups={c.volcanoGroups} leftOut={c.volcanoLeftOut} options={options} set={set} />
           ) : (
             <FlatVolcanoData
+              belowZero={c.volcanoBelowZero}
               numericNames={c.numericNames}
               allNames={c.allNames}
               xy={c.tableType === "xy"}
@@ -447,12 +529,14 @@ function VariablePair({
  *  X = effect size (log2 fold change), Y = a P value, adjusted P or FDR. On an XY table
  *  X is its X column and the row titles name the genes, so only Y is chosen. */
 function FlatVolcanoData({
+  belowZero,
   numericNames,
   allNames,
   xy,
   options,
   set,
 }: {
+  belowZero: number;
   numericNames: string[];
   allNames: string[];
   xy: boolean;
@@ -487,6 +571,11 @@ function FlatVolcanoData({
           { value: "log", label: "−log10" },
         ]}
       />
+      {options.volcanoYIsPValue && belowZero > 0 && (
+        <p className="text-small text-secondary">
+          {belowZero} {belowZero === 1 ? "row has a P value" : "rows have a P value"} under 0, which can't be drawn.
+        </p>
+      )}
       {!xy && (
         <ColumnSelectRow
           label="Gene labels from"
@@ -685,8 +774,14 @@ function linesGroup({ graphType, options, set }: SectionContext) {
 
 /** Error bars (and the center line drawn with them): thickness, caps, color, and
  *  which way they go. */
-function errorsGroup({ graphType, options, set }: SectionContext) {
-  const bars = WITH_ERROR_BARS.has(graphType) && options.error !== "none";
+function errorsGroup({ graphType, options, set, replicates }: SectionContext) {
+  // An XY graph draws error bars around its replicates' centers.
+  const xyErrors =
+    replicates &&
+    (graphType === "xy-bar" ||
+      graphType === "xy-area" ||
+      (graphType === "xy-scatter" && options.xyReplicates === "mean"));
+  const bars = (WITH_ERROR_BARS.has(graphType) || xyErrors) && options.error !== "none";
   const line = WITH_CENTER_LINE.has(graphType);
   if (!bars && !line) return null;
   return (
@@ -832,6 +927,7 @@ function ownStyle(context: SectionContext): React.ReactNode {
     case "xy-bar":
       return shapes("Bars", context.seriesNames.length > 1 && gap);
     case "grouped-stacked":
+    case "histogram":
       return shapes("Bars");
     case "xy-area":
       return shapes("Area");

@@ -36,6 +36,7 @@ import {
 import { dataControls, statisticsControls, styleControls, type SectionContext } from "./format-sections";
 import { VOLCANO_SERIES } from "./volcano";
 import { MatchSection } from "./match-graph";
+import { useLayout } from "../../store/use-layout";
 
 /** The points selected on the graph: how many, the first one's style (shown), whether
  *  any has its own, and how to set, resize (each from its own size) or reset theirs. */
@@ -88,18 +89,10 @@ const STYLE_OPTIONS: (keyof GraphOptions)[] = [
   "volcanoLabelCount",
 ];
 
-// This Mac's preferences, never the project's: which sections are open, and the
-// format and resolution of the last export.
-const OPEN_KEY = "helix.graph.openSections";
-function readOpen(): Set<string> {
-  try {
-    const saved = localStorage.getItem(OPEN_KEY);
-    return new Set(saved ? (JSON.parse(saved) as string[]) : ["Statistics"]);
-  } catch {
-    return new Set(["Statistics"]);
-  }
-}
+/** The sections, in their one order (each shown only when it has something for the graph). */
+export const SECTIONS = ["Statistics", "Data", "Style", "Series", "Selected points", "Text", "Axes", "Match", "Export"];
 
+// This Mac's preference, never the project's: the format and resolution of the last export.
 const EXPORT_KEY = "helix.graph.export";
 type ExportChoice = { format: ExportFormat; dpi: Resolution };
 function readExport(): ExportChoice {
@@ -133,14 +126,18 @@ export function FormatPanel(props: Props) {
     remember(EXPORT_KEY, next);
   };
 
-  const [open, setOpen] = React.useState(readOpen);
+  // A section folds or unfolds by its title; with ⌥, every section does the same.
+  const { openSections: open, setOpenSections } = useLayout();
   const fold = (title: string) => ({
     collapsed: !open.has(title),
-    onToggle: () => {
+    onToggle: (all: boolean) => {
+      const opening = !open.has(title);
       const next = new Set(open);
-      if (!next.delete(title)) next.add(title);
-      setOpen(next);
-      remember(OPEN_KEY, [...next]);
+      for (const t of all ? SECTIONS : [title]) {
+        if (opening) next.add(t);
+        else next.delete(t);
+      }
+      setOpenSections(next);
     },
   });
 
@@ -311,23 +308,41 @@ export function FormatPanel(props: Props) {
           title="Axes"
           icon={<RulerIcon />}
           {...fold("Axes")}
-          action={reset(["yMin", "yMax", "yStep", "xMin", "xMax", "xStep", "axisWidth"])}
+          action={reset(["yMin", "yMax", "yStep", "xMin", "xMax", "xStep", "xScale", "yScale", "axisWidth"])}
         >
+          {family !== "heatmap" && family !== "volcano" && (
+            <Scale
+              axis="Y"
+              value={options.yScale}
+              leftOut={props.logLeftOut.y}
+              onChange={(yScale) => set({ yScale })}
+            />
+          )}
           {family !== "heatmap" && (
             <AxisRange
               axis="Y"
               min={options.yMin}
               max={options.yMax}
               step={options.yStep}
+              log={family !== "volcano" && options.yScale !== "linear"}
               onChange={(yMin, yMax, yStep) => set({ yMin, yMax, yStep })}
             />
           )}
-          {(family === "xy" || family === "volcano") && (
+          {family === "xy" && (
+            <Scale
+              axis="X"
+              value={options.xScale}
+              leftOut={props.logLeftOut.x}
+              onChange={(xScale) => set({ xScale })}
+            />
+          )}
+          {(family === "xy" || family === "volcano" || family === "histogram") && (
             <AxisRange
               axis="X"
               min={options.xMin}
               max={options.xMax}
               step={options.xStep}
+              log={family === "xy" && options.xScale !== "linear"}
               onChange={(xMin, xMax, xStep) => set({ xMin, xMax, xStep })}
             />
           )}
@@ -391,24 +406,60 @@ export function FormatPanel(props: Props) {
 }
 
 /** One axis's Min / Max / Step; a blank field is Auto. */
+/** An axis's range; a log axis has no step (its ticks are the powers). */
 function AxisRange({
   axis,
   min,
   max,
   step,
+  log,
   onChange,
 }: {
   axis: "X" | "Y";
   min?: number;
   max?: number;
   step?: number;
+  log: boolean;
   onChange: (min?: number, max?: number, step?: number) => void;
 }) {
   return (
     <div className="grid grid-cols-3 gap-2">
       <NumRow label={`${axis} min`} value={min} onChange={(v) => onChange(v, max, step)} />
       <NumRow label={`${axis} max`} value={max} onChange={(v) => onChange(min, v, step)} />
-      <NumRow label={`${axis} step`} value={step} onChange={(v) => onChange(min, max, v)} />
+      {!log && <NumRow label={`${axis} step`} value={step} onChange={(v) => onChange(min, max, v)} />}
     </div>
+  );
+}
+
+/** An axis's scale, and how many values a log scale can't show. */
+function Scale({
+  axis,
+  value,
+  leftOut,
+  onChange,
+}: {
+  axis: "X" | "Y";
+  value: GraphOptions["xScale"];
+  leftOut: number;
+  onChange: (scale: GraphOptions["xScale"]) => void;
+}) {
+  return (
+    <>
+      <Choice
+        label={`${axis} scale`}
+        value={value}
+        onChange={onChange}
+        items={[
+          { value: "linear", label: "Linear" },
+          { value: "log10", label: "Log10" },
+          { value: "log2", label: "Log2" },
+        ]}
+      />
+      {value !== "linear" && leftOut > 0 && (
+        <p className="text-small text-secondary">
+          {leftOut} {leftOut === 1 ? "value" : "values"} at or under 0 can't be drawn on a log axis.
+        </p>
+      )}
+    </>
   );
 }

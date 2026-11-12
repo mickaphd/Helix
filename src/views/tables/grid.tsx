@@ -12,7 +12,7 @@ import type { TableMove } from "../../store/references";
 import type { EditCommand } from "../../app-menu";
 import { parseCell } from "../../lib/numeric";
 import { seriesKeyOf } from "../../lib/columns";
-import { isGrouped } from "../../lib/dataset";
+import { isGrouped, leadOf } from "../../lib/dataset";
 import { alert, popupMenu } from "../../native";
 import { XIcon } from "@phosphor-icons/react";
 import { cn, IconButton } from "../../ui/controls";
@@ -116,6 +116,8 @@ interface GridProps {
 export function Grid({ data, type, update, showGroups }: GridProps) {
   const grouped = isGrouped(data);
   const replicates = data.replicates ?? 1;
+  // The columns before the groups (Title, and an XY table's X), headed on both rows.
+  const lead = leadOf(data);
   const headH = HEAD_H * (grouped ? 2 : 1);
   // Shown headers: the stored columns, then (except for grouped tables, whose columns
   // come from their groups) the names new columns would get. Grouped sub-columns show
@@ -123,9 +125,9 @@ export function Grid({ data, type, update, showGroups }: GridProps) {
   const headers = React.useMemo(
     () =>
       grouped
-        ? data.columns.map((name, c) => (c > 0 ? name.slice(name.indexOf(":") + 1) : name))
+        ? data.columns.map((name, c) => (c >= lead ? name.slice(name.indexOf(":") + 1) : name))
         : [...data.columns, ...freshColumnNames(data.columns, type, EXTRA_COLS)],
-    [data.columns, grouped, type],
+    [data.columns, grouped, lead, type],
   );
   const nRows = data.rows.length + EXTRA_ROWS;
   const nCols = headers.length;
@@ -244,7 +246,7 @@ export function Grid({ data, type, update, showGroups }: GridProps) {
   const startRename = (c: number) => {
     if (c >= data.columns.length) return; // an empty column gets its name when data is written to it
     const name = data.columns[c];
-    if (grouped && c > 0) setEditing({ kind: "group", key: seriesKeyOf(name), value: seriesKeyOf(name) });
+    if (grouped && c >= lead) setEditing({ kind: "group", key: seriesKeyOf(name), value: seriesKeyOf(name) });
     else setEditing({ kind: "column", c, value: name });
   };
 
@@ -554,7 +556,7 @@ export function Grid({ data, type, update, showGroups }: GridProps) {
         "absolute flex items-center justify-center border-r border-b border-separator px-2 text-secondary",
         selectedCols(c) && "bg-control text-primary",
       )}
-      style={box(c, grouped && c > 0 ? HEAD_H : 0, grouped && c === 0 ? headH : HEAD_H)}
+      style={box(c, grouped && c >= lead ? HEAD_H : 0, grouped && c < lead ? headH : HEAD_H)}
       onPointerDown={(e) => onColumnDown(e, c)}
       onDoubleClick={() => startRename(c)}
       onContextMenu={(e) => showMenu(e, "column")}
@@ -650,7 +652,7 @@ export function Grid({ data, type, update, showGroups }: GridProps) {
             <div className="relative shrink-0 bg-surface" style={{ width: mainW }}>
               {grouped &&
                 Array.from({ length: data.groups! }, (_, g) => {
-                  const lo = 1 + g * replicates;
+                  const lo = lead + g * replicates;
                   const hi = lo + replicates - 1;
                   const key = seriesKeyOf(data.columns[lo] ?? "");
                   const span = { ...box(lo, 0, HEAD_H), width: xs[hi + 1] - xs[lo] };

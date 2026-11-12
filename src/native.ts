@@ -54,7 +54,8 @@ export async function askToInstall(version: string, current: string): Promise<"i
   return "later";
 }
 
-/** The newer version of Helix out ("1.0.8"), null when this one is the latest. */
+/** The newer version of Helix out ("1.0.8"), null when this one is the latest. Rejects with
+ *  "offline" (GitHub can't be reached) or "unavailable" (no update details to read). */
 export const checkUpdate = () => invoke<string | null>("check_update");
 
 /** Downloads and installs the version `checkUpdate` found, then relaunches Helix. */
