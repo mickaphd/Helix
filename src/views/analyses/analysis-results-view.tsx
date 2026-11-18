@@ -1,9 +1,10 @@
-// The results of an analysis, laid out like a short report: the test's name (with a
-// Significant / Not significant pill when it has one P value), its key statistics,
-// then one compact table per part of the result, the descriptive statistics, and the
-// notes. Numbers keep same-width digits so columns line up; everything is selectable.
+// The results of an analysis, laid out like a short report (no title: the toolbar names
+// it): the data analyzed, what it means in plain words (with a Significant / Not
+// significant pill when it has one P value), its checks, its key statistics, then one
+// compact table per part of the result, the descriptive statistics, and the notes. Numbers keep same-width digits so columns line up; everything is selectable.
 import type * as React from "react";
-import type { AnalysisResult, GroupDescriptives, StatRow } from "../../stats/types";
+import { CheckCircleIcon, WarningIcon } from "@phosphor-icons/react";
+import type { AnalysisResult, Analyzed, Check, GroupDescriptives, StatRow } from "../../stats/types";
 import { cn } from "../../ui/controls";
 import { isSignificant, num, pStars, pValue } from "../../lib/format";
 
@@ -72,6 +73,65 @@ function Table({ title, columns, rows }: { title?: string; columns: Column[]; ro
   );
 }
 
+/** The data the analysis ran on: its data sets, each a tag with its count, how they're
+ *  compared, and the table's others it left out. */
+function AnalyzedView({ analyzed: { sets, how, detail, left } }: { analyzed: Analyzed }) {
+  const tag = (s: Analyzed["sets"][number]) => (
+    <span key={s.name} className="rounded-md bg-control px-2 py-0.5 whitespace-nowrap">
+      <span className="text-strong">{s.name}</span>
+      {s.n != null && <span className="text-secondary"> n = {s.n}</span>}
+    </span>
+  );
+  const between = how === "vs" ? "vs." : how === "paired" ? "→" : null;
+  return (
+    <section className="flex flex-col gap-2">
+      <h3 className="text-strong">Data analyzed</h3>
+      <div className="flex flex-wrap items-center gap-2">
+        {how === "control" && sets.length > 1 ? (
+          <>
+            {tag(sets[0])}
+            <span className="text-secondary">vs. each of</span>
+            {sets.slice(1).map(tag)}
+          </>
+        ) : (
+          sets.map((s, i) => [
+            i > 0 && between && (
+              <span key={`${s.name}-to`} className="text-secondary">
+                {between}
+              </span>
+            ),
+            tag(s),
+          ])
+        )}
+        {detail && <span className="text-secondary">{detail}</span>}
+      </div>
+      {left.length > 0 && <p className="text-small text-secondary">Not included: {left.join(", ")}</p>}
+    </section>
+  );
+}
+
+/** The test's conditions, checked by R: a green tick when one holds, an orange warning when
+ *  it may not. */
+function Checks({ checks }: { checks: Check[] }) {
+  return (
+    <section className="flex flex-col gap-2">
+      <h3 className="text-strong">Checks</h3>
+      <ul className="flex max-w-prose flex-col gap-1.5">
+        {checks.map((c, i) => (
+          <li key={i} className="flex gap-2">
+            {c.ok ? (
+              <CheckCircleIcon className="mt-0.5 size-4 shrink-0 text-support-green" />
+            ) : (
+              <WarningIcon className="mt-0.5 size-4 shrink-0 text-support-orange" />
+            )}
+            <span>{c.text}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 /** The test's own P value, shown as Significant or not by the heading: its only one, or
  *  the one named "P value…" beside a side check (a t test's F test); none when it has
  *  several (one per group or factor). */
@@ -101,31 +161,38 @@ const DESCRIPTIVE_ROWS: [string, (g: GroupDescriptives) => React.ReactNode][] = 
 
 export function AnalysisResultsView({ result }: { result: AnalysisResult }) {
   const headlineP = headline(result.stats);
+  // Comparisons of means give their 95% CI (adjusted as their P is); ranks don't.
+  const withCi = result.comparisons?.some((c) => c.low !== undefined) ?? false;
   const showP = headlineP != null && !Number.isNaN(headlineP);
   const groups = result.groups;
   const matrix = result.matrix;
 
   return (
     <div className="flex max-w-4xl flex-col gap-7 px-8 py-6 text-regular text-primary tabular-nums select-text">
-      {/* The toolbar already names the analysis: the heading says which exact test ran, and
-          whether it is significant. */}
-      {(result.subtitle || showP) && (
-        <header className="flex items-center gap-2.5">
-          {result.subtitle && <h2 className="text-large-strong">{result.subtitle}</h2>}
-          {showP && (
-            <span
-              className={cn(
-                "rounded-full px-2 py-0.5 text-small-strong",
-                isSignificant(headlineP) ? "bg-support-green/15 text-support-green" : "bg-control text-secondary",
-              )}
-            >
-              {isSignificant(headlineP) ? `Significant ${pStars(headlineP)}` : "Not significant"}
-            </span>
-          )}
-        </header>
+      {result.analyzed && <AnalyzedView analyzed={result.analyzed} />}
+
+      {(result.summary || showP) && (
+        <section className="flex flex-col gap-2">
+          {/* The toolbar names the analysis: no title here, only whether its own P value is
+              significant, beside what it means. */}
+          <h3 className="flex items-center gap-2.5 text-strong">
+            In plain words
+            {showP && (
+              <span
+                className={cn(
+                  "rounded-full px-2 py-0.5 text-small-strong",
+                  isSignificant(headlineP) ? "bg-support-green/15 text-support-green" : "bg-control text-secondary",
+                )}
+              >
+                {isSignificant(headlineP) ? `Significant ${pStars(headlineP)}` : "Not significant"}
+              </span>
+            )}
+          </h3>
+          {result.summary && <p className="max-w-prose">{result.summary}</p>}
+        </section>
       )}
 
-      {result.summary && <p className="max-w-prose">{result.summary}</p>}
+      {result.checks && <Checks checks={result.checks} />}
 
       {result.normality && (
         <Table
@@ -221,11 +288,13 @@ export function AnalysisResultsView({ result }: { result: AnalysisResult }) {
           columns={[
             { label: "Comparison" },
             { label: result.comparisonsEffect ?? "Difference", numeric: true },
+            ...(withCi ? [{ label: "95% CI", numeric: true }] : []),
             { label: "P value", numeric: true },
           ]}
           rows={result.comparisons.map((c) => [
             c.group2 ? `${c.group1} vs. ${c.group2}` : c.group1,
             num(c.diff),
+            ...(withCi ? [c.low == null && c.high == null ? "—" : `${num(c.low)} to ${num(c.high)}`] : []),
             <P p={c.p} />,
           ])}
         />
@@ -266,8 +335,18 @@ export function AnalysisResultsView({ result }: { result: AnalysisResult }) {
       {result.correlations && result.correlations.length > 0 && (
         <Table
           title="Correlations (X vs. each Y)"
-          columns={[{ label: "" }, { label: "r", numeric: true }, { label: "P value", numeric: true }]}
-          rows={result.correlations.map((c) => [c.variable, num(c.r), <P p={c.p} />])}
+          columns={[
+            { label: "" },
+            { label: "r", numeric: true },
+            { label: "95% CI", numeric: true },
+            { label: "P value", numeric: true },
+          ]}
+          rows={result.correlations.map((c) => [
+            c.variable,
+            num(c.r),
+            c.low == null && c.high == null ? "—" : `${num(c.low)} to ${num(c.high)}`,
+            <P p={c.p} />,
+          ])}
         />
       )}
 

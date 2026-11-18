@@ -8,9 +8,11 @@
 import type { GraphOptions } from "../../store/types";
 import type { GraphModule, GraphFigure } from ".";
 import { pairUp, type Column } from "../../lib/dataset";
-import { xyLayout, type Paint } from "./plot-helpers";
+import { INK, marginsFor, xyLayout, type Paint } from "./plot-helpers";
 import { withOpacity } from "../../lib/palettes";
-import { kaplanMeier } from "../../lib/kaplan-meier";
+import { atRisk, kaplanMeier } from "../../lib/kaplan-meier";
+import { pretty } from "../../lib/histogram";
+import { maxOf } from "../../lib/summary";
 
 /** "counts" mode: cells are survivors remaining, plotted directly as percent-of-initial. */
 function survivorCountsStep(x: number[], counts: number[]): { t: number[]; s: number[] } {
@@ -77,7 +79,87 @@ function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFig
   });
 
   // The groups in table order: Plotly would list them backwards once a band fills.
-  return { data, layout: { ...layout, legend: { ...(layout.legend as object), traceorder: "normal" } } };
+  const figure = { data, layout: { ...layout, legend: { ...(layout.legend as object), traceorder: "normal" } } };
+  return byCodes && options.survivalAtRisk && options.xScale === "linear"
+    ? withAtRisk(figure, xCol, ySeries, options, paint)
+    : figure;
+}
+
+/** The number at risk under the plot: a row per group, a count at each X tick, as journals
+ *  print it, in black (a light color would read badly), each name with its color. The ticks are set (R's pretty(), or the typed step) so the counts sit under
+ *  them; the plot is raised to leave room for its axis and the table (a subplot whose
+ *  axis names the groups, so the left margin fits them). */
+function withAtRisk(figure: GraphFigure, xCol: Column, ySeries: Column[], options: GraphOptions, paint: Paint) {
+  const times = ySeries.map((y) => pairUp(xCol, y).x);
+  const last = Math.max(0, maxOf(times.flat()));
+  const lo = options.xMin ?? 0;
+  const hi = options.xMax ?? pretty(lo, Math.max(last, lo + 1), 5, 1).at(-1)!;
+  if (!(hi > lo)) return figure;
+  const step = options.xStep && options.xStep > 0 && (hi - lo) / options.xStep <= 50 ? options.xStep : undefined;
+  const ticks = step
+    ? Array.from({ length: Math.floor((hi - lo) / step + 1e-9) + 1 }, (_, k) => lo + k * step)
+    : pretty(lo, hi, 5, 1).filter((t) => t >= lo - 1e-9 && t <= hi + 1e-9);
+  // Heights in px over the plot area's (the figure less its margins).
+  const row = options.fontSize * 1.5;
+  const axis =
+    5 + options.fontSize * 1.3 + (options.xLabel || xCol.name ? options.xTitleGap + options.fontSize * 1.3 : 0);
+  const m = marginsFor(options);
+  const area = Math.max(1, options.height - m.t - m.b);
+  const table = (row * ySeries.length) / area;
+  const top = Math.min(0.8, table + (row + axis + 12) / area);
+  const layout = figure.layout as Record<string, Record<string, unknown>>;
+  const rows = ySeries.map((y, i) => ({
+    type: "scatter",
+    mode: "text",
+    legendgroup: y.name,
+    x: ticks,
+    y: ticks.map(() => i),
+    yaxis: "y2",
+    text: ticks.map((t) => String(atRisk(times[i], t))),
+    textfont: { color: INK, size: options.fontSize },
+    cliponaxis: false,
+    hoverinfo: "skip",
+    showlegend: false,
+  }));
+  return {
+    data: [...figure.data, ...rows],
+    layout: {
+      ...layout,
+      xaxis: { ...layout.xaxis, range: [lo, hi], autorange: false, tickvals: ticks, dtick: undefined },
+      yaxis: { ...layout.yaxis, domain: [top, 1] },
+      yaxis2: {
+        domain: [0, table],
+        anchor: "x",
+        range: [ySeries.length - 0.5, -0.5],
+        tickvals: ySeries.map((_, i) => i),
+        // Each name after a dash of its curve's color, as a legend shows it.
+        ticktext: ySeries.map((y, i) => `<span style="color:${paint.color(y.name, i)}">━</span> ${y.name}`),
+        showline: false,
+        showgrid: false,
+        zeroline: false,
+        // Invisible ticks keep the names clear of the counts centered on the first tick.
+        ticks: "outside",
+        ticklen: options.fontSize * 1.6,
+        tickcolor: "rgba(0,0,0,0)",
+        fixedrange: true,
+        automargin: true,
+      },
+      annotations: [
+        ...((layout.annotations as unknown as unknown[]) ?? []),
+        {
+          text: "Number at risk",
+          xref: "paper",
+          yref: "paper",
+          x: 0,
+          y: table,
+          xanchor: "left",
+          yanchor: "bottom",
+          showarrow: false,
+          font: { color: INK, size: options.fontSize },
+        },
+      ],
+    },
+  };
 }
 
 export const survival: GraphModule = { label: "Survival curve", family: "xy", lines: () => true, build };

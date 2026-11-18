@@ -2,6 +2,7 @@
 // and the one place analyses are run from. Adding a test = its file + an entry here
 // (+ a wizard in views/analyses/wizards.ts when it has options).
 
+import { withReport } from "./report";
 import type {
   AnalysisType,
   AnalysisOutcome,
@@ -16,6 +17,8 @@ import type {
   OutliersParams,
   SurvivalParams,
   CoxParams,
+  RmAnovaParams,
+  ChiSquareParams,
   TwoWayAnovaParams,
   XYCorrelationParams,
 } from "./types";
@@ -26,6 +29,7 @@ import { oneSampleTSpec } from "./column/one-sample-t";
 import { anovaSpec } from "./column/anova";
 import { kruskalWallisSpec } from "./column/kruskal-wallis";
 import { rmAnovaSpec } from "./column/rm-anova";
+import { runMixedModel } from "./column/mixed-model";
 import { friedmanSpec } from "./column/friedman";
 import { runNormality } from "./column/shapiro-wilk";
 import { runGrubbs, runRout } from "./column/rout";
@@ -38,7 +42,7 @@ import { runTwoWayAnova } from "./grouped/two-way-anova";
 import { runMultipleTTests } from "./grouped/multiple-t-tests";
 import { runCorrelationMatrix } from "./multiple/correlation-matrix";
 import { runMultipleRegression } from "./multiple/multiple-regression";
-import { runChiSquare } from "./contingency/chi-square";
+import { CONTINGENCY_NAMES, runChiSquare } from "./contingency/chi-square";
 import { runSurvival } from "./survival/survival-analysis";
 import { runCox } from "./survival/cox-regression";
 import type { TableData } from "../store/types";
@@ -56,6 +60,8 @@ interface Analysis {
   label: string;
   /** The exact test these params run ("Welch's t test"), to name a new analysis. */
   name?: (params: AnalysisParams | undefined) => string;
+  /** What the toolbar's pill says it is, when its params make it another kind (a mixed model). */
+  kind?: (params: AnalysisParams | undefined) => string;
   /** Data columns (holding numbers) the test needs; checked before it is created. */
   minColumns: number;
   run: Runner;
@@ -76,7 +82,17 @@ export const ANALYSES: Record<AnalysisType, Analysis> = {
   "one-sample-t": spec("Compare one group to a value", oneSampleTSpec),
   anova: spec("One-way ANOVA", anovaSpec),
   "kruskal-wallis": spec("Kruskal-Wallis test", kruskalWallisSpec),
-  "rm-anova": spec("Repeated-measures ANOVA", rmAnovaSpec),
+  "rm-anova": (() => {
+    // A mixed-effects model keeps the subjects missing values; else the ANOVA of complete ones.
+    const anova = spec("Repeated-measures ANOVA", rmAnovaSpec);
+    const mixed = (p: AnalysisParams | undefined) => (p as RmAnovaParams | undefined)?.mixed === true;
+    return {
+      ...anova,
+      name: (p) => (mixed(p) ? "Mixed-effects model" : anova.name!(p)),
+      kind: (p) => (mixed(p) ? "Mixed-effects model" : anova.label),
+      run: (c, p, t) => (mixed(p) ? runMixedModel(c, p as RmAnovaParams) : anova.run(c, p, t)),
+    };
+  })(),
   friedman: spec("Friedman test", friedmanSpec),
   "shapiro-wilk": { label: "Normality and lognormality test", minColumns: 1, run: (c) => runNormality(c) },
   outliers: {
@@ -139,7 +155,12 @@ export const ANALYSES: Record<AnalysisType, Analysis> = {
     minColumns: 2,
     run: (c, p) => runMultipleRegression(c, p as MultipleRegressionParams),
   },
-  "chi-square": { label: "Chi-square or Fisher's exact test", minColumns: 2, run: (c) => runChiSquare(c) },
+  "chi-square": {
+    label: "Chi-square or Fisher's exact test",
+    minColumns: 2,
+    name: (p) => CONTINGENCY_NAMES[(p as ChiSquareParams | undefined)?.test ?? "chi-square"],
+    run: (c, p) => runChiSquare(c, p as ChiSquareParams),
+  },
   survival: { label: "Survival analysis", minColumns: 3, run: (c, p) => runSurvival(c, p as SurvivalParams) },
   cox: { label: "Cox proportional hazards regression", minColumns: 3, run: (c, p) => runCox(c, p as CoxParams) },
 };
@@ -148,6 +169,20 @@ export const ANALYSES: Record<AnalysisType, Analysis> = {
 // the analysis view and the graphs' overlays read the same run, so R works once.
 // An edit makes a new TableData, which starts a fresh set of results.
 const results = new WeakMap<TableData, Map<string, Promise<AnalysisOutcome>>>();
+
+/** A P value that came back empty, on data no check foresaw, is said, never left a bare "—". */
+function sayBlanks(outcome: AnalysisOutcome): AnalysisOutcome {
+  if ("error" in outcome) return outcome;
+  const blank =
+    outcome.stats.some((s) => s.p && s.value == null) || (outcome.comparisons ?? []).some((c) => c.p == null);
+  return blank
+    ? { ...outcome, notes: `${outcome.notes ?? ""} A P value shown “—” can't be computed on these data.`.trim() }
+    : outcome;
+}
+
+/** A two-way ANOVA's Dunnett control that is a row, not a data set (the analysis says if it's gone). */
+const rowControl = (params: AnalysisParams | undefined) =>
+  (params as TwoWayAnovaParams | undefined)?.posthocTarget === "rows";
 
 export function runAnalysis(
   testType: AnalysisType,
@@ -162,7 +197,7 @@ export function runAnalysis(
   const named = params as
     { x?: string; y?: string; ys?: string[]; dependent?: string; reference?: string; control?: string; compareWith?: string; predictors?: string[]; datasets?: string[] } | undefined;
   // prettier-ignore
-  const chosen = [named?.x, named?.y, named?.dependent, named?.reference, named?.control, named?.compareWith, ...(named?.ys ?? []), ...(named?.predictors ?? []), ...(named?.datasets ?? [])];
+  const chosen = [named?.x, named?.y, named?.dependent, named?.reference, rowControl(params) ? undefined : named?.control, named?.compareWith, ...(named?.ys ?? []), ...(named?.predictors ?? []), ...(named?.datasets ?? [])];
   const gone =
     params?.sets?.find((name) => !table.sets.some((s) => s.name === name)) ??
     chosen.find(
@@ -176,11 +211,16 @@ export function runAnalysis(
   let result = byTest.get(key);
   if (!result) {
     const columns = params?.sets ? setColumns(table, params.sets) : table.columns;
-    result = analysis.run(columns, params, table.titles).catch((err: unknown) => {
-      // A failure (an R error, R not starting) is shown, not kept: asking again retries.
-      byTest.delete(key);
-      return { error: `Could not run the test: ${err instanceof Error ? err.message : String(err)}` };
-    });
+    result = analysis
+      .run(columns, params, table.titles)
+      .then((outcome): AnalysisOutcome | Promise<AnalysisOutcome> =>
+        "error" in outcome ? outcome : withReport(testType, params, data, columns, outcome),
+      )
+      .then(sayBlanks, (err: unknown) => {
+        // A failure (an R error, R not starting) is shown, not kept: asking again retries.
+        byTest.delete(key);
+        return { error: `Could not run the test: ${err instanceof Error ? err.message : String(err)}` };
+      });
     byTest.set(key, result);
   }
   return result;

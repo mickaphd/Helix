@@ -3,10 +3,16 @@
 // runner (not ColumnTestSpec) since each mode's result shape differs (a per-Y
 // list, a single scalar pair, or a matrix).
 import type { AnalysisOutcome, Column, CorrelationRow, XYCorrelationParams } from "../types";
-import { dataGroups, describe, pRow, rVec } from "../column/base";
+import { dataGroups, describe, identical, pRow, rVec } from "../column/base";
 import { pairUp, splitXY, xyPoints, xyProblem } from "../../lib/dataset";
 import { evalNamedVector } from "../webr";
 import { runCorrelationMatrix } from "../multiple/correlation-matrix";
+
+/** R: `rci(ct, n)`, r's 95% CI: Pearson's from cor.test (Fisher's z), Spearman's on Fisher's z
+ *  with Fieller, Hartley and Pearson's variance, 1.06 / (n − 3) (1957); none under 4 pairs, nor
+ *  for a perfect r (±1), where Fisher's z is infinite. */
+const R_RCI =
+  "rci<-function(ct,n){r<-unname(ct$estimate);if(abs(r)>=1)return(c(NA,NA));if(!is.null(ct$conf.int))return(as.vector(ct$conf.int));if(n<4)return(c(NA,NA));tanh(atanh(r)+c(-1,1)*qnorm(0.975)*sqrt(1.06/(n-3)))}";
 
 /** Minimum complete pairs before cor.test is meaningful. */
 const MIN_PAIRS = 3;
@@ -50,13 +56,23 @@ export async function runXYCorrelation(
     if (xs.length < MIN_PAIRS) {
       return { error: `Not enough complete pairs (${xs.length}) between “${a.name}” and “${b.name}”.` };
     }
+    const still = identical(xs) ? a : identical(ys) ? b : undefined;
+    if (still)
+      return { error: `“${still.name}”'s values are all identical: a correlation needs both data sets to vary.` };
     const v = await evalNamedVector(
-      `ct<-cor.test(${rVec(xs)},${rVec(ys)},method="${method}");c(r=unname(ct$estimate),p=ct$p.value)`,
+      `${R_RCI};ct<-suppressWarnings(cor.test(${rVec(xs)},${rVec(ys)},method="${method}"));ci<-rci(ct,${xs.length});` +
+        `c(r=unname(ct$estimate),p=ct$p.value,lo=ci[1],hi=ci[2],r2=unname(ct$estimate)^2)`,
     );
     return {
       testType: "correlation",
       subtitle: `${methodLabel} correlation`,
-      stats: [{ label: `${methodLabel} r`, value: v.r }, pRow("P value", v.p)],
+      stats: [
+        { label: `${methodLabel} r`, value: v.r },
+        { label: "95% CI lower", value: v.lo },
+        { label: "95% CI upper", value: v.hi },
+        ...(method === "pearson" ? [{ label: "R squared", value: v.r2 }] : []),
+        pRow("P value", v.p),
+      ],
       groups: (await describe([a, b])).groups,
       notes:
         method === "spearman"
@@ -72,19 +88,28 @@ export async function runXYCorrelation(
   const computed = new Set<number>();
   yCols.forEach((y, i) => {
     const { x: xs, y: ys } = xyPoints(xCol, y);
-    if (xs.length < MIN_PAIRS) return;
+    if (xs.length < MIN_PAIRS || identical(xs) || identical(ys)) return;
     computed.add(i);
-    stmts.push(`ct_${i}<-cor.test(${rVec(xs)},${rVec(ys)},method="${method}")`);
-    assigns.push(`r_${i}=unname(ct_${i}$estimate),p_${i}=ct_${i}$p.value`);
+    stmts.push(
+      `ct_${i}<-suppressWarnings(cor.test(${rVec(xs)},${rVec(ys)},method="${method}"));ci_${i}<-rci(ct_${i},${xs.length})`,
+    );
+    assigns.push(`r_${i}=unname(ct_${i}$estimate),p_${i}=ct_${i}$p.value,lo_${i}=ci_${i}[1],hi_${i}=ci_${i}[2]`);
   });
   if (assigns.length === 0) {
-    return { error: `Not enough complete pairs (need at least ${MIN_PAIRS}) between X and any Y data set.` };
+    return identical(xCol.values)
+      ? { error: `“${xCol.name}”'s values are all identical: a correlation needs X to vary.` }
+      : {
+          error: `No Y data set has ${MIN_PAIRS} complete pairs with X, with values that vary on both sides.`,
+        };
   }
-  const v = await evalNamedVector(`${stmts.join(";")};c(${assigns.join(",")})`);
+  const left = yCols.filter((_, i) => !computed.has(i)).map((y) => `“${y.name}”`);
+  const v = await evalNamedVector(`${R_RCI};${stmts.join(";")};c(${assigns.join(",")})`);
   const correlations: CorrelationRow[] = yCols.map((y, i) => ({
     variable: y.name,
     r: computed.has(i) ? (v[`r_${i}`] ?? null) : null,
     p: computed.has(i) ? (v[`p_${i}`] ?? null) : null,
+    low: computed.has(i) ? (v[`lo_${i}`] ?? null) : null,
+    high: computed.has(i) ? (v[`hi_${i}`] ?? null) : null,
   }));
   const { groups: described } = await describe([
     xCol,
@@ -96,9 +121,12 @@ export async function runXYCorrelation(
     stats: [],
     groups: described,
     notes:
-      method === "spearman"
+      (method === "spearman"
         ? "Spearman rank correlation between X and each Y data set; non-parametric, no linearity assumption."
-        : "Pearson correlation between X and each Y data set; assumes a linear relationship.",
+        : "Pearson correlation between X and each Y data set; assumes a linear relationship.") +
+      (left.length
+        ? ` Not computed for ${left.join(", ")}: fewer than ${MIN_PAIRS} points, or values all identical.`
+        : ""),
     correlations,
   };
 }

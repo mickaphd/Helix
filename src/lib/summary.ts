@@ -1,7 +1,12 @@
-// The mean, SD, SEM and median of numbers, for what the graphs draw at once (error bars,
-// centers); analyses take theirs from R.
+// The mean, SD, SEM, median and quartiles of numbers, for what the graphs draw at once
+// (error bars, centers, boxes); analyses take theirs from R.
 
 export const mean = (v: number[]) => v.reduce((a, b) => a + b, 0) / v.length;
+
+/** The smallest and largest of numbers, any number of them (Math.min(...v) overflows the
+ *  call stack past ~100,000 values); ±Infinity with none. */
+export const minOf = (v: number[]) => v.reduce((a, b) => (b < a ? b : a), Infinity);
+export const maxOf = (v: number[]) => v.reduce((a, b) => (b > a ? b : a), -Infinity);
 
 /** The sample SD (n − 1); 0 with fewer than 2 values. */
 export function sd(v: number[]): number {
@@ -18,3 +23,22 @@ export function median(v: number[]): number {
   const mid = Math.floor(s.length / 2);
   return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
 }
+
+/** The `p` quantile as Descriptive statistics gives it (R's type 6, the (n + 1)p method):
+ *  between the two values ranked around (n + 1)p, the smallest or largest beyond them. */
+export function quantile(v: number[], p: number): number {
+  const s = [...v].sort((a, b) => a - b);
+  const h = Math.min(Math.max((s.length + 1) * p, 1), s.length) - 1;
+  const lo = Math.floor(h);
+  return s[lo] + (h - lo) * ((s[lo + 1] ?? s[lo]) - s[lo]);
+}
+
+/** A box as Helix draws it: its quartiles (`quantile`) and whiskers to the minimum and
+ *  maximum, handed to Plotly, which then computes none of its own. */
+export const boxOf = (v: number[]) => ({
+  q1: quantile(v, 0.25),
+  median: median(v),
+  q3: quantile(v, 0.75),
+  lowerfence: minOf(v),
+  upperfence: maxOf(v),
+});

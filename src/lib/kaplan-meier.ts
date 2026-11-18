@@ -68,6 +68,9 @@ export function kaplanMeier(times: number[], codes: number[]): KaplanMeier {
   return km;
 }
 
+/** How many subjects are still followed at time `t`: those whose time is `t` or later. */
+export const atRisk = (times: number[], t: number) => times.filter((time) => time >= t).length;
+
 /** S's 95% interval on the log-log scale, from Greenwood's sum. */
 function logLogBand(s: number, greenwood: number): [number | null, number | null] {
   if (s <= 0 || s >= 1) return [null, null];

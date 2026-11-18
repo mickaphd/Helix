@@ -38,9 +38,12 @@ interface MenuContext {
   rename: (column: number) => void;
   /** Shows a grouped table's Groups panel. */
   showGroups: () => void;
+  /** A table computed from another: copying alone. */
+  locked?: boolean;
 }
 
-export function gridMenu({ data, type, zone, range, update, rename, showGroups }: MenuContext): MenuItems {
+export function gridMenu({ data, type, zone, range, update, rename, showGroups, locked }: MenuContext): MenuItems {
+  if (locked) return [{ item: "Copy" }];
   const grouped = isGrouped(data);
   const rows = range.r1 - range.r0 + 1;
   const cols = range.c1 - range.c0 + 1;

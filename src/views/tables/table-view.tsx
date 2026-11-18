@@ -2,56 +2,58 @@
 // the project store, which keeps the Undo history for the whole project.
 import { GROUPED_LIMITS, type ProjectNode, type TableData } from "../../store/types";
 import type { TableMove } from "../../store/references";
-import { useProjectActions } from "../../store/use-project-store";
+import { useOutline, useProjectActions } from "../../store/use-project-store";
 import { Section, Stepper, WithInspector } from "../../components/inspector";
 import { useLayout } from "../../store/use-layout";
 import { ColumnsIcon } from "@phosphor-icons/react";
-import { Toolbar } from "../../ui/layout";
 import { Grid } from "./grid";
 import { regroupLoses, regroupTable, replicateXY } from "./table-data";
 import { isGrouped } from "../../lib/dataset";
 import { seriesKeyOf } from "../../lib/columns";
 import { confirmDelete } from "../../native";
 import { TABLES } from ".";
+import { transformSentence } from "../../lib/transform";
 
 // ── View ───────────────────────────────────────────────────────────────
 
 export function TableView({ node }: { node: ProjectNode }) {
   const data = node.data!;
   const { updateTable } = useProjectActions();
+  const { tables } = useOutline();
   const update = (next: TableData, label: string, move?: TableMove) => {
     if (next !== data) updateTable(node.id, next, label, move);
   };
   const { setLayout } = useLayout();
   const tag = TABLES[node.tableType ?? "column"].label;
-  const grid = (
-    <Grid
-      data={data}
-      type={node.tableType ?? "column"}
-      update={update}
-      showGroups={() => setLayout({ inspector: true })}
-    />
-  );
 
-  // A grouped table has settings of its own, its groups; an XY table, its replicates.
-  if (node.tableType === "xy") {
+  const type = node.tableType ?? "column";
+  // A table computed from another says from which and how; its grid can't be typed in.
+  if (node.transform) {
+    const from = tables.find((t) => t.id === node.transform!.from)?.name ?? "";
     return (
-      <WithInspector title={node.name} tag={tag} inspector={<ReplicatesPanel data={data} update={update} />}>
-        {grid}
+      <WithInspector title={node.name} tag={tag} node={node}>
+        <p className="border-b border-separator px-4 py-2 text-small text-secondary">
+          {transformSentence(node.transform, type, from)}
+        </p>
+        <Grid data={data} type={type} update={update} showGroups={() => {}} locked />
       </WithInspector>
     );
   }
-  if (!isGrouped(data)) {
-    return (
-      <>
-        <Toolbar title={node.name} tag={tag} />
-        {grid}
-      </>
-    );
-  }
+  // A grouped table has settings of its own, its groups; an XY table, its replicates.
+  const settings =
+    type === "xy" ? (
+      <ReplicatesPanel data={data} update={update} />
+    ) : isGrouped(data) ? (
+      <GroupsPanel data={data} update={update} />
+    ) : undefined;
   return (
-    <WithInspector title={node.name} tag={tag} inspector={<GroupsPanel data={data} update={update} />}>
-      {grid}
+    <WithInspector title={node.name} tag={tag} node={node} settings={settings}>
+      <Grid
+        data={data}
+        type={type}
+        update={update}
+        showGroups={() => setLayout({ inspector: true, panel: "settings" })}
+      />
     </WithInspector>
   );
 }

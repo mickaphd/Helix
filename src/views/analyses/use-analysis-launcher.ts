@@ -3,7 +3,7 @@
 // it. Shared by the New Analysis picker, the sidebar and the Analysis menu so
 // every entry point behaves the same.
 import { alert } from "../../native";
-import { useProjectActions } from "../../store/use-project-store";
+import { useProjectActions, type ForGraph } from "../../store/use-project-store";
 import { ANALYSES } from "../../stats";
 import type { AnalysisParams, AnalysisPickerValue, AnalysisType } from "../../stats/types";
 import { countDataColumns, countDataGroups } from ".";
@@ -44,35 +44,50 @@ function useAnalysisPrecheck() {
 
 /** Creates the analysis node once its params are known (wizards call this). */
 export function useAnalysisLauncher() {
-  const { createAnalysis } = useProjectActions();
+  const { createAnalysis, get, updateGraph, setActiveNode } = useProjectActions();
   const precheck = useAnalysisPrecheck();
-  return (tableId: string, testType: AnalysisType, params?: AnalysisParams) => {
-    if (precheck(tableId, testType)) createAnalysis(tableId, testType, params);
+  return (tableId: string, testType: AnalysisType, params?: AnalysisParams, forGraph?: ForGraph) => {
+    if (!precheck(tableId, testType)) return;
+    const id = createAnalysis(tableId, testType, params);
+    // Made for a graph's stars: chosen for it, which stays in front (its pairs to tick).
+    const graph = forGraph && get().nodes[forGraph.id];
+    if (graph?.graphOptions) {
+      updateGraph(graph.id, { ...graph.graphOptions, sigAnalysisId: id, sigPairs: [] });
+      setActiveNode(graph.id);
+    }
   };
 }
 
 /** Starts a test picked from the picker or the Analysis menu: opens its wizard,
  *  or runs it directly when it has nothing to ask. Returns true if a wizard opened. */
 export function useStartAnalysis() {
-  const { get, openSelector, createAnalysis } = useProjectActions();
+  const { get, openSelector } = useProjectActions();
+  const launch = useAnalysisLauncher();
   const columnsPrecheck = useColumnsPrecheck();
   const precheck = useAnalysisPrecheck();
-  return (tableId: string, picked: AnalysisPickerValue): boolean => {
+  return (tableId: string, picked: AnalysisPickerValue, forGraph?: ForGraph): boolean => {
     const ready =
       picked === "compare-many-groups"
         ? columnsPrecheck(tableId, ANALYSES.anova.minColumns, "Compare more than two groups")
-        : precheck(tableId, picked === "interpolate" ? "nonlinear-regression" : picked);
+        : picked === "transform"
+          ? columnsPrecheck(tableId, 1, "Transform or Normalize")
+          : precheck(tableId, picked === "interpolate" ? "nonlinear-regression" : picked);
     if (!ready) return false;
+    // A transform always asks how.
+    if (picked === "transform") {
+      openSelector({ kind: "analysis-params", tableId, testType: picked });
+      return true;
+    }
     // A wizard with nothing to ask of this table (one data set, say) runs at once.
     const wizard = WIZARDS[picked];
     const { data, tableType } = get().nodes[tableId]!;
     const table = readTable(data!);
     if (!wizard?.questions({}, table, tableType).some(Boolean)) {
       const { type, params } = wizard?.finish({}, table, tableType) ?? { type: picked as AnalysisType };
-      createAnalysis(tableId, type, params);
+      launch(tableId, type, params, forGraph);
       return false;
     }
-    openSelector({ kind: "analysis-params", tableId, testType: picked });
+    openSelector({ kind: "analysis-params", tableId, testType: picked, forGraph });
     return true;
   };
 }

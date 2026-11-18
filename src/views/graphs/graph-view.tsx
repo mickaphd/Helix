@@ -23,15 +23,15 @@ import { groupsOf, isGrouped, readTable, splitXY, xyProblem, type Column } from 
 import { paletteOf } from "../../lib/palettes";
 import { computeGroupedDEG } from "../../lib/deg";
 import { useAnalysis } from "../analyses/use-analysis";
-import { GRAPHS, graphSeries, plotColumns } from ".";
+import { choosableSets, GRAPHS, graphSeries, hasValueAxis, plotColumns } from ".";
 import { addFittedCurves, addLogisticCurve } from "./fitted-curve";
 import { FormatPanel } from "./format-panel";
 import { copyGraphImage, saveGraphImage } from "./graph-export";
-import { INK, MOVABLE, marginsFor, movedText, onAxis, paintOf, withCaps } from "./plot-helpers";
+import { INK, MOVABLE, marginsFor, movedText, onAxis, paintOf, refLineParts, withCaps } from "./plot-helpers";
 import { useStartAnalysis } from "../analyses/use-analysis-launcher";
 import { loadPlotly } from "./plotly";
 import { addRegression } from "./regression-overlay";
-import { addSignificance, deriveComparisons } from "./significance-overlay";
+import { addSignificance, deriveComparisons, GROUPED_STARS, starsFit } from "./significance-overlay";
 import {
   drawnKeys,
   drawnStyle,
@@ -92,13 +92,14 @@ export function GraphView({ node }: { node: ProjectNode }) {
   // The margins Plotly drew, which grow for long labels and place the resize grab
   // zones on the real axes.
   const [margins, setMargins] = React.useState<Margins | null>(null);
+  const [newLineAt, setNewLineAt] = React.useState(0);
 
   // ── Data ─────────────────────────────────────────────────────────────
 
   const dataset = data ? readTable(data) : null;
   const columns = React.useMemo(
     () => (dataset && parent?.tableType ? plotColumns(dataset, type, options, parent.tableType) : []),
-    [dataset, type, options.center, options.xVariable, options.yVariable, parent?.tableType],
+    [dataset, type, options.center, options.xVariable, options.yVariable, options.sets?.join("\n"), parent?.tableType],
   );
   // A graph of a table with an X needs numbers in X and in a Y column, and says which it lacks;
   // a survival curve, one column per group (each row a subject, or a count), never replicates.
@@ -135,8 +136,14 @@ export function GraphView({ node }: { node: ProjectNode }) {
     return rows.size - (volcanoColumns.find((c) => c.name === "Log2 FC")?.values.length ?? 0);
   }, [dataset, volcanoColumns, volcanoGroups?.join("\n"), options.volcanoGroupA, options.volcanoGroupB]);
 
-  // The series drawn, one row each in the Series section.
-  const seriesNames = data && parent?.tableType ? graphSeries(type, data, parent.tableType, options) : [];
+  // The table's series, whose places give their colors, and those shown (the data sets the
+  // graph chose), one row each in the Series section.
+  const choosable = dataset && parent?.tableType ? choosableSets(type, dataset, parent.tableType) : [];
+  const shownSets = choosable.length ? options.sets : undefined;
+  const allSeries = data && parent?.tableType ? graphSeries(type, data, parent.tableType, options) : [];
+  const seriesNames = shownSets ? allSeries.filter((n) => shownSets.includes(n)) : allSeries;
+  // The data sets it shows that are left in the table: none, and it says so.
+  const setsGone = shownSets && !shownSets.some((n) => choosable.includes(n));
 
   // The grouped volcano maps the computed DEG columns (P values) onto its axes; an XY
   // table's X is its X column.
@@ -179,7 +186,13 @@ export function GraphView({ node }: { node: ProjectNode }) {
   const volcanoBelowZero = volcanoY?.values.filter((p) => p < 0).length ?? 0;
   // A volcano whose chosen column is gone says so, and draws no other in its place.
   const gone = family === "volcano" ? volcanoAxes([], volcanoColumns, buildOptions).gone : undefined;
-  const lack = xyLack ?? (gone === undefined ? undefined : `The column “${gone}” is no longer in the table.`);
+  const lack =
+    xyLack ??
+    (gone !== undefined
+      ? `The column “${gone}” is no longer in the table.`
+      : setsGone
+        ? "None of the data sets this graph shows is left in the table: choose some in its Data section."
+        : undefined);
   const hasData = !lack && columns.some((c) => c.values.length > 0);
 
   // The figure's traces as last drawn, without the selection ring.
@@ -276,15 +289,14 @@ export function GraphView({ node }: { node: ProjectNode }) {
   const analyses = Object.values(nodes).filter((n) => n.type === "analysis" && n.parentId === node.parentId);
   // Significance brackets read the chosen analysis's own result (the one its view shows).
   const sigAnalysis = options.sigAnalysisId ? nodes[options.sigAnalysisId] : undefined;
-  const sigOutcome = useAnalysis(
-    family === "column" ? sigAnalysis?.analysisType : undefined,
-    data,
-    sigAnalysis?.analysisParams,
-  );
-  // None while its analysis runs (its stars come once R answers).
+  const stars = family === "column" || GROUPED_STARS.has(type);
+  const sigOutcome = useAnalysis(stars ? sigAnalysis?.analysisType : undefined, data, sigAnalysis?.analysisParams);
+  // None while its analysis runs (its stars come once R answers); none from an analysis
+  // of other data sets than those the graph shows (`starsFit`).
+  const sigFits = sigAnalysis !== undefined && starsFit(sigAnalysis, choosable, shownSets ?? choosable);
   const comparisons = React.useMemo(
-    () => (sigAnalysis && !sigOutcome ? null : deriveComparisons(sigOutcome)),
-    [sigAnalysis, sigOutcome],
+    () => (!sigFits ? [] : sigAnalysis && !sigOutcome ? null : deriveComparisons(sigOutcome)),
+    [sigFits, sigAnalysis, sigOutcome],
   );
   // An XY scatter draws a regression of its table: a linear one's line and band it computes
   // itself; a nonlinear or logistic one's curve, from its result.
@@ -370,10 +382,11 @@ export function GraphView({ node }: { node: ProjectNode }) {
     let current = true;
     void loadPlotly().then(async (Plotly) => {
       if (!current) return;
-      const paint = paintOf(options, seriesNames.length);
+      const paint = paintOf(options, allSeries.length, allSeries);
       const fig = GRAPHS[type].build(volcanoColumns, buildOptions, paint, dataset?.titles);
       fig.data = withCaps(fig.data, options);
-      if (family === "column" && options.sigAnalysisId) addSignificance(fig, columns, type, options, comparisons ?? []);
+      if (stars && options.sigAnalysisId)
+        addSignificance(fig, columns, type, options, comparisons ?? [], dataset?.titles);
       if (type === "xy-scatter" && curveParams) {
         const { x, ys } = splitXY(columns);
         const fitted = curveParams.ys ?? [curveParams.y ?? ys[0]?.name ?? ""];
@@ -397,6 +410,11 @@ export function GraphView({ node }: { node: ProjectNode }) {
               y: onAxis(label.y, options.yScale),
             }));
       if (labels.length) fig.layout.annotations = [...((fig.layout.annotations as unknown[]) ?? []), ...labels];
+      if (hasValueAxis(family) && options.refLines?.length) {
+        const { shapes, annotations } = refLineParts(options, type === "grouped-hbars");
+        fig.layout.shapes = [...((fig.layout.shapes as unknown[]) ?? []), ...shapes];
+        fig.layout.annotations = [...((fig.layout.annotations as unknown[]) ?? []), ...annotations];
+      }
       const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent");
       const ring = selectionRing(fig.data, selected, accent);
       // A graph of individual points picks them by dragging; the others stay still.
@@ -417,6 +435,7 @@ export function GraphView({ node }: { node: ProjectNode }) {
         setSelected(new Set([...selected].filter((key) => keys.has(key))));
       const resolved = (el as { _fullLayout?: PlotlyLayout })._fullLayout;
       if (resolved?._size) setMargins(resolved._size);
+      setNewLineAt(middleOf(type === "grouped-hbars" ? resolved?.xaxis : resolved?.yaxis) ?? 0);
     });
     return () => {
       current = false;
@@ -430,7 +449,7 @@ export function GraphView({ node }: { node: ProjectNode }) {
     regParams,
     curveParams,
     curveFit,
-    seriesNames.length,
+    allSeries.join("\n"),
     selected,
     glRatio,
   ]);
@@ -489,9 +508,13 @@ export function GraphView({ node }: { node: ProjectNode }) {
     <WithInspector
       title={node.name}
       tag={titleCase(GRAPHS[type].label)}
-      inspector={
+      node={node}
+      settings={
         <FormatPanel
           graphId={node.id}
+          newLineAt={newLineAt}
+          allSeries={allSeries}
+          sets={choosable}
           graphType={type}
           tableType={parent?.tableType}
           options={options}
@@ -520,10 +543,11 @@ export function GraphView({ node }: { node: ProjectNode }) {
           numericNames={dataset?.numeric.map((c) => c.name) ?? []}
           allNames={dataset?.columns.map((c) => c.name) ?? []}
           fitError={curveOutcome && "error" in curveOutcome ? curveOutcome.error : null}
-          onNewAnalysis={(test) => {
+          onNewAnalysis={(test, sets) => {
             if (!node.parentId) return;
-            if (test) startAnalysis(node.parentId, test);
-            else openSelector({ kind: "new-analysis", tableId: node.parentId });
+            const forGraph = sets && { id: node.id, sets };
+            if (test) startAnalysis(node.parentId, test, forGraph);
+            else openSelector({ kind: "new-analysis", tableId: node.parentId, forGraph });
           }}
           canExport={hasData}
           onSave={(format, dpi) =>
@@ -652,4 +676,15 @@ type PlotElement = HTMLDivElement & {
 /** The part of Plotly's resolved layout read back after drawing. */
 interface PlotlyLayout {
   _size?: Margins;
+  xaxis?: { range?: number[]; type?: string };
+  yaxis?: { range?: number[]; type?: string };
+}
+
+/** The middle of an axis as drawn, rounded to 2 significant digits (its range is in log10
+ *  on a log axis): where a new reference line goes. */
+function middleOf(axis: PlotlyLayout["xaxis"]): number | undefined {
+  const [a, b] = axis?.range ?? [];
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return undefined;
+  const mid = axis!.type === "log" ? 10 ** ((a + b) / 2) : (a + b) / 2;
+  return mid === 0 ? 0 : Number(mid.toPrecision(2));
 }

@@ -2,13 +2,14 @@
 // groups. Optionally follows up with Dunn's test between every pair of
 // groups (pairwise z-tests on global mean ranks, tie-corrected, Bonferroni-corrected).
 import type { KruskalWallisParams } from "../types";
-import { dunnPosthocStatements, groupsSetup, posthocOf, pRow, type ColumnTestSpec } from "./base";
+import { dunnPosthocStatements, groupsSetup, noScatter, posthocOf, pRow, type ColumnTestSpec } from "./base";
 
 const DEFAULTS: KruskalWallisParams = { posthoc: "none" };
 
 export const kruskalWallisSpec: ColumnTestSpec<KruskalWallisParams> = {
   testType: "kruskal-wallis",
   minGroups: 3,
+  checkGroups: (groups) => noScatter(groups, "Kruskal-Wallis test"),
   rCode: (groups, params) => {
     const method = (params ?? DEFAULTS).posthoc;
     const setup = `${groupsSetup(groups)};k<-kruskal.test(v,gr)`;

@@ -2,17 +2,43 @@
 // table's X, or two variables of a Multiple Variables table (`x`, `y`). Optionally forces the line through the origin (intercept = 0);
 // reports 95% confidence intervals for the slope and intercept alongside the fit.
 import type { AnalysisOutcome, Column, FitRow, LinearRegressionParams, StatRow } from "../types";
-import { describe, pRow, rVec, type ColumnTestSpec, type Group } from "../column/base";
+import { describe, identical, pRow, rVec, type ColumnTestSpec, type Group } from "../column/base";
 import { evalNamedVector } from "../webr";
 import { pairUp, splitXY, xyPoints, xyProblem } from "../../lib/dataset";
 import { num } from "../../lib/format";
 
 const DEFAULTS: LinearRegressionParams = { forceOrigin: false };
 
+/** R: `line(x, y, origin)`, the least-squares line and its 95% CIs. X is centered first (the
+ *  same line, its intercept then taken back to X = 0 with its exact SE: the centered
+ *  intercept and the slope are uncorrelated), so X values far from 0 for their spread
+ *  (dates in seconds…) lose no precision. */
+const R_LINE = `line<-function(x,y,origin){q<-function(m)qt(0.975,df.residual(m))
+if(origin){m<-lm(y~x+0);co<-summary(m)$coefficients;return(c(slope=co[1,1],slo=co[1,1]-q(m)*co[1,2],
+shi=co[1,1]+q(m)*co[1,2],b=0,blo=NA,bhi=NA,r=NA,r2=summary(m)$r.squared,p=co[1,4],n=length(y)))}
+mx<-mean(x);m<-lm(y~I(x-mx));s<-summary(m);co<-s$coefficients;b<-co[1,1]-co[2,1]*mx;sb<-sqrt(co[1,2]^2+(mx*co[2,2])^2)
+c(slope=co[2,1],slo=co[2,1]-q(m)*co[2,2],shi=co[2,1]+q(m)*co[2,2],b=b,blo=b-q(m)*sb,bhi=b+q(m)*sb,
+r=cor(x,y),r2=s$r.squared,p=co[2,4],n=length(y))}`;
+
+/** What X and Y lack for a line, or nothing. */
+function lineProblem(x: Group, y: Group, origin: boolean): string | undefined {
+  const need = origin ? 2 : 3;
+  if (y.values.length < need) return `“${y.name}” needs at least ${need} points to be regressed on X.`;
+  // Through the origin, a line needs one X other than 0; else, two different Xs and a Y that changes.
+  if (origin) {
+    if (x.values.every((v) => v === 0)) return `“${x.name}” holds only 0s: a line through the origin needs another X.`;
+    if (y.values.every((v) => v === 0)) return `“${y.name}” holds only 0s: there is nothing to regress on “${x.name}”.`;
+    return undefined;
+  }
+  if (identical(x.values)) return `“${x.name}”'s values are all identical: a line needs X values that differ.`;
+  if (identical(y.values))
+    return `“${y.name}”'s values are all identical: there is no change in it to regress on “${x.name}”.`;
+}
+
 /** X and Y regressed, on the points they make: two variables named (on the rows where
  *  both have a value), else an XY table's X and the chosen Y data set (the first by
  *  default), each replicate a point. */
-function pickXY(columns: Column[], params: LinearRegressionParams | undefined): Group[] {
+export function pickXY(columns: Column[], params: LinearRegressionParams | undefined): Group[] {
   const named = (name?: string) => columns.find((c) => c.name === name);
   let points: { x: number[]; y: number[] } | undefined;
   let names: [string, string] = ["", ""];
@@ -41,18 +67,11 @@ export const linearRegressionSpec: ColumnTestSpec<LinearRegressionParams> = {
     return empty && `“${empty.name}” holds no numbers yet.`;
   },
   parseGroups: pickXY,
-  rCode: (groups, params) => {
-    const origin = (params ?? DEFAULTS).forceOrigin;
-    const formula = origin ? "y~x+0" : "y~x";
-    const slopeIdx = origin ? 1 : 2;
-    const interceptTerms = origin ? "" : ",interceptCiLo=unname(ci[1,1]),interceptCiHi=unname(ci[1,2])";
-    return (
-      `x<-${rVec(groups[0].values)};y<-${rVec(groups[1].values)};m<-lm(${formula});s<-summary(m);ci<-confint(m);` +
-      `c(slope=unname(coef(m)[${slopeIdx}]),intercept=${origin ? "0" : "unname(coef(m)[1])"},` +
-      `r=cor(x,y),r2=s$r.squared,p=unname(s$coefficients[${slopeIdx},4]),` +
-      `slopeCiLo=unname(ci[${slopeIdx},1]),slopeCiHi=unname(ci[${slopeIdx},2])${interceptTerms})`
-    );
-  },
+  checkGroups: ([x, y], params) => lineProblem(x, y, (params ?? DEFAULTS).forceOrigin),
+  rCode: (groups, params) =>
+    `${R_LINE};v<-line(${rVec(groups[0].values)},${rVec(groups[1].values)},${(params ?? DEFAULTS).forceOrigin ? "TRUE" : "FALSE"});` +
+    `c(slope=v[["slope"]],intercept=v[["b"]],r=v[["r"]],r2=v[["r2"]],p=v[["p"]],slopeCiLo=v[["slo"]],slopeCiHi=v[["shi"]],` +
+    `interceptCiLo=v[["blo"]],interceptCiHi=v[["bhi"]])`,
   rows: (v, _groups, params) => {
     const origin = (params ?? DEFAULTS).forceOrigin;
     const rows: StatRow[] = [
@@ -99,19 +118,15 @@ export async function runLinearRegressions(
   const lacking = params.ys.find((_, i) => !sets[i]);
   if (!x || lacking !== undefined) return { error: xyProblem(columns, lacking)! };
   const points = sets.map((s) => xyPoints(x, s!));
-  const few = sets.find((_, i) => points[i].x.length < 3);
-  if (few) return { error: `“${few.name}” needs at least 3 points to be regressed on X.` };
   const origin = params.forceOrigin;
+  for (const [i, p] of points.entries()) {
+    const problem = lineProblem({ name: x.name, values: p.x }, { name: sets[i]!.name, values: p.y }, origin);
+    if (problem) return { error: problem };
+  }
   const v = await evalNamedVector(
-    points
-      .map(
-        (p, i) =>
-          `x<-${rVec(p.x)};y<-${rVec(p.y)};m<-lm(${origin ? "y~x+0" : "y~x"});s<-summary(m);ci<-confint(m);k<-${origin ? 1 : 2};` +
-          `v${i}<-c(slope=unname(coef(m)[k]),slo=ci[k,1],shi=ci[k,2],` +
-          `b=${origin ? "0" : "unname(coef(m)[1])"},blo=${origin ? "NA" : "ci[1,1]"},bhi=${origin ? "NA" : "ci[1,2]"},` +
-          `r=${origin ? "NA" : "cor(x,y)"},r2=s$r.squared,p=s$coefficients[k,4],n=length(y))`,
-      )
-      .join(";") + `;c(${points.map((_, i) => `setNames(v${i},paste0(names(v${i}),"_${i}"))`).join(",")})`,
+    `${R_LINE};` +
+      points.map((p, i) => `v${i}<-line(${rVec(p.x)},${rVec(p.y)},${origin ? "TRUE" : "FALSE"})`).join(";") +
+      `;c(${points.map((_, i) => `setNames(v${i},paste0(names(v${i}),"_${i}"))`).join(",")})`,
   );
   const of = (key: string) => sets.map((_, i) => v[`${key}_${i}`] ?? null);
   const range = (lo: string, hi: string) =>

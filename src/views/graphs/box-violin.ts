@@ -1,12 +1,11 @@
-// "Box and violin": a box (min–max whiskers) or violin per column, with optional
+// "Box and violin": a box (quartiles and min–max whiskers, Helix's: `boxTrace`) or violin per column, with optional
 // individual points drawn over it. Each column is its own trace so it can carry its
 // own series color; its points are a trace of their own, as on Individual values,
 // so each can carry its own style (Plotly's box points take one color for all).
 import type { GraphOptions } from "../../store/types";
 import type { GraphModule, GraphFigure } from ".";
 import type { Column } from "../../lib/dataset";
-import { baseLayout, jitter, seriesPoints, type Paint } from "./plot-helpers";
-import { pointKeyOf } from "../../lib/columns";
+import { baseLayout, boxTrace, columnPoints, type Paint } from "./plot-helpers";
 
 function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFigure {
   const data: unknown[] = [];
@@ -21,23 +20,9 @@ function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFig
     data.push(
       options.kind === "violin"
         ? { type: "violin", ...shape, points: false, meanline: { visible: true }, spanmode: "hard" }
-        : { type: "box", ...shape, boxpoints: false, whiskerwidth: 0.5 },
+        : { type: "box", ...shape, ...boxTrace([i], [c.values]), y: undefined, boxpoints: false, whiskerwidth: 0.5 },
     );
-    if (options.showPoints) {
-      data.push({
-        type: "scatter",
-        mode: "markers",
-        x: c.values.map((_, vi) => i + jitter(i, vi)),
-        y: c.values,
-        ...seriesPoints(
-          paint,
-          c.name,
-          i,
-          c.rows.map((r) => pointKeyOf(c.name, r)),
-        ),
-        hoverinfo: "y",
-      });
-    }
+    if (options.showPoints) data.push(columnPoints(paint, c, i));
   });
 
   return {

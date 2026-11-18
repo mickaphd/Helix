@@ -1,36 +1,63 @@
 // Asks an analysis's questions (wizards.ts) like a macOS assistant: one question at
-// a time, Cancel, Back, then Next — or Run on the last one. A "Not sure" answer
-// runs Shapiro-Wilk and answers for the user. Mounts fresh for each analysis.
+// a time, Cancel, Back, then Next — or Run on the last one (Create for a transformed
+// table). A "Not sure" answer runs Shapiro-Wilk and answers for the user. Mounts fresh
+// for each analysis.
 import * as React from "react";
 import { Button, Checkbox, Field, NumberInput, RadioList } from "../../ui/controls";
 import { Dialog } from "../../ui/dialog";
 import { readTable } from "../../lib/dataset";
-import type { AnalysisParams, AnalysisType } from "../../stats/types";
 import type { TableData, TableType } from "../../store/types";
-import { useProjectStore } from "../../store/use-project-store";
+import { useProjectActions, useProjectStore } from "../../store/use-project-store";
 import { checkNormality } from "./normality-check";
 import { useAnalysisLauncher } from "./use-analysis-launcher";
 import { analysisLabel } from ".";
-import { chosenSets, toggled, WIZARDS, type Answer, type Answers, type Question, type Wizard } from "./wizards";
+import {
+  answersFor,
+  chosenSets,
+  toggled,
+  TRANSFORM_WIZARD,
+  WIZARDS,
+  type Answer,
+  type Answers,
+  type Question,
+  type Wizard,
+} from "./wizards";
 
 const NOT_SURE = { value: "check", label: "Not sure — check for normality first (Shapiro-Wilk)" };
 
 export function AnalysisWizard() {
   const { nodes, selector, closeSelector } = useProjectStore();
+  const { createTransformed } = useProjectActions();
   const launch = useAnalysisLauncher();
   if (selector?.kind !== "analysis-params") return null;
   const { data, tableType } = nodes[selector.tableId] ?? {};
+  if (!data) return null;
+  const table = readTable(data);
+  const steps = { title: analysisLabel(selector.testType), data, tableType, onClose: closeSelector };
+  if (selector.testType === "transform")
+    return (
+      <Steps
+        {...steps}
+        wizard={TRANSFORM_WIZARD}
+        initial={{}}
+        done="Create"
+        onDone={(a) => {
+          createTransformed(selector.tableId, TRANSFORM_WIZARD.finish(a));
+          closeSelector();
+        }}
+      />
+    );
   const wizard = WIZARDS[selector.testType];
-  if (!data || !wizard) return null;
+  if (!wizard) return null;
   return (
     <Steps
-      title={analysisLabel(selector.testType)}
+      {...steps}
       wizard={wizard}
-      data={data}
-      tableType={tableType}
-      onClose={closeSelector}
-      onDone={(type, params) => {
-        launch(selector.tableId, type, params);
+      initial={answersFor(wizard, table, tableType, selector.forGraph?.sets)}
+      done="Run"
+      onDone={(a) => {
+        const { type, params } = wizard.finish(a, table, tableType);
+        launch(selector.tableId, type, params, selector.forGraph);
         closeSelector();
       }}
     />
@@ -49,18 +76,25 @@ function Steps({
   wizard,
   data,
   tableType,
+  initial,
+  done,
   onDone,
   onClose,
 }: {
   title: string;
-  wizard: Wizard;
+  wizard: Pick<Wizard, "questions">;
   data: TableData;
   tableType?: TableType;
-  onDone: (type: AnalysisType, params?: AnalysisParams) => void;
+  /** Answers given beforehand (a graph's data sets), each question starting from its own. */
+  initial: Answers;
+  /** The last step's button: Run, Create. */
+  done: string;
+  /** Every question answered. */
+  onDone: (answers: Answers) => void;
   onClose: () => void;
 }) {
   const table = readTable(data);
-  const [answers, setAnswers] = React.useState<Answers>({});
+  const [answers, setAnswers] = React.useState<Answers>(initial);
   const [step, setStep] = React.useState(0);
   const [checking, setChecking] = React.useState(false);
   // Each question takes the keyboard (its chosen answer), so ↑↓ and Return go on working.
@@ -71,7 +105,7 @@ function Steps({
   }, [step]);
   const asked = (a: Answers) => wizard.questions(a, table, tableType).filter((q): q is Question => q !== false);
   const q = asked(answers)[step];
-  const [value, setValue] = React.useState<Answer | null>(() => initialAnswer(q, undefined));
+  const [value, setValue] = React.useState<Answer | null>(() => initialAnswer(q, initial[q.id]));
 
   const go = (to: number, a: Answers) => {
     const next = asked(a)[to];
@@ -93,8 +127,7 @@ function Steps({
     const a = { ...answers, [q.id]: answer };
     if (asked(a).length > step + 1) go(step + 1, a);
     else {
-      const { type, params } = wizard.finish(a, table, tableType);
-      onDone(type, params);
+      onDone(a);
     }
   };
 
@@ -112,7 +145,7 @@ function Steps({
           <>
             {step > 0 && <Button onClick={() => go(step - 1, answers)}>Back</Button>}
             <Button variant="accent" disabled={!ready} onClick={() => void next()}>
-              {last ? "Run" : "Next"}
+              {last ? done : "Next"}
             </Button>
           </>
         )

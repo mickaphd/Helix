@@ -1,5 +1,5 @@
-// The window's layout: the sidebar and the inspector (the panel on the right of a
-// graph or a grouped table), each shown or not, and its width. It belongs to this Mac,
+// The window's layout: the sidebar and the right panel (each item's note, or a graph's or a
+// grouped table's settings), each shown or not, and its width; which one the right panel shows. It belongs to this Mac,
 // not to the project: kept in local storage, never in the .hlx file.
 import * as React from "react";
 import { clamp, type Limits } from "./types";
@@ -15,6 +15,8 @@ interface Layout {
   sidebarWidth: number;
   inspector: boolean;
   inspectorWidth: number;
+  /** What the right panel shows: the item's note, or its settings (where it has some). */
+  panel: "notes" | "settings";
 }
 
 const KEY = "helix.layout";
@@ -23,6 +25,7 @@ const INITIAL: Layout = {
   sidebarWidth: SIDEBAR_WIDTH.initial,
   inspector: true,
   inspectorWidth: INSPECTOR_WIDTH.initial,
+  panel: "settings",
 };
 
 export const clampWidth = (width: number, limits: Limits) => Math.round(clamp(width, limits));
@@ -39,6 +42,7 @@ function load(): Layout {
         typeof saved.inspectorWidth === "number"
           ? clampWidth(saved.inspectorWidth, INSPECTOR_WIDTH)
           : INITIAL.inspectorWidth,
+      panel: saved.panel === "notes" ? "notes" : "settings",
     };
   } catch {
     return INITIAL;
@@ -65,10 +69,12 @@ type LayoutValue = Layout & {
   foldedTables: ReadonlySet<string>;
   setFoldedTables: (folded: ReadonlySet<string>) => void;
   setLayout: (patch: Partial<Layout>) => void;
-  /** Whether the view shown has an inspector (a graph, a grouped table), as it says
-   *  while it does (`WithInspector`). */
+  /** Whether the view shown has a right panel (every item), and settings in it (a graph, a
+   *  grouped or XY table), as it says while shown (`WithInspector`). */
   inspectorHere: boolean;
   setInspectorHere: (here: boolean) => void;
+  settingsHere: boolean;
+  setSettingsHere: (here: boolean) => void;
 };
 
 const LayoutContext = React.createContext<LayoutValue | null>(null);
@@ -77,7 +83,7 @@ const LayoutContext = React.createContext<LayoutValue | null>(null);
  *  the inspector first, down to their minimum. Their chosen widths come back as it widens.
  *  `here`: whether the view shown has an inspector (a graph, a grouped table). */
 export function fitWidths(
-  { sidebar, sidebarWidth, inspector, inspectorWidth }: Layout,
+  { sidebar, sidebarWidth, inspector, inspectorWidth }: Omit<Layout, "panel">,
   windowWidth: number,
   here: boolean,
 ) {
@@ -97,6 +103,7 @@ export function LayoutProvider({ children }: { children: React.ReactNode }) {
   const [layout, setState] = React.useState(load);
   const [windowWidth, setWindowWidth] = React.useState(window.innerWidth);
   const [inspectorHere, setInspectorHere] = React.useState(false);
+  const [settingsHere, setSettingsHere] = React.useState(false);
   const [openSections, setOpen] = React.useState(readOpen);
   const [foldedTables, setFoldedTables] = React.useState<ReadonlySet<string>>(new Set());
   const setOpenSections = React.useCallback((open: ReadonlySet<string>) => {
@@ -131,12 +138,24 @@ export function LayoutProvider({ children }: { children: React.ReactNode }) {
       setLayout,
       inspectorHere,
       setInspectorHere,
+      settingsHere,
+      setSettingsHere,
       openSections,
       setOpenSections,
       foldedTables,
       setFoldedTables,
     }),
-    [layout, sidebarWidth, inspectorWidth, setLayout, inspectorHere, openSections, setOpenSections, foldedTables],
+    [
+      layout,
+      sidebarWidth,
+      inspectorWidth,
+      setLayout,
+      inspectorHere,
+      settingsHere,
+      openSections,
+      setOpenSections,
+      foldedTables,
+    ],
   );
   return <LayoutContext.Provider value={value}>{children}</LayoutContext.Provider>;
 }

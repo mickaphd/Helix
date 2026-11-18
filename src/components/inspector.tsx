@@ -1,36 +1,57 @@
-// The inspector: the panel on the right of a graph (Format) or a grouped table (Groups),
-// full height like the sidebar, and the building blocks its sections share.
+// The right panel: each item's note, or a graph's or a grouped table's settings (Format,
+// Groups), full height like the sidebar, and the building blocks its sections share.
 import * as React from "react";
 import { Button, cn, IconButton } from "../ui/controls";
-import { CaretRightIcon, MinusIcon, PlusIcon, SidebarSimpleIcon } from "@phosphor-icons/react";
+import {
+  CaretRightIcon,
+  MinusIcon,
+  NoteBlankIcon,
+  NoteIcon,
+  PlusIcon,
+  SlidersHorizontalIcon,
+} from "@phosphor-icons/react";
 import { SidePanel, Toolbar } from "../ui/layout";
 import { clampWidth, INSPECTOR_WIDTH, useLayout } from "../store/use-layout";
-import { clamp } from "../store/types";
+import { clamp, type ProjectNode } from "../store/types";
+import { useProjectActions } from "../store/use-project-store";
 
-/** A view with an inspector: its toolbar and content on the left, the inspector on the
- *  right. The inspector's button stays at the window's top right: in the inspector when
- *  it's shown, in the toolbar when it's hidden. */
+type View = "notes" | "settings";
+
+/** A view with the right panel: its toolbar and content on the left, the panel on the right,
+ *  showing the item's note or its `settings` (where it has some). The panel's two buttons,
+ *  Notes then Settings, stay at the window's top right: in the panel when it's shown, in the
+ *  toolbar when it's hidden. */
 export function WithInspector({
   title,
   tag,
-  inspector,
+  node,
+  settings,
   children,
 }: {
   title: string;
   tag?: string;
-  inspector: React.ReactNode;
+  node: ProjectNode;
+  settings?: React.ReactNode;
   children: React.ReactNode;
 }) {
-  const { inspector: open, inspectorWidth, setLayout, setInspectorHere } = useLayout();
-  // While shown, the window keeps room for the inspector in its layout (`fitWidths`).
+  const { inspector: open, panel, inspectorWidth, setLayout, setInspectorHere, setSettingsHere } = useLayout();
+  const hasSettings = settings !== undefined;
+  // While shown, the window keeps room for the panel in its layout (`fitWidths`), and the
+  // View menu offers the settings where there are some.
   React.useLayoutEffect(() => {
     setInspectorHere(true);
-    return () => setInspectorHere(false);
-  }, [setInspectorHere]);
+    setSettingsHere(hasSettings);
+    return () => {
+      setInspectorHere(false);
+      setSettingsHere(false);
+    };
+  }, [setInspectorHere, setSettingsHere, hasSettings]);
+  const shown: View = panel === "settings" && hasSettings ? "settings" : "notes";
+  const buttons = <PanelButtons shown={open ? shown : null} hasNote={Boolean(node.notes)} hasSettings={hasSettings} />;
   return (
     <div className="flex h-full">
       <div className="flex min-w-0 flex-1 flex-col">
-        <Toolbar title={title} tag={tag} actions={!open && <InspectorToggle />} />
+        <Toolbar title={title} tag={tag} actions={!open && buttons} />
         {children}
       </div>
       <SidePanel
@@ -39,25 +60,49 @@ export function WithInspector({
         width={inspectorWidth}
         minWidth={INSPECTOR_WIDTH.min}
         onResize={(width, open) => setLayout({ inspector: open, inspectorWidth: clampWidth(width, INSPECTOR_WIDTH) })}
-        header={<InspectorToggle />}
+        header={buttons}
       >
-        {inspector}
+        {shown === "settings" ? settings : <Notes node={node} />}
       </SidePanel>
     </div>
   );
 }
 
-/** Shows or hides the inspector (also View ▸ Show Inspector, ⌥⌘I). */
-function InspectorToggle() {
-  const { inspector, setLayout } = useLayout();
-  return (
+/** Notes, then Settings (also View ▸ Show Notes ⌥⌘N, Show Inspector ⌥⌘I): each shows the
+ *  panel with its view, or hides it when shown (gray, as the sidebar's button). The note's icon has
+ *  lines once the item has a note. */
+function PanelButtons({ shown, hasNote, hasSettings }: { shown: View | null; hasNote: boolean; hasSettings: boolean }) {
+  const { setLayout } = useLayout();
+  const button = (view: View, label: string, icon: React.ReactNode, enabled = true) => (
     <IconButton
-      aria-label={inspector ? "Hide Inspector" : "Show Inspector"}
-      aria-pressed={inspector}
-      onClick={() => setLayout({ inspector: !inspector })}
+      aria-label={`${shown === view ? "Hide" : "Show"} ${label}`}
+      aria-pressed={shown === view}
+      disabled={!enabled}
+      onClick={() => setLayout(shown === view ? { inspector: false } : { inspector: true, panel: view })}
     >
-      <SidebarSimpleIcon className="-scale-x-100" />
+      {icon}
     </IconButton>
+  );
+  return (
+    <div className="flex gap-1">
+      {button("notes", "Notes", hasNote ? <NoteIcon /> : <NoteBlankIcon />)}
+      {button("settings", "Inspector", <SlidersHorizontalIcon />, hasSettings)}
+    </div>
+  );
+}
+
+/** The item's note: plain text, saved in the project as it is typed (one Undo step for a
+ *  burst of typing; ⌘Z in the field is the field's own). */
+function Notes({ node }: { node: ProjectNode }) {
+  const { setNotes } = useProjectActions();
+  return (
+    <textarea
+      aria-label="Notes"
+      value={node.notes ?? ""}
+      onChange={(e) => setNotes(node.id, e.target.value)}
+      placeholder="Write a note…"
+      className="block h-full w-full resize-none bg-transparent px-3 py-2 text-regular outline-none placeholder:text-secondary"
+    />
   );
 }
 

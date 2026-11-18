@@ -80,12 +80,21 @@ export function NumberInput({
   );
 }
 
-export function Checkbox({ checked, onChange }: { checked: boolean; onChange: (checked: boolean) => void }) {
+export function Checkbox({
+  checked,
+  disabled,
+  onChange,
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (checked: boolean) => void;
+}) {
   return (
     <input
       type="checkbox"
-      className="size-3.5 accent-accent focus-visible:outline-none"
+      className="size-3.5 accent-accent focus-visible:outline-none disabled:opacity-40"
       checked={checked}
+      disabled={disabled}
       onChange={(e) => onChange(e.target.checked)}
     />
   );

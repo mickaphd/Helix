@@ -275,11 +275,19 @@ fn write_file(request: Request) -> Result<(), String> {
     write_atomically(Path::new(path.as_ref()), data)
 }
 
-/// A temp file renamed over `path`, so a save is never left half-written.
+/// A temp file renamed over `path`, so a save is never left half-written: its bytes are
+/// on the disk (`sync_all`, a full flush on macOS) before the name points at them, so a
+/// power cut right after can't leave an empty file under the old name.
 fn write_atomically(path: &Path, data: &[u8]) -> Result<(), String> {
     let mut tmp = path.as_os_str().to_owned();
     tmp.push(".tmp"); // beside it: "Data.hlx.tmp"
-    fs::write(&tmp, data).and_then(|()| fs::rename(&tmp, path)).map_err(|e| {
+    let write = || -> std::io::Result<()> {
+        let mut file = fs::File::create(&tmp)?;
+        std::io::Write::write_all(&mut file, data)?;
+        file.sync_all()?;
+        fs::rename(&tmp, path)
+    };
+    write().map_err(|e| {
         let _ = fs::remove_file(&tmp); // a failed save leaves nothing behind
         e.to_string()
     })

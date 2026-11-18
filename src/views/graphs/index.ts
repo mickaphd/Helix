@@ -4,6 +4,7 @@
 
 import {
   DEFAULT_GRAPH_OPTIONS,
+  hasXColumn,
   type GraphType,
   type GraphOptions,
   type TableData,
@@ -31,6 +32,8 @@ import { heatmap } from "./heatmap";
 import { survival } from "./survival";
 import { volcano, VOLCANO_SERIES } from "./volcano";
 import { histogram } from "./histogram";
+import { qqPlot } from "./qq-plot";
+import { residuals } from "./residuals";
 
 /** A Plotly figure (untyped traces/layout — built as plain objects per module). */
 export interface GraphFigure {
@@ -40,6 +43,10 @@ export interface GraphFigure {
 
 /** What a graph's columns and axes mean — decides its data and its Format sections. */
 type GraphFamily = "column" | "xy" | "grouped" | "pie" | "heatmap" | "volcano" | "histogram";
+
+/** Whether a graph has a value axis to draw reference lines across (a volcano has its own
+ *  cutoffs; a pie and a heatmap have none). */
+export const hasValueAxis = (family: GraphFamily) => family !== "pie" && family !== "heatmap" && family !== "volcano";
 
 export interface GraphModule {
   label: string;
@@ -83,6 +90,8 @@ export const GRAPHS: Record<GraphType, GraphModule> = {
   survival,
   volcano,
   histogram,
+  "qq-plot": qqPlot,
+  residuals,
 };
 
 /** The two variables a scatter of a Multiple Variables table plots, X then Y: the ones
@@ -98,14 +107,15 @@ export function variablePair<T extends { name: string }>(numeric: T[], options: 
  *  replicates as their `center` on each row), X then the Y series for the XY family
  *  (none while X is empty; a Multiple Variables table's two variables), else the
  *  columns holding numbers. */
-export function plotColumns(
-  { columns, numeric, sets }: Dataset,
-  type: GraphType,
-  options: GraphOptions,
-  tableType: TableType,
-): Column[] {
+export function plotColumns(table: Dataset, type: GraphType, options: GraphOptions, tableType: TableType): Column[] {
   const { family } = GRAPHS[type];
-  if (family === "volcano") return columns;
+  if (family === "volcano") return table.columns;
+  // The data sets it shows, when it chose some: their columns alone (an XY table's X too).
+  const shown = choosableSets(type, table, tableType).length ? options.sets : undefined;
+  const keep = (c: Column) => !shown || shown.includes(c.set ?? c.name);
+  const { numeric } = table;
+  const columns = table.columns.filter((c, i) => keep(c) || (hasXColumn(tableType) && i === 0));
+  const sets = table.sets.filter((s) => !shown || shown.includes(s.name));
   if (family === "heatmap")
     return sets.filter((s) => s.columns.some((c) => c.values.length)).map((s) => centerColumn(s, options.center));
   // A Multiple Variables table's histogram: its one variable, as a scatter's X.
@@ -113,13 +123,24 @@ export function plotColumns(
     const x = variablePair(numeric, options)[0];
     return x ? [x] : [];
   }
-  if (family !== "xy") return numeric;
+  if (family !== "xy") return numeric.filter(keep);
   if (tableType === "multiple") {
     const [x, y] = variablePair(numeric, options);
     return x && y ? [x, y] : [];
   }
   const { x, ys } = splitXY(columns);
   return x ? [x, ...ys.flatMap((s) => s.columns)] : [];
+}
+
+/** The data sets a graph can show or leave out, in table order: those holding numbers, an
+ *  XY or Survival table's X aside; none where the graph picks its own columns (a volcano,
+ *  a Multiple Variables table's scatter or histogram). */
+export function choosableSets(type: GraphType, table: Dataset, tableType: TableType): string[] {
+  const { family } = GRAPHS[type];
+  if (family === "volcano" || (tableType === "multiple" && (family === "xy" || family === "histogram"))) return [];
+  return table.sets
+    .filter((s, i) => !(hasXColumn(tableType) && i === 0) && s.columns.some((c) => c.values.length > 0))
+    .map((s) => s.name);
 }
 
 /** The series a graph colors, in order: a volcano's "down" and "up", none for a
@@ -159,8 +180,8 @@ const optionsFor = (types: GraphType[]): SelectorOption<GraphType>[] =>
  *  variables) and Contingency (counts) plot as a heatmap too.
  *  Mirrors `ANALYSIS_OPTIONS_BY_TABLE`. */
 export const GRAPH_OPTIONS_BY_TABLE: Record<TableType, SelectorOption<GraphType>[]> = {
-  column: optionsFor(["individual", "box-violin", "mean-error", "histogram", "pie", "donut"]),
-  xy: optionsFor(["xy-scatter", "xy-bar", "xy-area", "survival", "volcano"]),
+  column: optionsFor(["individual", "box-violin", "mean-error", "histogram", "qq-plot", "pie", "donut"]),
+  xy: optionsFor(["xy-scatter", "xy-bar", "xy-area", "residuals", "survival", "volcano"]),
   grouped: optionsFor([
     "grouped-scatter",
     "grouped-box",
@@ -171,7 +192,7 @@ export const GRAPH_OPTIONS_BY_TABLE: Record<TableType, SelectorOption<GraphType>
     "heatmap",
     "volcano",
   ]),
-  multiple: optionsFor(["xy-scatter", "histogram", "heatmap", "volcano"]),
+  multiple: optionsFor(["xy-scatter", "histogram", "qq-plot", "heatmap", "volcano"]),
   // Outcomes as series across the row categories, as Prism graphs contingency tables.
   contingency: optionsFor(["grouped-bars", "grouped-stacked", "grouped-hbars", "heatmap"]),
   survival: optionsFor(["survival"]),

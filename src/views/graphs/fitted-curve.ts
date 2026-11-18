@@ -44,8 +44,19 @@ export function evaluate(model: NonlinearModel, coefficients: RegressionCoeffici
       return c("B0") + c("B1") * x + c("B2") * x ** 2 + c("B3") * x ** 3;
     case "exponential-growth":
       return c("Y0") * Math.exp(c("K") * x);
+    case "logistic-growth":
+      return (c("YM") * c("Y0")) / ((c("YM") - c("Y0")) * Math.exp(-c("K") * x) + c("Y0"));
+    case "gompertz-growth":
+      return c("YM") * (c("Y0") / c("YM")) ** Math.exp(-c("K") * x);
     case "one-phase-decay":
       return (c("Y0") - c("Plateau")) * Math.exp(-c("K") * x) + c("Plateau");
+    case "two-phase-decay": {
+      const fast = c("PercentFast") / 100;
+      return (
+        c("Plateau") +
+        (c("Y0") - c("Plateau")) * (fast * Math.exp(-c("KFast") * x) + (1 - fast) * Math.exp(-c("KSlow") * x))
+      );
+    }
     case "michaelis-menten":
       return (c("Vmax") * x) / (c("Km") + x);
   }

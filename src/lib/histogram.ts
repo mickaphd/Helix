@@ -8,7 +8,7 @@ export const MAX_BINS = 500;
 
 /** R's pretty(c(lo, hi), n, min.n): the `unit`, and the multiples of it `ns`…`nu` that
  *  cover lo and hi (R_pretty in R's src/appl/pretty.c, with pretty.default's defaults). */
-function pretty(lo: number, hi: number, n: number, minN: number): number[] {
+export function pretty(lo: number, hi: number, n: number, minN: number): number[] {
   const [h, h5, fMin] = [1.5, 0.5 + 1.5 * 1.5, 2 ** -20];
   const roundingEps = 1e-10;
   const dx = hi - lo;

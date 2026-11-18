@@ -21,6 +21,7 @@ import { splitXY, xyPoints, xyProblem, type DataSet } from "../../lib/dataset";
 import { evalNamedVector } from "../webr";
 import { rowName } from "../grouped/base";
 import { pointKeyOf } from "../../lib/columns";
+import { maxOf, minOf } from "../../lib/summary";
 
 export const MODEL_LABEL: Record<NonlinearModel, string> = {
   "sigmoidal-4pl-logx": "Sigmoidal, 4PL, X is log(concentration)",
@@ -35,7 +36,10 @@ export const MODEL_LABEL: Record<NonlinearModel, string> = {
   quadratic: "Second order polynomial (quadratic)",
   cubic: "Third order polynomial (cubic)",
   "exponential-growth": "Exponential growth",
+  "logistic-growth": "Logistic growth",
+  "gompertz-growth": "Gompertz growth",
   "one-phase-decay": "One-phase decay",
+  "two-phase-decay": "Two-phase decay",
   "michaelis-menten": "Michaelis-Menten",
 };
 
@@ -63,15 +67,38 @@ const difference = (a: string, b: string): Derived => {
 const span = difference("Top", "Bottom");
 /** `c` / K (a half-life, a doubling time, tau), its CI `c` over K's: none when K's
  *  includes 0, the time then unbounded. */
-const overK = (label: string, c: string): Derived => {
-  const ends = `sort(${c}/pci("K"))`;
+const overK = (label: string, c: string, k = "K"): Derived => {
+  const ends = `sort(${c}/pci("${k}"))`;
   return {
     label,
-    value: `${c}/cf[["K"]]`,
-    low: `if(prod(pci("K"))>0)${ends}[1] else NA`,
-    high: `if(prod(pci("K"))>0)${ends}[2] else NA`,
+    value: `${c}/cf[["${k}"]]`,
+    low: `if(prod(pci("${k}"))>0)${ends}[1] else NA`,
+    high: `if(prod(pci("${k}"))>0)${ends}[2] else NA`,
   };
 };
+
+/** A dose-response curve's ECF (F in %): where it has risen F % of the way from Bottom to
+ *  Top (an inhibitor's ICF: F % inhibition), from its log midpoint, Hill slope and asymmetry
+ *  (`dl`: its 95% CI by the delta method, the fit's covariance carried to it; at the fit,
+ *  what refitting with log ECF as a parameter gives). On the log scale, then raised. */
+function ecAnything(model: NonlinearModel, f: number): Derived {
+  const logX = model.endsWith("-logx");
+  const [log, raise] = logX ? ["log10", (e: string) => `10^(${e})`] : ["log", (e: string) => `exp(${e})`];
+  const mid = model.startsWith("inhibitor") ? "LogIC50" : logX ? "LogEC50" : "EC50";
+  const at = logX ? `b[["${mid}"]]` : `log(b[["EC50"]])`;
+  const hill = model.includes("3pl") ? "1" : `b[["HillSlope"]]`;
+  // Its shift from the midpoint: log(F / (100 − F)) / Hill slope; a 5PL's asymmetry moves it.
+  const shift = model.startsWith("asymmetric")
+    ? `(${log}(2^(1/b[["S"]])-1)-${log}(${f / 100}^(-1/b[["S"]])-1))/${hill}`
+    : `${log}(${f}/${100 - f})/${hill}`;
+  const d = `dl(function(b)${at}+${shift})`;
+  return {
+    label: `${model.startsWith("inhibitor") ? "IC" : "EC"}${f}`,
+    value: raise(`${d}[1]`),
+    low: raise(`${d}[2]`),
+    high: raise(`${d}[3]`),
+  };
+}
 
 interface ModelSpec {
   /** R: the body of `fit(x, y)`, which returns the fitted model. */
@@ -119,6 +146,33 @@ function modelSpec(model: NonlinearModel): ModelSpec {
         fit: nls("Y0*exp(K*x)", "local({k<-y>0;c0<-coef(lm(log(y[k])~x[k]));list(Y0=exp(c0[[1]]),K=c0[[2]])})"),
         terms: ["Y0", "K"],
         derived: [overK("Doubling time", "log(2)"), overK("Tau", "1")],
+      };
+    case "logistic-growth": // Y = YM * Y0 / ((YM − Y0) * exp(−K * X) + Y0); it starts from the logit's line
+      return {
+        fit: nls(
+          "YM*Y0/((YM-Y0)*exp(-K*x)+Y0)",
+          "local({M<-max(y)*1.05;k<-y>0&y<M;c0<-coef(lm(log(y[k]/(M-y[k]))~x[k]));list(Y0=M*plogis(c0[[1]]),YM=M,K=c0[[2]])})",
+        ),
+        terms: ["Y0", "YM", "K"],
+        derived: [overK("Doubling time", "log(2)")],
+      };
+    case "gompertz-growth": // Y = YM * (Y0 / YM)^exp(−K * X); it starts from log(−log(Y / YM))'s line
+      return {
+        fit: nls(
+          "YM*(Y0/YM)^exp(-K*x)",
+          "local({M<-max(y)*1.05;k<-y>0&y<M;c0<-coef(lm(log(-log(y[k]/M))~x[k]));list(Y0=M*exp(-exp(c0[[1]])),YM=M,K=-c0[[2]])})",
+        ),
+        terms: ["Y0", "YM", "K"],
+      };
+    case "two-phase-decay": // a fast and a slow phase, PercentFast % of the fall the fast one's
+      return {
+        fit: nls(
+          "Plateau+(Y0-Plateau)*(PercentFast*0.01*exp(-KFast*x)+(1-PercentFast*0.01)*exp(-KSlow*x))",
+          "local({o<-coef(nls(y~(Y0-Plateau)*exp(-K*x)+Plateau,start=list(Y0=y[which.min(x)],Plateau=y[which.max(x)],K=3/diff(range(x))),weights=w,control=nls.control(maxiter=200)));" +
+            'list(Y0=o[["Y0"]],Plateau=o[["Plateau"]],KFast=o[["K"]]*3,KSlow=o[["K"]]/3,PercentFast=50)})',
+        ),
+        terms: ["Y0", "Plateau", "KFast", "KSlow", "PercentFast"],
+        derived: [overK("Half-life (fast)", "log(2)", "KFast"), overK("Half-life (slow)", "log(2)", "KSlow")],
       };
     case "one-phase-decay": // Y = (Y0 − Plateau) * exp(−K * X) + Plateau
       return {
@@ -193,6 +247,14 @@ function modelSpec(model: NonlinearModel): ModelSpec {
   }
 }
 
+/** A model's spec, with a dose-response curve's ECF (`ecx`) among what it derives. */
+function specOf(model: NonlinearModel, ecx: number | undefined): ModelSpec {
+  const spec = modelSpec(model);
+  return ecx !== undefined && spec.dose
+    ? { ...spec, derived: [...(spec.derived ?? []), ecAnything(model, ecx)] }
+    : spec;
+}
+
 /** Whether a model fits only the points with X > 0 (its curve too). */
 export const positiveXOnly = (model: NonlinearModel) => modelSpec(model).positiveX === true;
 
@@ -204,6 +266,9 @@ function rOut(derived: Derived[]): string {
   return (
     `out<-function(m,y,k){s<-summary(m);co<-s$coefficients;df<-df.residual(m);q<-qt(0.975,df);V<-vcov(m);cf<-coef(m)\n` +
     `pci<-function(p)cf[[p]]+c(-1,1)*q*sqrt(V[p,p]);ss<-sum(residuals(m)^2)\n` +
+    // A function of the coefficients and its CI by the delta method (central differences).
+    `dl<-function(f){e<-f(cf);g<-sapply(names(cf),function(p){h<-1e-6*max(1,abs(cf[[p]]));a<-cf;b<-cf;a[[p]]<-a[[p]]+h;b[[p]]<-b[[p]]-h;(f(a)-f(b))/(2*h)});` +
+    `s<-sqrt(drop(t(g)%*%V[names(cf),names(cf)]%*%g));c(e,e-q*s,e+q*s)}\n` +
     // S (a 5PL's asymmetry) is above 0: its CI is taken on its log, so it stays there.
     `ci<-cbind(co[,1]-q*co[,2],co[,1]+q*co[,2]);if("S"%in%rownames(co))ci["S",]<-co["S",1]*exp(c(-1,1)*q*co["S",2]/co["S",1])\n` +
     `v<-c(r2=if(inherits(m,"lm"))s$r.squared else 1-ss/sum((y-mean(y))^2),df=df,ss=ss,syx=sqrt(ss/df),n=length(y),` +
@@ -226,13 +291,13 @@ function points(x: Column, y: DataSet, spec: ModelSpec) {
 /** R: `routOf(x, y, K, q)`, the ROUT method (Motulsky & Brown, BMC Bioinformatics 2006):
  *  a robust fit of the curve, minimizing the sum of ln(1 + (residual / RSDR)²) (residuals
  *  taken as Lorentzian), RSDR = P68 × N / (N − K), P68 the 68.27th percentile of the absolute
- *  residuals, recomputed at each step (as reweighted least squares, weights 1 / (1 + (r /
+ *  residuals (interpolated linearly, R's default: what gives Prism's outliers), recomputed at each step (as reweighted least squares, weights 1 / (1 + (r /
  *  RSDR)²)); then, the points ranked by their distance to it, from the 70th percentile on:
  *  the first whose P (t = |residual| / RSDR, N − K df, two-sided) is under Q(N − (i − 1)) / N
  *  is an outlier, and every point farther. `out`: the outliers; `rsdr`, `m`: the robust fit. */
 export const R_ROUT_CURVE =
   `routOf<-function(x,y,K,q){n<-length(y);none<-list(out=rep(FALSE,n),rsdr=NA)\n` +
-  `rsdr<-function(m)quantile(abs(y-fitted(m)),0.6827,type=6,names=FALSE)*n/(n-K)\n` +
+  `rsdr<-function(m)quantile(abs(y-fitted(m)),0.6827,names=FALSE)*n/(n-K)\n` +
   `m<-tryCatch(fit(x,y),error=function(e)NULL);if(is.null(m)||n<=K+1)return(none)\n` +
   `for(it in 1:100){s<-rsdr(m);if(!is.finite(s)||s<=0)break;b<-coef(m)\n` +
   `m2<-tryCatch(fit(x,y,1/(1+((y-fitted(m))/s)^2)),error=function(e)NULL);if(is.null(m2))break\n` +
@@ -269,7 +334,7 @@ export async function runNonlinearRegression(
   if (!xCol || lacking >= 0) return { error: xyProblem(columns, chosen[Math.max(0, lacking)])! };
   const yCol = fitted[0]!;
   const many = fitted.length > 1;
-  const spec = modelSpec(model);
+  const spec = specOf(model, params?.compareWith === undefined ? params?.ecx : undefined);
   const other =
     params?.compareWith === undefined || many ? undefined : yCols.find((c) => c.name === params.compareWith);
   if (params?.compareWith !== undefined && !many && !other) return { error: xyProblem(columns, params.compareWith)! };
@@ -297,7 +362,7 @@ export async function runNonlinearRegression(
       : [];
   const unknownYs = unknowns.map((r) => yCol.columns.flatMap((c) => (c.byRow[r] == null ? [] : [c.byRow[r]!])));
   const logX = model.endsWith("-logx");
-  const [lo, hi] = [Math.min(...sets[0].x), Math.max(...sets[0].x)];
+  const [lo, hi] = [minOf(sets[0].x), maxOf(sets[0].x)];
 
   const fit = `fit<-function(x,y,w=NULL)${spec.fit}\n${rOut(spec.derived ?? [])}`;
   // ROUT: each data set's outliers found, then left out of its least-squares fit.
@@ -401,10 +466,10 @@ export async function runNonlinearRegression(
     params?.compare === "all"
       ? differ
         ? "The curves differ: one curve doesn't fit both."
-        : "One curve fits both data sets."
+        : "The data don't show that the curves differ: one curve may fit both."
       : differ
         ? `The ${midpoint}s differ.`
-        : `One ${midpoint} fits both data sets.`;
+        : `The data don't show a difference between the ${midpoint}s.`;
 
   const interpolated: InterpolatedRow[] = unknowns.map((r, i) => {
     const x = v[`ix_${i}`] ?? null;

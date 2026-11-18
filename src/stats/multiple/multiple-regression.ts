@@ -2,7 +2,7 @@
 // variable regressed on every other data-bearing variable, fit on complete cases.
 // Bespoke runner (not ColumnTestSpec) — needs a chosen response + a coefficients table.
 import type { AnalysisOutcome, Column, MultipleRegressionParams, RegressionCoefficient } from "../types";
-import { dataGroups, describe, pairedGroups, pRow, rVec } from "../column/base";
+import { dataGroups, describe, identical, pairedGroups, pRow, rVec } from "../column/base";
 import { evalNamedVector } from "../webr";
 
 export async function runMultipleRegression(
@@ -30,20 +30,34 @@ export async function runMultipleRegression(
     return { error: `Not enough complete rows (${n}) to fit ${p} predictor(s). Enter more data and try again.` };
   }
 
-  const decls = [`y<-${rVec(aligned[0])}`, ...predictors.map((_, i) => `x${i}<-${rVec(aligned[i + 1])}`)];
-  const formula = `y~${predictors.map((_, i) => `x${i}`).join("+")}`;
-  // Each coefficient row t (0 = intercept) pulled from summary()'s coefficient
-  // matrix by explicit index → keyed names, so extraction never depends on order.
-  const coefAssigns = Array.from(
-    { length: p + 1 },
-    (_, t) => `b${t}=co[${t + 1},1],se${t}=co[${t + 1},2],t${t}=co[${t + 1},3],pv${t}=co[${t + 1},4]`,
-  );
+  // The predictors centered (the same fit, more precise for values far from 0 for their
+  // spread); the intercept is taken back to 0 with its exact SE (the centered intercept is
+  // uncorrelated with the slopes). A predictor the others already make (or constant): its
+  // coefficient is NA, said by its number in `alias`.
   const code =
-    `${decls.join(";")};m<-lm(${formula});s<-summary(m);co<-s$coefficients;f<-s$fstatistic;` +
+    `y<-${rVec(aligned[0])};X<-cbind(${predictors.map((_, i) => rVec(aligned[i + 1])).join(",")});` +
+    `mx<-colMeans(X);m<-lm(y~sweep(X,2,mx));al<-which(is.na(coef(m)[-1]));if(length(al))c(alias=unname(al[1])) else{` +
+    `s<-summary(m);co<-s$coefficients;f<-s$fstatistic;V<-vcov(m)[-1,-1,drop=FALSE];` +
+    `b0<-co[1,1]-sum(co[-1,1]*mx);se0<-sqrt(co[1,2]^2+drop(mx%*%V%*%mx));t0<-b0/se0;` +
+    `co[1,]<-c(b0,se0,t0,2*pt(-abs(t0),df.residual(m)));` +
     `c(r2=s$r.squared,adjr2=s$adj.r.squared,fstat=unname(f[1]),n=length(y),` +
-    `fp=unname(pf(f[1],f[2],f[3],lower.tail=FALSE)),${coefAssigns.join(",")})`;
+    `fp=unname(pf(f[1],f[2],f[3],lower.tail=FALSE)),` +
+    Array.from(
+      { length: p + 1 },
+      (_, t) => `b${t}=co[${t + 1},1],se${t}=co[${t + 1},2],t${t}=co[${t + 1},3],pv${t}=co[${t + 1},4]`,
+    ).join(",") +
+    ")}";
 
+  if (identical(aligned[0]))
+    return { error: `“${dep.name}”'s values are all identical on the complete rows: there is nothing to explain.` };
   const v = await evalNamedVector(code);
+  if (v.alias != null) {
+    return {
+      error:
+        `“${predictors[v.alias - 1].name}” adds nothing the other predictors don't already give (it is constant ` +
+        "on the complete rows, or a combination of the others): leave it out.",
+    };
+  }
   const terms = ["Intercept", ...predictors.map((c) => c.name)];
   const coefficients: RegressionCoefficient[] = terms.map((term, t) => ({
     term,

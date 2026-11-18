@@ -4,14 +4,39 @@
 // compared columns. Positions use the category X axis (column index) for X and
 // DATA coordinates for Y, placing each bracket above the tallest drawn column
 // (bars/points/error bars), and extends the Y auto-range to fit.
-import type { AnalysisOutcome } from "../../stats/types";
-import type { GraphOptions, GraphType } from "../../store/types";
+import type { AnalysisOutcome, ComparedCell } from "../../stats/types";
+import type { GraphOptions, GraphType, ProjectNode } from "../../store/types";
 import type { Column } from "../../lib/dataset";
 import type { GraphFigure } from ".";
-import { pStars, pText } from "../../lib/format";
-import { centers, errors, INK } from "./plot-helpers";
+import { isSignificant, pStars, pText } from "../../lib/format";
+import {
+  centers,
+  errors,
+  groupOffset,
+  INK,
+  perRowStats,
+  rowCountOf,
+  rowLabels,
+  separatedPositions,
+} from "./plot-helpers";
+import { groupsOf } from "../../lib/dataset";
 import { pairKey } from "../../lib/columns";
 import { headline } from "../analyses/analysis-results-view";
+
+/** The data sets an analysis ran on: those it chose, else every one of the table's
+ *  (`all`, those holding data), a two-group test's first two. */
+export function ranOn(analysis: ProjectNode, all: string[]): string[] {
+  const sets = (analysis.analysisParams as { sets?: string[] } | undefined)?.sets;
+  return sets ?? (analysis.analysisType === "compare-two-groups" ? all.slice(0, 2) : all);
+}
+
+/** Whether an analysis's stars may go on a graph showing `shown`: it ran on those data
+ *  sets exactly, so its P values (corrected for its own comparisons) are those of the
+ *  groups drawn, never of more. */
+export const starsFit = (analysis: ProjectNode, all: string[], shown: string[]) => {
+  const ran = ranOn(analysis, all);
+  return ran.length === shown.length && ran.every((n) => shown.includes(n));
+};
 
 /** One pairwise comparison offered to the graph, keyed stably for persistence. */
 export interface SigComparison {
@@ -19,6 +44,8 @@ export interface SigComparison {
   group1: string;
   group2: string;
   p: number | null;
+  /** A grouped table's two cells (`ComparisonRow.cells`). */
+  cells?: [ComparedCell, ComparedCell];
 }
 
 /** Pull the drawable pairwise comparisons out of an analysis outcome. Post-hoc
@@ -29,9 +56,17 @@ export interface SigComparison {
 export function deriveComparisons(outcome: AnalysisOutcome | null): SigComparison[] {
   if (!outcome || "error" in outcome) return [];
   if (outcome.comparisons?.length) {
+    // A pair of columns, or of a grouped table's cells (a per-row test's group2 is blank:
+    // its cells say which two it compared).
     return outcome.comparisons
-      .filter((c) => c.group2) // per-row tests leave group2 blank — not a 2-column pair
-      .map((c) => ({ key: pairKey(c.group1, c.group2), group1: c.group1, group2: c.group2, p: c.p }));
+      .filter((c) => c.group2 || c.cells)
+      .map((c) => ({
+        key: pairKey(c.group1, c.group2),
+        group1: c.group1,
+        group2: c.group2,
+        p: c.p,
+        ...(c.cells ? { cells: c.cells } : {}),
+      }));
   }
   if (outcome.testType === "compare-two-groups" && outcome.groups.length === 2) {
     const [group1, group2] = outcome.groups.map((g) => g.name);
@@ -59,29 +94,44 @@ function columnTops(
   });
 }
 
-/** Build Plotly `shapes` + `annotations` (data coordinates) for the selected
- *  comparisons, plus the highest Y used so the caller can extend the axis to fit.
- *  Every bracket clears the tallest column (`maxTop`) so it always sits above every
- *  bar/point/error bar; overlapping spans stack on separate levels. `columnNames`
- *  is the plotted column order (X index = position); `tops[i]` is column i's drawn
- *  top. Comparisons whose columns aren't both plotted, or with no P value, are skipped.
- *  On a log Y axis the spacing is reckoned in log10, so it looks the same at any height:
- *  shapes take values, texts the log10 of them (`onAxis`). */
+/** Where a bracket can start or end: a column, or a group at a row (`spotKey`); its X on
+ *  the axis, and the top of what is drawn there. */
+interface Spot {
+  key: string;
+  x: number;
+  top: number;
+  /** Its center as drawn (mean or median): letters start from the highest. */
+  mid: number;
+}
+
+/** A grouped table's cell, as a spot's key. */
+const spotKey = (group: string, row: number) => `${group}\u0000${row}`;
+
+/** Build Plotly `shapes` + `annotations` (data coordinates) for the selected comparisons,
+ *  each between its two spots (`ends`), plus the highest Y used so the caller can extend the
+ *  axis to fit. A bracket clears what is drawn under it: every column's top (`local` false,
+ *  a column graph) or the tops between its ends (a grouped graph, whose rows differ);
+ *  brackets overlapping in X stack on levels, the narrowest lowest. Comparisons whose ends
+ *  aren't both drawn, or with no P value, are skipped. On a log Y axis the spacing is
+ *  reckoned in log10, so it looks the same at any height: shapes take values, texts the
+ *  log10 of them (`onAxis`). */
 function significanceOverlay(
-  columnNames: string[],
-  drawnTops: number[],
-  comparisons: SigComparison[],
-  display: "stars" | "pvalue",
+  spots: Spot[],
+  comparisons: (SigComparison & { ends: [string, string] })[],
+  display: GraphOptions["sigDisplay"],
   scale: GraphOptions["yScale"],
+  local: boolean,
 ): { shapes: unknown[]; annotations: unknown[]; top: number } {
   const log = scale !== "linear";
-  const tops = log ? drawnTops.filter((t) => t > 0).map(Math.log10) : drawnTops;
+  const lift = (t: number) => (log ? (t > 0 ? Math.log10(t) : -Infinity) : t);
+  const tops = spots.map((s) => lift(s.top)).filter(Number.isFinite);
   const value = (y: number) => (log ? 10 ** y : y);
   const maxTop = log ? Math.max(...tops) : Math.max(0, ...tops);
+  const at = new Map(spots.map((s) => [s.key, s]));
   const resolved = comparisons
-    .map((c) => ({ ...c, i: columnNames.indexOf(c.group1), j: columnNames.indexOf(c.group2) }))
-    .filter((c) => c.i >= 0 && c.j >= 0 && c.p != null && !Number.isNaN(c.p))
-    .map((c) => ({ ...c, lo: Math.min(c.i, c.j), hi: Math.max(c.i, c.j) }))
+    .map((c) => ({ ...c, a: at.get(c.ends[0]), b: at.get(c.ends[1]) }))
+    .filter((c) => c.a && c.b && c.p != null && !Number.isNaN(c.p))
+    .map((c) => ({ ...c, lo: Math.min(c.a!.x, c.b!.x), hi: Math.max(c.a!.x, c.b!.x) }))
     // Narrowest span first, so short brackets sit low and wide ones rise above them.
     .sort((a, b) => a.hi - a.lo - (b.hi - b.lo));
 
@@ -92,6 +142,16 @@ function significanceOverlay(
   const unit = log
     ? Math.max((maxTop - floor) * 0.08, 0.1)
     : Math.max((maxTop - floor) * 0.08, Math.abs(maxTop) * 0.05, 0.5);
+  // What a bracket clears: everything, or what is drawn between its ends.
+  const baseOf = (lo: number, hi: number) =>
+    local
+      ? Math.max(
+          ...spots
+            .filter((s) => s.x >= lo - 1e-9 && s.x <= hi + 1e-9)
+            .map((s) => lift(s.top))
+            .filter(Number.isFinite),
+        )
+      : maxTop;
 
   // Interval-graph packing: each bracket takes the lowest free level (no X overlap).
   const levels: [number, number][][] = [];
@@ -108,9 +168,9 @@ function significanceOverlay(
     }
     levels[level].push([c.lo, c.hi]);
 
-    // Base gap above the tallest column, then extra room per stacked level so
-    // brackets never crowd each other (a bigger star label needs the headroom).
-    const yL = maxTop + unit * (1 + level * 1.7);
+    // Base gap above what it clears, then extra room per stacked level so brackets never
+    // crowd each other (a bigger star label needs the headroom).
+    const yL = baseOf(c.lo, c.hi) + unit * (1 + level * 1.7);
     const line = { color: INK, width: 1.2 };
     shapes.push(
       { type: "line", xref: "x", yref: "y", x0: c.lo, x1: c.hi, y0: value(yL), y1: value(yL), line, layer: "above" },
@@ -155,25 +215,162 @@ function significanceOverlay(
   return { shapes, annotations, top: value(top) };
 }
 
-/** Draws the chosen comparisons as brackets above the columns, growing the Y range
- *  to fit them — only while the Y max is on Auto: a manual max wins, and may clip. */
+/** Where a comparison's two ends are drawn: its two columns, or its two cells. */
+const endsOf = (c: SigComparison): [string, string] =>
+  c.cells
+    ? [spotKey(c.cells[0].group, c.cells[0].row), spotKey(c.cells[1].group, c.cells[1].row)]
+    : [c.group1, c.group2];
+
+/** The families a set of comparisons makes, each compared among itself: every group of a
+ *  column graph; a grouped table's groups within a row, or rows within a group. */
+function familiesOf(comparisons: SigComparison[]): Map<string, SigComparison[]> {
+  const families = new Map<string, SigComparison[]>();
+  for (const c of comparisons) {
+    const [a, b] = c.cells ?? [];
+    const family = !a || !b ? "" : a.row === b.row ? `row ${a.row}` : `group ${a.group}`;
+    families.set(family, [...(families.get(family) ?? []), c]);
+  }
+  return families;
+}
+
+/** Whether every family compares every pair of its members: letters need all of them
+ *  (not Dunnett's comparisons with a control, nor pairs chosen). */
+export function lettersFit(comparisons: SigComparison[]): boolean {
+  if (!comparisons.length) return false;
+  return [...familiesOf(comparisons).values()].every((family) => {
+    const members = new Set(family.flatMap(endsOf));
+    const pairs = new Set(family.map((c) => endsOf(c).sort().join("\u0001")));
+    return pairs.size === (members.size * (members.size - 1)) / 2;
+  });
+}
+
+/** The compact letter display of one family (Piepho's insert-absorb, 2004): two members
+ *  sharing a letter don't differ significantly (P ≥ 0.05). `order`: the members from the
+ *  highest center down, so "a" goes to the highest. */
+export function compactLetters(order: string[], differ: [string, string][]): Map<string, string> {
+  let sets: Set<string>[] = [new Set(order)];
+  for (const [i, j] of differ) {
+    // Split every set holding both, then drop the sets another one holds.
+    sets = sets.flatMap((s) =>
+      s.has(i) && s.has(j) ? [new Set([...s].filter((m) => m !== i)), new Set([...s].filter((m) => m !== j))] : [s],
+    );
+    sets = sets.filter(
+      (s, k) => !sets.some((t, l) => l !== k && [...s].every((m) => t.has(m)) && (t.size > s.size || l < k)),
+    );
+  }
+  const rank = (s: Set<string>) => Math.min(...[...s].map((m) => order.indexOf(m)));
+  sets.sort((a, b) => rank(a) - rank(b));
+  const letter = (k: number) =>
+    k < 26 ? String.fromCharCode(97 + k) : `${String.fromCharCode(97 + (k % 26))}${Math.floor(k / 26)}`;
+  return new Map(order.map((m) => [m, sets.flatMap((s, k) => (s.has(m) ? [letter(k)] : [])).join("")]));
+}
+
+/** Letters over every member of each family, a little above what is drawn there. */
+function lettersOverlay(
+  spots: Spot[],
+  comparisons: SigComparison[],
+  scale: GraphOptions["yScale"],
+): { shapes: unknown[]; annotations: unknown[]; top: number } {
+  const log = scale !== "linear";
+  const lift = (t: number) => (log ? (t > 0 ? Math.log10(t) : -Infinity) : t);
+  const tops = spots.map((s) => lift(s.top)).filter(Number.isFinite);
+  const maxTop = log ? Math.max(...tops) : Math.max(0, ...tops);
+  const floor = log ? Math.min(...tops) : Math.min(0, ...tops);
+  const unit = log ? Math.max((maxTop - floor) * 0.08, 0.1) : Math.max((maxTop - floor) * 0.08, 0.5);
+  const at = new Map(spots.map((s) => [s.key, s]));
+  const annotations: unknown[] = [];
+  let top = maxTop;
+  if (lettersFit(comparisons))
+    for (const family of familiesOf(comparisons).values()) {
+      const members = [...new Set(family.flatMap(endsOf))].filter((m) => at.has(m));
+      const order = members.sort((a, b) => at.get(b)!.mid - at.get(a)!.mid);
+      const differ = family.filter((c) => isSignificant(c.p)).map(endsOf);
+      for (const [key, text] of compactLetters(order, differ)) {
+        const spot = at.get(key)!;
+        const y = lift(spot.top) + unit * 0.3;
+        if (!Number.isFinite(y)) continue;
+        annotations.push({
+          xref: "x",
+          yref: "y",
+          x: spot.x,
+          y,
+          text,
+          showarrow: false,
+          yanchor: "bottom",
+          font: { color: INK, size: 14 },
+        });
+        top = Math.max(top, y + unit);
+      }
+    }
+  return { shapes: [], annotations, top: log ? 10 ** top : top };
+}
+
+/** The grouped graphs that draw stars: each group's values at a row stand side by side. */
+export const GROUPED_STARS = new Set<GraphType>(["grouped-bars", "grouped-scatter", "grouped-box"]);
+
+/** A grouped graph's spots: each group at each row, at its place on the axis (bars side by
+ *  side in a row's slot, Plotly's 0.2 gap between rows; points and boxes at their offsets;
+ *  "Separated", each group's own block), topped by its highest value or error bar. */
+function groupedSpots(
+  columns: Column[],
+  graphType: GraphType,
+  options: GraphOptions,
+  titles?: (string | null)[],
+): Spot[] {
+  const groups = groupsOf(columns);
+  const rows = rowCountOf(columns);
+  const n = groups.length;
+  const separated = options.groupLayout === "separated" ? separatedPositions(n, rowLabels(rows, titles)) : undefined;
+  const xOf = (g: number, r: number) =>
+    separated
+      ? separated.posOf(g, r)
+      : graphType === "grouped-bars"
+        ? r - 0.4 + (0.8 * (g + 0.5)) / n
+        : r + groupOffset(g, n);
+  return groups.flatMap((group, g) => {
+    const { center, error } = perRowStats(group.columns, rows, options.center, options.error);
+    return Array.from({ length: rows }, (_, r) => {
+      const values = group.columns.flatMap((c) => (c.byRow[r] == null ? [] : [c.byRow[r]!]));
+      const bar = center[r] == null ? -Infinity : center[r]! + (error?.[r] ?? 0);
+      const top = graphType === "grouped-bars" ? bar : Math.max(bar, ...values);
+      return { key: spotKey(group.name, r), x: xOf(g, r), top, mid: center[r] ?? 0 };
+    }).filter((s) => Number.isFinite(s.top));
+  });
+}
+
+/** Draws the chosen comparisons as brackets above the columns (or a grouped graph's cells),
+ *  growing the Y range to fit them — only while the Y max is on Auto: a manual max wins,
+ *  and may clip. */
 export function addSignificance(
   fig: GraphFigure,
   columns: Column[],
   graphType: GraphType,
   options: GraphOptions,
   comparisons: SigComparison[],
+  titles?: (string | null)[],
 ) {
-  const selected = comparisons.filter((c) => (options.sigPairs ?? []).includes(c.key));
+  const letters = options.sigDisplay === "letters";
+  const selected = letters ? comparisons : comparisons.filter((c) => (options.sigPairs ?? []).includes(c.key));
   if (!selected.length) return;
-  const tops = columnTops(columns, graphType, options.center, options.error);
-  const overlay = significanceOverlay(
-    columns.map((c) => c.name),
-    tops,
-    selected,
-    options.sigDisplay,
-    options.yScale,
-  );
+  const grouped = GROUPED_STARS.has(graphType);
+  const middle = centers(columns, options.center);
+  const spots = grouped
+    ? groupedSpots(columns, graphType, options, titles)
+    : columnTops(columns, graphType, options.center, options.error).map((top, i) => ({
+        key: columns[i].name,
+        x: i,
+        top,
+        mid: middle[i] ?? 0,
+      }));
+  const overlay = letters
+    ? lettersOverlay(spots, selected, options.yScale)
+    : significanceOverlay(
+        spots,
+        selected.map((c) => ({ ...c, ends: endsOf(c) })),
+        options.sigDisplay,
+        options.yScale,
+        grouped,
+      );
   fig.layout.shapes = [...((fig.layout.shapes as unknown[]) ?? []), ...overlay.shapes];
   fig.layout.annotations = [...((fig.layout.annotations as unknown[]) ?? []), ...overlay.annotations];
   const yaxis = (fig.layout.yaxis ??= {}) as Record<string, unknown>;

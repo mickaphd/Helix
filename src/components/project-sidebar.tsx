@@ -5,7 +5,9 @@ import { SidePanel, SidebarItem } from "../ui/layout";
 import { popupMenu } from "../native";
 import { useOutline, useProjectActions, type OutlineNode } from "../store/use-project-store";
 import { removeWithConfirm } from "../store/use-document";
-import { NODE_NAMES } from "../store/types";
+import { NODE_NAMES, TAG_COLORS, type TagColor } from "../store/types";
+import { colorDot } from "../views/graphs/style-menus";
+import { titleCase } from "../lib/format";
 import { clampWidth, SIDEBAR_WIDTH, useLayout } from "../store/use-layout";
 
 /** What's currently being dragged. Tables reorder among tables; children reorder
@@ -60,7 +62,7 @@ export function SidebarToggle({ className }: { className?: string }) {
 export function ProjectSidebar() {
   // The outline, not the whole project: editing a table or a graph doesn't redraw the sidebar.
   const { tables, activeNodeId } = useOutline();
-  const { get, setActiveNode, renameNode, removeNode, openSelector, reorderTables, reorderChildren } =
+  const { get, setActiveNode, renameNode, removeNode, openSelector, reorderTables, reorderChildren, setTags } =
     useProjectActions();
   const { sidebar, sidebarWidth, setLayout } = useLayout();
 
@@ -190,12 +192,30 @@ export function ProjectSidebar() {
     e.preventDefault();
   };
 
+  // The Finder's tags: each color ringed while the item has it; a pick adds or takes it away.
+  const tagsMenu = (node: OutlineNode) => ({
+    text: "Tags",
+    items: (Object.keys(TAG_COLORS) as TagColor[]).map((color) => {
+      const on = node.tags?.includes(color) ?? false;
+      return {
+        text: titleCase(color),
+        icon: colorDot(TAG_COLORS[color], on),
+        action: () =>
+          setTags(
+            node.id,
+            (Object.keys(TAG_COLORS) as TagColor[]).filter((c) => (c === color ? !on : node.tags?.includes(c))),
+          ),
+      };
+    }),
+  });
+
   const tableMenu = (table: OutlineNode) =>
     void popupMenu([
       { text: "New Analysis…", action: () => openSelector({ kind: "new-analysis", tableId: table.id }) },
       { text: "New Graph…", action: () => openSelector({ kind: "new-graph", tableId: table.id }) },
       { item: "Separator" },
       { text: "Rename", action: () => setRenaming(table.id) },
+      tagsMenu(table),
       // The last table stays: a project is never empty.
       {
         text: `Delete ${NODE_NAMES.table}…`,
@@ -207,6 +227,8 @@ export function ProjectSidebar() {
   const childMenu = (child: OutlineNode) =>
     void popupMenu([
       { text: "Rename", action: () => setRenaming(child.id) },
+      tagsMenu(child),
+      { item: "Separator" },
       { text: `Delete ${NODE_NAMES[child.type]}…`, action: () => removeWithConfirm(child, removeNode) },
     ]);
 
@@ -237,6 +259,7 @@ export function ProjectSidebar() {
           <SidebarItem
             key={table.id}
             icon={<GridNineIcon className="size-4" />}
+            tags={table.tags?.map((c) => TAG_COLORS[c])}
             title={table.name}
             selected={activeNodeId === table.id}
             renaming={renaming === table.id}
@@ -257,6 +280,7 @@ export function ProjectSidebar() {
                 icon={
                   child.type === "analysis" ? <SigmaIcon className="size-4" /> : <ChartLineIcon className="size-4" />
                 }
+                tags={child.tags?.map((c) => TAG_COLORS[c])}
                 title={child.name}
                 selected={activeNodeId === child.id}
                 renaming={renaming === child.id}

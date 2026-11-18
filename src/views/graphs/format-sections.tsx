@@ -11,6 +11,7 @@ import type {
   NonlinearRegressionParams,
 } from "../../stats/types";
 import { analysisLabel } from "../analyses";
+import { toggled } from "../analyses/wizards";
 import {
   GRAPH_LIMITS,
   SAME_AS_FILL,
@@ -21,7 +22,7 @@ import {
 } from "../../store/types";
 import { isSignificant, pStars } from "../../lib/format";
 import { GRAPHS, variablePair } from ".";
-import type { SigComparison } from "./significance-overlay";
+import { GROUPED_STARS, lettersFit, ranOn, starsFit, type SigComparison } from "./significance-overlay";
 import { cutoffAsP, cutoffOfP, volcanoAxes, volcanoPair } from "./volcano";
 import { paletteOf } from "../../lib/palettes";
 import { MAX_BINS } from "../../lib/histogram";
@@ -50,6 +51,8 @@ export interface SectionContext {
   /** The chosen analysis's pairs; null while it runs. */
   comparisons: SigComparison[] | null;
   seriesNames: string[];
+  /** The data sets it can show or leave out (`choosableSets`). */
+  sets: string[];
   /** Volcano on a grouped table: the groups it can compare (Helix computes the DEGs). */
   volcanoGroups?: string[];
   /** Its rows holding values of the two groups compared that gave no gene. */
@@ -66,8 +69,9 @@ export interface SectionContext {
   allNames: string[];
   /** The chosen regression's failure, when it couldn't be fitted. */
   fitError: string | null;
-  /** Starts `test` (its wizard), or with none opens the New Analysis picker. */
-  onNewAnalysis: (test?: AnalysisPickerValue) => void;
+  /** Starts `test` (its wizard), or with none opens the New Analysis picker; on `sets`
+   *  (their wizard question answered) when given. */
+  onNewAnalysis: (test?: AnalysisPickerValue, sets?: string[]) => void;
   /** Volcano: selects the genes named (comma-separated); returns the names no gene has. */
   onFindGenes: (query: string) => string[];
 }
@@ -80,6 +84,9 @@ const SIGNIFICANCE_SOURCES = new Set<AnalysisType | undefined>([
   "rm-anova",
   "friedman",
 ]);
+
+/** A grouped graph's: comparisons between its cells. */
+const GROUPED_SOURCES = new Set<AnalysisType | undefined>(["two-way-anova", "multiple-t-tests"]);
 
 const CENTER_ITEMS = [
   { value: "mean" as const, label: "Mean" },
@@ -108,16 +115,44 @@ const ERROR_ITEMS = [
 
 export function statisticsControls(c: SectionContext): React.ReactNode {
   const { graphType, options, set } = c;
-  if (GRAPHS[graphType].family === "column") {
-    const sources = c.analyses.filter((a) => SIGNIFICANCE_SOURCES.has(a.analysisType));
-    if (!sources.length) {
+  const grouped = GROUPED_STARS.has(graphType);
+  if (GRAPHS[graphType].family === "column" || grouped) {
+    // Its stars come from an analysis of exactly the data sets it shows (`starsFit`): one of
+    // more data sets has P values corrected for comparisons the graph doesn't show.
+    const shown = options.sets?.filter((n) => c.sets.includes(n)) ?? c.sets;
+    const fits = (a: ProjectNode) => starsFit(a, c.sets, shown);
+    const sources = c.analyses.filter((a) => (grouped ? GROUPED_SOURCES : SIGNIFICANCE_SOURCES).has(a.analysisType));
+    const fitting = sources.filter(fits);
+    const chosen = sources.find((a) => a.id === options.sigAnalysisId);
+    const partial = shown.length < c.sets.length;
+    const newAnalysis = () => c.onNewAnalysis(undefined, shown);
+    if (!fitting.length && !chosen) {
       return (
-        <NoAnalysis onNewAnalysis={c.onNewAnalysis}>
-          Show significance stars from a test of two groups of this table, or of more groups with multiple comparisons.
+        <NoAnalysis onNewAnalysis={newAnalysis}>
+          {partial
+            ? `Show significance stars from an analysis of the data sets this graph shows (${listOf(shown)}).`
+            : grouped
+              ? "Show significance stars from a two-way ANOVA of this table with multiple comparisons, or from multiple t tests."
+              : "Show significance stars from a test of two groups of this table, or of more groups with multiple comparisons."}
         </NoAnalysis>
       );
     }
-    return <SignificanceControls analyses={sources} comparisons={c.comparisons} options={options} set={set} />;
+    if (chosen && !fits(chosen)) {
+      return (
+        <>
+          <AnalysisRow
+            analyses={[chosen, ...fitting]}
+            value={chosen.id}
+            onChange={(sigAnalysisId) => set({ sigAnalysisId, sigPairs: [] })}
+          />
+          <NoAnalysis onNewAnalysis={newAnalysis}>
+            This analysis ran on {listOf(ranOn(chosen, c.sets))}, not on the data sets this graph shows ({listOf(shown)}
+            ): its stars aren't drawn. Choose an analysis of these data sets, or make one.
+          </NoAnalysis>
+        </>
+      );
+    }
+    return <SignificanceControls analyses={fitting} comparisons={c.comparisons} options={options} set={set} />;
   }
   if (graphType === "xy-scatter" && c.tableType === "xy") {
     // A linear or logistic regression, or a nonlinear one (not two curves compared).
@@ -193,6 +228,12 @@ export function statisticsControls(c: SectionContext): React.ReactNode {
   }
   return null;
 }
+
+/** Names in a sentence: “A”, “B” and “C”. */
+const listOf = (names: string[]) => {
+  const quoted = names.map((n) => `“${n}”`);
+  return quoted.length > 1 ? `${quoted.slice(0, -1).join(", ")} and ${quoted.at(-1)}` : (quoted[0] ?? "");
+};
 
 /** A graph whose statistics come from an analysis the table doesn't have yet: `test`
  *  when only one can give them, else any from the picker. */
@@ -270,10 +311,17 @@ function SignificanceControls({
             items={[
               { value: "stars", label: "Stars" },
               { value: "pvalue", label: "P value" },
+              { value: "letters", label: "Letters" },
             ]}
           />
           {comparisons === null ? (
             <p className="text-small text-secondary">Running the analysis…</p>
+          ) : options.sigDisplay === "letters" ? (
+            <p className="text-small text-secondary">
+              {lettersFit(comparisons)
+                ? "Groups that share a letter don't differ significantly (P ≥ 0.05); “a” goes to the highest."
+                : "Letters need every pair compared (Tukey's test, say): this analysis compares only some pairs."}
+            </p>
           ) : comparisons.length ? (
             <Row label="Comparisons">
               <div className="flex flex-col gap-1.5">
@@ -281,7 +329,7 @@ function SignificanceControls({
                   <label key={c.key} className="flex items-center gap-2">
                     <Checkbox checked={selected.includes(c.key)} onChange={(checked) => togglePair(c.key, checked)} />
                     <span className="flex-1 truncate text-small">
-                      {c.group1} vs. {c.group2}
+                      {c.group2 ? `${c.group1} vs. ${c.group2}` : c.group1}
                     </span>
                     <span
                       className={cn(
@@ -336,9 +384,20 @@ function RegressionControls({
           />
           {!curve && (
             <Toggle
-              label="Show 95% CI band"
+              label="Show 95% band"
               checked={options.regShowBand}
               onChange={(regShowBand) => set({ regShowBand })}
+            />
+          )}
+          {!curve && options.regShowBand && (
+            <Choice
+              label="Band"
+              value={options.regBand}
+              onChange={(regBand) => set({ regBand })}
+              items={[
+                { value: "confidence", label: "Confidence" },
+                { value: "prediction", label: "Prediction" },
+              ]}
             />
           )}
           <Toggle
@@ -355,6 +414,53 @@ function RegressionControls({
 // ── Data: what the graph shows of the table ─────────────────────────────
 
 export function dataControls(c: SectionContext): React.ReactNode {
+  const options = dataOptions(c);
+  if (c.sets.length < 2) return options;
+  return (
+    <>
+      <SetsRow sets={c.sets} chosen={c.options.sets} onChange={(sets) => c.set({ sets })} />
+      {options}
+    </>
+  );
+}
+
+/** The data sets the graph shows, ticked in table order (one at least); all: none saved. */
+function SetsRow({
+  sets,
+  chosen,
+  onChange,
+}: {
+  sets: string[];
+  chosen: string[] | undefined;
+  onChange: (sets: string[] | undefined) => void;
+}) {
+  const ticked = chosen?.filter((n) => sets.includes(n)) ?? sets;
+  return (
+    <Row label="Data sets">
+      <div className="flex flex-col gap-1.5">
+        {sets.map((name) => {
+          const on = ticked.includes(name);
+          return (
+            <label key={name} className="flex items-center gap-2">
+              <Checkbox
+                checked={on}
+                disabled={on && ticked.length === 1}
+                onChange={(checked) => {
+                  const next = toggled(sets, ticked, name, checked);
+                  onChange(next.length === sets.length ? undefined : next);
+                }}
+              />
+              <span className="flex-1 truncate text-small">{name}</span>
+            </label>
+          );
+        })}
+      </div>
+    </Row>
+  );
+}
+
+/** What the graph summarizes of its data: center and error bars, values or percents… */
+function dataOptions(c: SectionContext): React.ReactNode {
   const { graphType, options, set } = c;
   // Stacked bars and a histogram show values (counts) or percents.
   const showAs = (values: string) => (
@@ -766,6 +872,13 @@ function linesGroup({ graphType, options, set }: SectionContext) {
             checked={options.survivalShowBand}
             onChange={(survivalShowBand) => set({ survivalShowBand })}
           />
+          {options.xScale === "linear" && (
+            <Toggle
+              label="Show number at risk"
+              checked={options.survivalAtRisk}
+              onChange={(survivalAtRisk) => set({ survivalAtRisk })}
+            />
+          )}
         </>
       )}
     </Group>
@@ -924,6 +1037,23 @@ function ownStyle(context: SectionContext): React.ReactNode {
           {points}
         </>
       );
+    case "residuals":
+      return (
+        <>
+          <Choice
+            label="Plot"
+            value={options.residualsAs}
+            onChange={(residualsAs) => set({ residualsAs })}
+            items={[
+              { value: "x", label: "Against X" },
+              { value: "qq", label: "QQ plot" },
+            ]}
+          />
+          {points}
+        </>
+      );
+    case "qq-plot":
+      return points;
     case "xy-bar":
       return shapes("Bars", context.seriesNames.length > 1 && gap);
     case "grouped-stacked":

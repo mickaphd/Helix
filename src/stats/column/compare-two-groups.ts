@@ -4,13 +4,19 @@
 // cascade of questions instead of listing every variant as its own test.
 import type { CompareTwoGroupsParams, StatRow } from "../types";
 import {
+  ciRows,
   dataGroups,
   declareGroups,
+  identical,
+  noDifference,
+  noScatter,
   matchedRowsNote,
   pairedGroups,
   pRow,
+  R_DIFF,
   R_HEDGES,
   rAlt,
+  sameDifferences,
   rBool,
   type ColumnTestSpec,
   type Group,
@@ -60,7 +66,7 @@ function rCode(groups: Group[], p: CompareTwoGroupsParams): string {
   const alt = `alternative="${rAlt(p.tails)}"`;
   if (!p.gaussian) {
     return (
-      `${decl};w<-suppressWarnings(wilcox.test(g0,g1,paired=${rBool(p.paired)},${alt},conf.int=TRUE));` +
+      `${decl};${R_DIFF};w<-suppressWarnings(${p.paired ? "wilcox.test(dif(g0,g1)" : "wilcox.test(g0,g1"},${alt},conf.int=TRUE));` +
       (p.paired
         ? `c(W=unname(w$statistic),p=w$p.value,hl=unname(w$estimate),mdn=median(g0)-median(g1))`
         : `ra<-rank(c(g0,g1));sa<-sum(ra[seq_along(g0)]);` +
@@ -90,9 +96,10 @@ function rCode(groups: Group[], p: CompareTwoGroupsParams): string {
       `gmr=exp(unname(tt$estimate[1]-tt$estimate[2])),ci_lo=exp(tt$conf.int[1]),ci_hi=exp(tt$conf.int[2]))`
     );
   }
-  // Effect size: the mean difference in pooled SDs, whichever t test runs.
+  // Effect size: the mean difference in pooled SDs, whichever t test runs. The F test of
+  // the variances puts the larger on top (F ≥ 1), as Prism does: the same P either way.
   return (
-    `${decl};tt<-t.test(g0,g1,var.equal=${rBool(p.equalVariance)},${alt});vt<-var.test(g0,g1);${R_HEDGES};` +
+    `${decl};tt<-t.test(g0,g1,var.equal=${rBool(p.equalVariance)},${alt});vt<-if(var(g0)>=var(g1))var.test(g0,g1) else var.test(g1,g0);${R_HEDGES};` +
     `n0<-length(g0);n1<-length(g1);d<-(mean(g0)-mean(g1))/sqrt(((n0-1)*var(g0)+(n1-1)*var(g1))/(n0+n1-2));` +
     `c(t=unname(tt$statistic),df=unname(tt$parameter),p=tt$p.value,` +
     `md=unname(tt$estimate[1]-tt$estimate[2]),ci_lo=tt$conf.int[1],ci_hi=tt$conf.int[2],` +
@@ -122,6 +129,22 @@ export const compareTwoGroupsSpec: ColumnTestSpec<CompareTwoGroupsParams> = {
   // The first two columns holding data; paired, only rows where both have a value.
   parseGroups: (columns, params) =>
     (params ?? DEFAULTS).paired ? pairedGroups(dataGroups(columns).slice(0, 2)) : dataGroups(columns),
+  checkGroups: (groups, params) => {
+    const p = params ?? DEFAULTS;
+    const [a, b] = groups;
+    const both = `“${a.name}” and “${b.name}”`;
+    if (p.paired) {
+      const [x, y] = p.gaussian && p.ratio ? [a.values.map(Math.log), b.values.map(Math.log)] : [a.values, b.values];
+      if (p.gaussian && sameDifferences(x, y))
+        return `Every ${p.ratio ? "ratio" : "difference"} between ${both} is the same: the paired t test needs some scatter in them.`;
+      if (!p.gaussian && noDifference(x, y))
+        return `${both} are equal in every pair: the Wilcoxon test has no difference to rank.`;
+      return undefined;
+    }
+    if (!p.gaussian) return noScatter(groups, "Mann-Whitney test");
+    if (identical(a.values) && identical(b.values))
+      return `${both} each hold one value repeated: the t test needs some scatter in a group.`;
+  },
   rCode: (groups, params) => rCode(groups, params ?? DEFAULTS),
   rows: (v, groups, params) => {
     const p = params ?? DEFAULTS;
@@ -154,8 +177,7 @@ export const compareTwoGroupsSpec: ColumnTestSpec<CompareTwoGroupsParams> = {
           ? []
           : groups.slice(0, 2).map((g, i) => ({ label: `Geometric mean (${g.name})`, value: v[`gm${i}`] }))),
         { label: p.paired ? "Geometric mean ratio" : "Ratio of geometric means", value: v.gmr },
-        { label: "95% CI lower", value: v.ci_lo },
-        { label: "95% CI upper", value: v.ci_hi },
+        ...ciRows(p.tails, v.ci_lo, v.ci_hi, "", true),
       ];
     }
     const rows: StatRow[] = [
@@ -163,8 +185,7 @@ export const compareTwoGroupsSpec: ColumnTestSpec<CompareTwoGroupsParams> = {
       { label: "df", value: v.df },
       pRow("P value", v.p),
       { label: p.paired ? "Mean of differences" : "Mean difference", value: v.md },
-      { label: "95% CI lower", value: v.ci_lo },
-      { label: "95% CI upper", value: v.ci_hi },
+      ...ciRows(p.tails, v.ci_lo, v.ci_hi),
       { label: "R squared", value: v.r2 },
       { label: "Cohen's d", value: v.d },
       { label: "Hedges' g", value: v.g },

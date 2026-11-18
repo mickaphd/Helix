@@ -100,6 +100,8 @@ export function SidePanel({
 
 type SidebarItemProps = Omit<React.ComponentProps<"div">, "title" | "onToggle"> & {
   icon: React.ReactNode;
+  /** Its tags' colors, as dots after its name (the Finder's). */
+  tags?: string[];
   title: string;
   selected: boolean;
   /** Whether its children show, for a row that has some; `onToggle`'s `all`: with ⌥,
@@ -117,6 +119,7 @@ type SidebarItemProps = Omit<React.ComponentProps<"div">, "title" | "onToggle"> 
  *  the `group` that holds the focus. */
 export function SidebarItem({
   icon,
+  tags,
   title,
   selected,
   open = true,
@@ -157,6 +160,18 @@ export function SidebarItem({
         ) : (
           <span className="truncate" title={title}>
             {title}
+          </span>
+        )}
+        {tags && tags.length > 0 && (
+          <span className="flex shrink-0 gap-0.5">
+            {tags.map((color) => (
+              <span
+                key={color}
+                // Ringed in white on the row in the accent color, so a blue dot still shows.
+                className={cn("size-2 rounded-full", selected && "group-focus:ring-1 group-focus:ring-white")}
+                style={{ background: color }}
+              />
+            ))}
           </span>
         )}
       </div>

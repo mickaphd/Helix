@@ -11,6 +11,12 @@ import { survivalGroups } from "./base";
 export async function runCox(columns: Column[], params: CoxParams | undefined): Promise<AnalysisOutcome> {
   const groups = survivalGroups(columns);
   if (!Array.isArray(groups)) return groups;
+  // A group without an event has a hazard of 0 on these data: no ratio to it can be estimated.
+  const eventless = groups.find((g) => g.y.every((c) => c === 0));
+  if (eventless)
+    return {
+      error: `“${eventless.name}” has no event (every code is 0): its hazard ratio can't be estimated.`,
+    };
 
   // The reference first: its hazard is the one the others' are compared to.
   const ref = Math.max(

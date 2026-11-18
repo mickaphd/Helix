@@ -55,34 +55,49 @@ And a spreadsheet that feels like one:
   Shapiro-Wilk), then runs the right test
 - **Every number comes from R**, the reference for statistics
 - **Two groups:** unpaired, Welch, paired, ratio and lognormal t tests, with Cohen's d and
-  Hedges' g; Mann-Whitney, Wilcoxon
-- **More groups:** one-way ANOVA (or Welch's, without equal SDs), repeated-measures ANOVA with
-  the Geisser-Greenhouse correction, Kruskal-Wallis, Friedman; then every pair (Tukey,
-  Bonferroni, Games-Howell, Dunnett's T3, Dunn) or each group against a control (Dunnett)
-- **Grouped data:** two-way ANOVA (ordinary, repeated measures with the Geisser-Greenhouse
-  correction, Scheirer-Ray-Hare) and multiple t tests with Holm or FDR correction
-- **Curves:** dose-response (4PL, 3PL, 5PL) with the EC50 or IC50 and every parameter's 95% CI,
-  several data sets at once or two curves compared, outliers left out by ROUT; standard
-  curves read for your unknowns (ELISA); exponential growth and decay (doubling time,
-  half-life), Michaelis-Menten, lines and polynomials; replicates taken as they are
+  Hedges' g; Mann-Whitney, Wilcoxon; one group against a value, its mean or geometric mean
+- **More groups:** one-way ANOVA (or Welch's, without equal SDs; of geometric means: lognormal),
+  repeated-measures ANOVA with the Geisser-Greenhouse correction, or a mixed-effects model
+  (REML, Kenward-Roger) when subjects miss values, Kruskal-Wallis, Friedman; then every pair (Tukey,
+  Games-Howell, Dunnett's T3, Dunn), the pairs chosen (Bonferroni, Šidák, Holm-Šidák,
+  Fisher's LSD) or each group against a control (Dunnett)
+- **Grouped data:** two-way ANOVA (ordinary, with Tukey, Dunnett, Games-Howell or corrected
+  pairs; repeated measures with the Geisser-Greenhouse correction; Scheirer-Ray-Hare) and
+  multiple t tests with Holm or FDR correction
+- **Curves:** dose-response (4PL, 3PL, 5PL) with the EC50 or IC50 (and the EC10, EC20, EC80 or
+  EC90) and every parameter's 95% CI, several data sets at once or two curves compared,
+  outliers left out by ROUT; standard curves read for your unknowns (ELISA); exponential,
+  logistic and Gompertz growth, one- and two-phase decay (doubling time, half-lives),
+  Michaelis-Menten, lines and polynomials; replicates taken as they are
 - **Before you test:** a normality and lognormality test that says in plain words which
   tests suit your data; outliers found by ROUT or Grubbs
-- **Counts:** Fisher's exact and chi-square tests, with the odds ratio, the relative risk,
-  Phi and Cramér's V
+- **Counts:** Fisher's exact and chi-square tests (Yates' or not), the chi-square test for
+  trend, with the odds ratio, the relative risk, the difference of risks and the number
+  needed to treat, sensitivity, specificity and predictive values, Phi and Cramér's V
+- **Checking assumptions:** QQ plots of your data sets, residual plots of a regression (against
+  X or as a QQ plot)
 - **Two variables:** a regression line through any two variables of a table, with its
-  equation, r, R² and P; a logistic regression for a yes/no outcome, with its odds ratio
+  equation, r (with its 95% CI), R² and P; a logistic regression for a yes/no outcome, with its odds ratio
 - **Survival:** Kaplan-Meier with median survival, log-rank, trend and Gehan-Breslow-Wilcoxon
   tests, hazard ratios, and Cox regression
-- **Clear results:** the exact test that ran, whether it is significant, every statistic,
-  multiple comparisons and descriptive statistics, ready to copy
+- **Transform or normalize:** logarithms, normalized 0 to 100 %, percent of a control,
+  z-scores, as a new table that follows its own and can be analyzed and graphed
+- **Clear results:** the exact test that ran and whether it is significant, the data it
+  compared, what it means in plain words, its conditions checked (normality, equal SDs…),
+  every statistic, multiple comparisons and descriptive statistics, ready to copy
 - Analyses follow the data: rename a column and they follow it, edit a value and they run again
 
 ### Graphs
 
 - **Ready for a paper by default**
-- **Statistics on the graph:** significance stars or P values from your analyses, regression
-  lines with their confidence band and equation, any fitted curve with its best-fit values,
-  Kaplan-Meier curves with their confidence band
+- **Statistics on the graph:** significance stars, P values or group letters from your analyses, between
+  groups or, on grouped bars, points and boxes, between a two-way ANOVA's cells; regression
+  lines with their confidence or prediction band and equation, any fitted curve with its best-fit values,
+  Kaplan-Meier curves with their confidence band and the number at risk
+- **Notes and tags on everything:** a note on each table, analysis and graph, and the Finder's
+  color tags to find them in a busy project, saved in the project
+- **One table, many figures:** a graph shows all of a table's data sets or only those you
+  tick, each in the same color everywhere; its stars come from an analysis of them
 - **Every kind of figure:** dot plots, bars, box and violin, histograms, lines, heatmaps, volcano plots
   (from your own results, or computed by Helix from replicates), survival curves
 - **Colors that work:** 15 palettes from the scientific literature (Okabe-Ito, Paul Tol,
@@ -94,7 +109,8 @@ And a spreadsheet that feels like one:
   show their name; on a volcano plot, find genes by name
 - **Match:** give a graph the look of another one, choosing what it takes
 - **Lay it out:** move the legend and notes, resize by dragging an axis or typing a size, set
-  each axis's range and step, white or transparent background
+  each axis's range and step, draw reference lines (a control's level, a threshold) with
+  their text, white or transparent background
 - **Export** as PNG or JPG at 150, 300 or 600 DPI, at their true printed size, or as SVG; or
   copy and paste into Keynote, PowerPoint or Word
 

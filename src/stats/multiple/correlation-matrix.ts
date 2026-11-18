@@ -2,7 +2,7 @@
 // P value) between every pair of data-bearing variables, computed pairwise-complete.
 // Bespoke runner (not ColumnTestSpec) — its result is a matrix, not a scalar set.
 import type { AnalysisOutcome, Column, CorrelationParams } from "../types";
-import { dataGroups, describe, pairIndices, rVec } from "../column/base";
+import { dataGroups, describe, identical, pairIndices, rVec } from "../column/base";
 import { pairUp } from "../../lib/dataset";
 import { evalNamedVector } from "../webr";
 
@@ -24,9 +24,14 @@ export async function runCorrelationMatrix(
   // no matrices cross the WebR boundary, only a named vector does).
   const stmts: string[] = [];
   const assigns: string[] = [];
+  let blank = false;
   for (const [i, j] of pairs) {
     const { x: xs, y: ys } = pairUp(vars[i], vars[j]);
-    if (xs.length < MIN_PAIRS) continue; // too few complete pairs → null cell
+    // Too few complete pairs, or a variable that doesn't vary on them: a blank cell.
+    if (xs.length < MIN_PAIRS || identical(xs) || identical(ys)) {
+      blank = true;
+      continue;
+    }
     const ct = `ct_${i}_${j}`;
     stmts.push(`${ct}<-cor.test(${rVec(xs)},${rVec(ys)},method="${method}")`);
     assigns.push(`r_${i}_${j}=unname(${ct}$estimate),p_${i}_${j}=${ct}$p.value`);
@@ -46,9 +51,12 @@ export async function runCorrelationMatrix(
     stats: [],
     groups: described,
     notes:
-      method === "spearman"
+      (method === "spearman"
         ? "Spearman rank correlation between every pair of variables, computed on pairwise-complete rows; non-parametric, no linearity assumption."
-        : "Pearson correlation between every pair of variables, computed on pairwise-complete rows; assumes linear relationships.",
+        : "Pearson correlation between every pair of variables, computed on pairwise-complete rows; assumes linear relationships.") +
+      (blank
+        ? ` A blank cell: fewer than ${MIN_PAIRS} complete rows, or a variable whose values are identical on them.`
+        : ""),
     matrix: { variables: vars.map((c) => c.name), r, p, label: "Correlation matrix (r)" },
   };
 }

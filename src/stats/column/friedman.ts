@@ -6,6 +6,7 @@ import type { FriedmanParams } from "../types";
 import {
   declareGroups,
   dunnPosthocStatements,
+  identical,
   matchedRowsNote,
   pairedGroups,
   posthocOf,
@@ -21,6 +22,11 @@ export const friedmanSpec: ColumnTestSpec<FriedmanParams> = {
   minValues: 2,
   matched: () => true,
   parseGroups: (columns) => pairedGroups(columns),
+  // Each row is ranked on its own: a row of identical values ranks nothing.
+  checkGroups: (groups) =>
+    groups[0].values.every((_, r) => identical(groups.map((g) => g.values[r])))
+      ? "Each row's values are identical: the Friedman test has nothing to rank."
+      : undefined,
   rCode: (groups, params) => {
     const k = groups.length;
     const n = groups[0]?.values.length ?? 0;

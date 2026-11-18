@@ -375,7 +375,18 @@ export const DashRow = ({ value, onChange }: { value: LineDash; onChange: (dash:
 
 /** A number field, blank (reading "Auto") when Helix chooses it: any number typed applies,
  *  when the field is left or on Return, so the graph doesn't redraw for each digit typed. */
-export function NumRow({ label, value, onChange }: { label: string; value?: number; onChange: (v?: number) => void }) {
+export function NumRow({
+  label,
+  value,
+  required,
+  onChange,
+}: {
+  label: string;
+  value?: number;
+  /** A number it must hold: left blank, the field shows it again. */
+  required?: boolean;
+  onChange: (v?: number) => void;
+}) {
   const shown = value === undefined ? "" : String(value);
   return (
     <Row label={label}>
@@ -384,12 +395,13 @@ export function NumRow({ label, value, onChange }: { label: string; value?: numb
         key={shown}
         type="number"
         defaultValue={shown}
-        placeholder="Auto"
+        placeholder={required ? undefined : "Auto"}
         onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
         onBlur={(e) => {
           const typed = e.currentTarget.value;
           if (typed === shown) return;
-          if (typed === "") onChange(undefined);
+          if (typed === "" && required) e.currentTarget.value = shown;
+          else if (typed === "") onChange(undefined);
           else if (Number.isFinite(Number(typed))) onChange(Number(typed));
         }}
       />

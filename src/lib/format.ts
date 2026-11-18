@@ -4,6 +4,8 @@
 /** A number as Helix shows it: 4 significant figures, "—" when missing. */
 export function num(value: number | null | undefined): string {
   if (value == null || Number.isNaN(value)) return "—";
+  // A one-sided 95% CI is open on one side.
+  if (!Number.isFinite(value)) return value > 0 ? "∞" : "−∞";
   return Number.isInteger(value) ? String(value) : Number(value.toPrecision(4)).toString();
 }
 

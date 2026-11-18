@@ -15,7 +15,8 @@ export interface TableMove {
   rows?: (row: number) => number | null;
 }
 
-// The params and options holding names (a name, or a list of names).
+// The params and options holding names (a name, or a list of names); the pairs chosen
+// (`compared`, `sigPairs`) hold two each.
 const PARAM_NAMES = [
   "x",
   "y",
@@ -29,7 +30,7 @@ const PARAM_NAMES = [
   "sets",
 ] as const;
 // prettier-ignore
-const OPTION_NAMES = ["xVariable", "yVariable", "volcanoX", "volcanoY", "volcanoLabel", "volcanoGroupA", "volcanoGroupB"] as const;
+const OPTION_NAMES = ["xVariable", "yVariable", "volcanoX", "volcanoY", "volcanoLabel", "volcanoGroupA", "volcanoGroupB", "sets"] as const;
 
 /** `node` following a table edit's `move`; `columns`: the table's columns after it (a
  *  point in a column that is gone loses its style). */
@@ -42,15 +43,20 @@ export function followTable(node: ProjectNode, { renamed = {}, rows }: TableMove
     return out as T;
   };
 
+  const renamePair = (key: string) => {
+    const [a, b] = pairOf(key);
+    return pairKey(to(a), to(b));
+  };
   if (node.analysisParams) {
-    return { ...node, analysisParams: withNames<AnalysisParams>(node.analysisParams, PARAM_NAMES) };
+    const params = withNames<AnalysisParams>(node.analysisParams, PARAM_NAMES) as AnalysisParams & {
+      compared?: string[];
+    };
+    if (params.compared) params.compared = params.compared.map(renamePair);
+    return { ...node, analysisParams: params };
   }
   if (node.graphOptions) {
     const options = withNames<GraphOptions>(node.graphOptions, OPTION_NAMES);
-    options.sigPairs = options.sigPairs?.map((key) => {
-      const [a, b] = pairOf(key);
-      return pairKey(to(a), to(b));
-    });
+    options.sigPairs = options.sigPairs?.map(renamePair);
     if (options.series) options.series = Object.fromEntries(Object.entries(options.series).map(([k, v]) => [to(k), v]));
     if (options.points) options.points = movePoints(options.points, to, rows, columns);
     return { ...node, graphOptions: options };

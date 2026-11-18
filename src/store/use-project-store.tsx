@@ -8,7 +8,10 @@ import {
   type TableType,
   type GraphType,
   type GraphOptions,
+  type TagColor,
+  type Transform,
 } from "./types";
+import { TRANSFORM_NAMES, transformTable } from "../lib/transform";
 import type { AnalysisParams, AnalysisPickerValue, AnalysisType } from "../stats/types";
 import { TABLES } from "../views/tables";
 import { GRAPHS, newGraphOptions } from "../views/graphs";
@@ -20,9 +23,16 @@ export type { ProjectNode } from "./types";
 /** What the universal selector is currently choosing. */
 type Selector =
   | { kind: "new-table" }
-  | { kind: "new-analysis"; tableId: string }
-  | { kind: "analysis-params"; tableId: string; testType: AnalysisPickerValue }
+  | { kind: "new-analysis"; tableId: string; forGraph?: ForGraph }
+  | { kind: "analysis-params"; tableId: string; testType: AnalysisPickerValue; forGraph?: ForGraph }
   | { kind: "new-graph"; tableId: string };
+
+/** An analysis made for a graph's stars: of the data sets it shows (its wizard's data set
+ *  questions answered with them), then chosen for it, the graph staying in front. */
+export interface ForGraph {
+  id: string;
+  sets: string[];
+}
 
 /** The project's content: what a file holds, and what Undo brings back. */
 interface Content {
@@ -67,6 +77,8 @@ type Action =
   /** `label` names the edit in the Edit menu; `move`: what it renamed or moved. */
   | { type: "updateTable"; id: string; data: TableData; label: string; move?: TableMove }
   | { type: "updateGraph"; id: string; options: GraphOptions; at: number }
+  | { type: "setNotes"; id: string; notes: string; at: number }
+  | { type: "setTags"; id: string; tags: TagColor[] }
   | { type: "undo" }
   | { type: "redo" }
   | { type: "openSelector"; selector: Selector }
@@ -146,10 +158,14 @@ function applyAction(state: ProjectState, action: Action): ProjectState {
       const taken = (pid === null ? state.rootOrder : (state.childOrder[pid] ?? [])).map(
         (id) => state.nodes[id]?.name ?? "",
       );
-      const name = pid === null ? nextName(action.node.name, taken) : uniqueName(action.node.name, taken);
+      const from = action.node.transform?.from;
+      const name = pid === null && !from ? nextName(action.node.name, taken) : uniqueName(action.node.name, taken);
       const node = { ...action.node, name };
       const nodes = { ...state.nodes, [node.id]: node };
-      const rootOrder = pid === null ? [...state.rootOrder, node.id] : state.rootOrder;
+      // A table computed from another comes right after it.
+      const after = from ? state.rootOrder.indexOf(from) + 1 : state.rootOrder.length;
+      const rootOrder =
+        pid === null ? [...state.rootOrder.slice(0, after), node.id, ...state.rootOrder.slice(after)] : state.rootOrder;
       const childOrder =
         pid === null
           ? { ...state.childOrder, [node.id]: [] } // a new table starts empty
@@ -171,7 +187,14 @@ function applyAction(state: ProjectState, action: Action): ProjectState {
       const remove = new Set<string>([action.id]);
       for (const n of Object.values(state.nodes)) if (n.parentId === action.id) remove.add(n.id);
       const nodes: Record<string, ProjectNode> = {};
-      for (const [id, n] of Object.entries(state.nodes)) if (!remove.has(id)) nodes[id] = n;
+      for (const [id, n] of Object.entries(state.nodes)) {
+        if (remove.has(id)) continue;
+        // A table computed from the one removed keeps its values, which can be typed from then on.
+        if (n.transform && remove.has(n.transform.from)) {
+          const { transform: _, ...rest } = n;
+          nodes[id] = rest;
+        } else nodes[id] = n;
+      }
       const rootOrder = state.rootOrder.filter((id) => !remove.has(id));
       // Drop removed tables' order lists, and removed children from surviving lists.
       const childOrder: Record<string, string[]> = {};
@@ -188,16 +211,27 @@ function applyAction(state: ProjectState, action: Action): ProjectState {
     case "updateTable": {
       const node = state.nodes[action.id];
       if (!node || node.type !== "table") return state;
-      const nodes = { ...state.nodes, [action.id]: { ...node, data: action.data } };
-      // The table's analyses and graphs follow its renamed columns and groups, its moved
-      // rows and its deleted columns.
-      const columnsChanged = action.data.columns.join("\n") !== node.data?.columns.join("\n");
-      if (action.move || columnsChanged) {
-        for (const child of Object.values(state.nodes)) {
-          if (child.parentId === action.id)
-            nodes[child.id] = followTable(child, action.move ?? {}, action.data.columns);
+      const nodes = { ...state.nodes };
+      // The table, then the tables computed from it (and from those) take their new values.
+      const update = (id: string, data: TableData) => {
+        const before = nodes[id];
+        nodes[id] = { ...before, data };
+        // Its analyses and graphs follow its renamed columns and groups, its moved rows and
+        // its deleted columns.
+        if (action.move || data.columns.join("\n") !== before.data?.columns.join("\n")) {
+          for (const child of Object.values(nodes)) {
+            if (child.parentId === id) nodes[child.id] = followTable(child, action.move ?? {}, data.columns);
+          }
         }
-      }
+        // Its values changed, not only a column's width: the tables computed from it follow.
+        const old = before.data;
+        const same = (k: "rows" | "columns" | "excluded" | "groups" | "replicates") => old?.[k] === data[k];
+        if (same("rows") && same("columns") && same("excluded") && same("groups") && same("replicates")) return;
+        for (const t of Object.values(nodes)) {
+          if (t.transform?.from === id) update(t.id, transformTable(data, t.tableType!, t.transform, t.data));
+        }
+      };
+      update(action.id, action.data);
       return { ...state, nodes, isDirty: true };
     }
     case "updateGraph": {
@@ -206,6 +240,23 @@ function applyAction(state: ProjectState, action: Action): ProjectState {
       return {
         ...state,
         nodes: { ...state.nodes, [action.id]: { ...node, graphOptions: action.options } },
+        isDirty: true,
+      };
+    }
+    case "setNotes": {
+      const node = state.nodes[action.id];
+      if (!node || (node.notes ?? "") === action.notes) return state;
+      const { notes: _, ...rest } = node;
+      const next = action.notes ? { ...rest, notes: action.notes } : rest;
+      return { ...state, nodes: { ...state.nodes, [action.id]: next }, isDirty: true };
+    }
+    case "setTags": {
+      const node = state.nodes[action.id];
+      if (!node) return state;
+      const { tags: _, ...rest } = node;
+      return {
+        ...state,
+        nodes: { ...state.nodes, [action.id]: action.tags.length ? { ...rest, tags: action.tags } : rest },
         isDirty: true,
       };
     }
@@ -277,6 +328,8 @@ const UNDOABLE = new Set<Action["type"]>([
   "remove",
   "updateTable",
   "updateGraph",
+  "setNotes",
+  "setTags",
   "reorderRoot",
   "reorderChildren",
 ]);
@@ -295,6 +348,10 @@ function changeName(action: Action): string {
       return action.label;
     case "updateGraph":
       return "Format Change";
+    case "setNotes":
+      return "Notes";
+    case "setTags":
+      return "Tags";
     default:
       return "Move";
   }
@@ -307,7 +364,13 @@ export function reducer(state: ProjectState, action: Action): ProjectState {
   const revision = state.revision + 1;
   if (!UNDOABLE.has(action.type)) return { ...next, revision };
 
-  const change = action.type === "updateGraph" ? { key: `graph ${action.id}`, at: action.at } : null;
+  // Quick edits to one graph's format, or to one item's note, undo together.
+  const change =
+    action.type === "updateGraph"
+      ? { key: `graph ${action.id}`, at: action.at }
+      : action.type === "setNotes"
+        ? { key: `notes ${action.id}`, at: action.at }
+        : null;
   const merged = change && state.lastChange?.key === change.key && change.at - state.lastChange.at < MERGE_MS;
   const before = {
     label: changeName(action),
@@ -328,7 +391,10 @@ interface ProjectActions {
   /** The project as it is now, for an action to look at (never to draw from). */
   get: () => ProjectState;
   createTable: (tableType: TableType) => void;
-  createAnalysis: (parentId: string, analysisType: AnalysisType, analysisParams?: AnalysisParams) => void;
+  /** A table computed from `from`'s values (Transform or Normalize). */
+  createTransformed: (from: string, transform: Omit<Transform, "from">) => void;
+  /** Returns the new analysis's id. */
+  createAnalysis: (parentId: string, analysisType: AnalysisType, analysisParams?: AnalysisParams) => string;
   createGraph: (parentId: string, graphType: GraphType) => void;
   setActiveNode: (id: string | null) => void;
   renameNode: (id: string, name: string) => void;
@@ -337,6 +403,10 @@ interface ProjectActions {
    *  and the rows it moved, which the table's analyses and graphs then follow. */
   updateTable: (id: string, data: TableData, label: string, move?: TableMove) => void;
   updateGraph: (id: string, options: GraphOptions) => void;
+  /** An item's note (empty: none). */
+  setNotes: (id: string, notes: string) => void;
+  /** An item's tags (none: no tag). */
+  setTags: (id: string, tags: TagColor[]) => void;
   openSelector: (selector: Selector) => void;
   closeSelector: () => void;
   reorderTables: (order: string[]) => void;
@@ -370,14 +440,20 @@ interface ProjectContextValue extends ProjectActions {
 }
 
 /** An item as the sidebar shows it. */
-export type OutlineNode = Pick<ProjectNode, "id" | "type" | "name" | "parentId">;
+export type OutlineNode = Pick<ProjectNode, "id" | "type" | "name" | "parentId" | "tags">;
 /** What the sidebar shows: the tables in order, each with its analyses and graphs. */
 interface Outline {
   tables: (OutlineNode & { children: OutlineNode[] })[];
   activeNodeId: string | null;
 }
 
-const outlineNode = ({ id, type, name, parentId }: ProjectNode): OutlineNode => ({ id, type, name, parentId });
+const outlineNode = ({ id, type, name, parentId, tags }: ProjectNode): OutlineNode => ({
+  id,
+  type,
+  name,
+  parentId,
+  tags,
+});
 
 /** A table's analyses and graphs, in sidebar order. */
 const childrenOf = ({ nodes, childOrder }: ProjectState, tableId: string) =>
@@ -409,13 +485,31 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             data: TABLES[tableType].defaultData(),
           },
         }),
-      // Named for the test it runs, as in Prism.
-      createAnalysis: (parentId, analysisType, analysisParams) => {
-        const { label, name } = ANALYSES[analysisType];
+      createTransformed: (from, how) => {
+        const source = latest.current.nodes[from];
+        if (!source?.data || !source.tableType) return;
+        const transform = { from, ...how };
         dispatch({
           type: "create",
           node: {
-            id: genId("analysis"),
+            id: genId("table"),
+            type: "table",
+            name: `${source.name}, ${TRANSFORM_NAMES[how.kind]}`,
+            parentId: null,
+            tableType: source.tableType,
+            data: transformTable(source.data, source.tableType, transform),
+            transform,
+          },
+        });
+      },
+      // Named for the test it runs, as in Prism.
+      createAnalysis: (parentId, analysisType, analysisParams) => {
+        const { label, name } = ANALYSES[analysisType];
+        const id = genId("analysis");
+        dispatch({
+          type: "create",
+          node: {
+            id,
             type: "analysis",
             name: name?.(analysisParams) ?? label,
             parentId,
@@ -423,6 +517,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             analysisParams,
           },
         });
+        return id;
       },
       createGraph: (parentId, graphType) =>
         dispatch({
@@ -441,6 +536,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       removeNode: (id) => dispatch({ type: "remove", id }),
       updateTable: (id, data, label, move) => dispatch({ type: "updateTable", id, data, label, move }),
       updateGraph: (id, options) => dispatch({ type: "updateGraph", id, options, at: Date.now() }),
+      setNotes: (id, notes) => dispatch({ type: "setNotes", id, notes, at: Date.now() }),
+      setTags: (id, tags) => dispatch({ type: "setTags", id, tags }),
       openSelector: (selector) => dispatch({ type: "openSelector", selector }),
       closeSelector: () => dispatch({ type: "closeSelector" }),
       reorderTables: (order) => dispatch({ type: "reorderRoot", order }),

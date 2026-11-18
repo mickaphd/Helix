@@ -84,6 +84,9 @@ function mark(color: string, shape: PointShape, chosen: boolean): Picture {
   });
 }
 
+/** A color's dot, as a menu line's picture (a tag's), ringed when chosen. */
+export const colorDot = (color: string, chosen: boolean) => mark(color, "circle", chosen);
+
 /** A menu line picking color `c`, ringed when it is `current`. */
 const swatch = (c: string, current: string, pick: (color: string) => void) => ({
   text: "",

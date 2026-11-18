@@ -13,6 +13,8 @@ import {
   FILL_PATTERNS,
   GRAPH_CHOICES,
   GRAPH_LIMITS,
+  MAX_REF_LINES,
+  REF_LABEL_PLACES,
   clamp,
   type Limits,
   type GraphOptions,
@@ -24,9 +26,15 @@ import {
   type Place,
   type PointStyle,
   type ProjectNode,
+  type RefLine,
   SAME_AS_FILL,
   type SeriesStyle,
   type TableData,
+  type Transform,
+  TAG_COLORS,
+  type TagColor,
+  TRANSFORMS,
+  Z_WITHIN,
 } from "../store/types";
 import {
   type AnalysisParams,
@@ -36,11 +44,13 @@ import {
   CORRELATION_METHODS,
   CORRELATION_MODES,
   CURVE_TESTS,
+  CONTINGENCY_TESTS,
   DOSE_MODELS,
   NONLINEAR_MODELS,
   POSTHOC_TARGETS,
   RANK_POSTHOCS,
   ROUT_Q,
+  EC_ANYTHING,
   TAILS,
   TWO_WAY_DESIGNS,
 } from "../stats/types";
@@ -51,6 +61,7 @@ import { ANALYSES } from "../stats";
 import { isGrouped } from "./dataset";
 import { seriesKeyOf } from "./columns";
 import { regroupTable } from "../views/tables/table-data";
+import { transformTable } from "./transform";
 
 export const PROJECT_FILE_EXTENSION = "hlx";
 
@@ -110,7 +121,7 @@ const FILE_KEYS = ["app", "schemaVersion", "savedAt", "project"];
 const PROJECT_KEYS = ["nodes", "rootOrder", "childOrder", "activeNodeId"] satisfies (keyof ProjectFilePayload)[];
 // prettier-ignore
 const NODE_KEYS = Object.keys({
-  id: 1, type: 1, name: 1, parentId: 1, tableType: 1, data: 1,
+  id: 1, type: 1, name: 1, parentId: 1, tableType: 1, data: 1, transform: 1, notes: 1, tags: 1,
   analysisType: 1, analysisParams: 1, graphType: 1, graphOptions: 1,
 } satisfies Record<keyof ProjectNode, 1>);
 // prettier-ignore
@@ -129,7 +140,7 @@ const OPTIONAL_OPTIONS = {
   sigAnalysisId: "text", sigPairs: "texts", regAnalysisId: "text", xVariable: "text", yVariable: "text",
   volcanoX: "text", volcanoY: "text", volcanoLabel: "text", volcanoGroupA: "text", volcanoGroupB: "text",
   palette: "palette", series: "styles", points: "pointStyles", outlineColor: "color", pointOutlineColor: "color", errorColor: "color",
-  legend: "place", note: "place",
+  legend: "place", note: "place", refLines: "refLines", sets: "texts",
 } as const satisfies Record<OptionalOption, keyof typeof READ_OPTION>;
 // Options whose text is the user's (titles, column names), not a choice from a list.
 const FREE_TEXT_OPTIONS = new Set(["title", "xLabel", "yLabel"]);
@@ -150,10 +161,10 @@ type ParamKind = "yes/no" | "number" | "name" | "names" | readonly string[] | Li
 // prettier-ignore
 const PARAMS = {
   paired: "yes/no", gaussian: "yes/no", equalVariance: "yes/no", ratio: "yes/no", forceOrigin: "yes/no", pooledSd: "yes/no",
-  equalSd: "yes/no", sphericity: "yes/no", interpolate: "yes/no", rout: "yes/no", grubbs: "yes/no", lognormal: "yes/no", tails: TAILS, posthoc: [...ANOVA_POSTHOCS, ...RANK_POSTHOCS], model: NONLINEAR_MODELS, method: CORRELATION_METHODS,
-  mode: CORRELATION_MODES, design: TWO_WAY_DESIGNS, posthocTarget: POSTHOC_TARGETS, correction: CORRECTIONS, curveTest: CURVE_TESTS, compare: CURVE_COMPARISONS,
-  hypotheticalValue: "number", baseline: "number", q: ROUT_Q,
-  x: "name", y: "name", dependent: "name", reference: "name", control: "name", compareWith: "name", ys: "names", datasets: "names", predictors: "names", sets: "names",
+  equalSd: "yes/no", sphericity: "yes/no", interpolate: "yes/no", rout: "yes/no", grubbs: "yes/no", lognormal: "yes/no", mixed: "yes/no", tails: TAILS, posthoc: [...ANOVA_POSTHOCS, ...RANK_POSTHOCS], model: NONLINEAR_MODELS, method: CORRELATION_METHODS,
+  mode: CORRELATION_MODES, design: TWO_WAY_DESIGNS, posthocTarget: POSTHOC_TARGETS, correction: CORRECTIONS, curveTest: CURVE_TESTS, compare: CURVE_COMPARISONS, test: CONTINGENCY_TESTS,
+  hypotheticalValue: "number", baseline: "number", q: ROUT_Q, ecx: EC_ANYTHING,
+  x: "name", y: "name", dependent: "name", reference: "name", control: "name", compareWith: "name", ys: "names", datasets: "names", predictors: "names", sets: "names", compared: "names",
 } satisfies Record<ParamKey, ParamKind>;
 
 const isFiniteNumber = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
@@ -221,6 +232,28 @@ function readStyles(v: unknown): Record<string, SeriesStyle> | undefined {
 const readPlace = (v: unknown): Place | undefined =>
   isObj(v) && isFiniteNumber(v.x) && isFiniteNumber(v.y) ? { x: v.x, y: v.y } : undefined;
 
+/** Reference lines: each at a finite value, its dashes one of the list (else dashed), its
+ *  thickness within the lines' limits, a color or none, a text or none; ten at most. */
+function readRefLines(v: unknown): RefLine[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const out = v
+    .filter((l): l is Obj => isObj(l) && isFiniteNumber(l.value))
+    .slice(0, MAX_REF_LINES)
+    .map((raw) => {
+      const l = canonical(raw, ["value", "dash", "width", "color", "label", "labelPlace"]);
+      return defined({
+        ...l,
+        value: l.value as number,
+        dash: oneOf(GRAPH_CHOICES.lineDash, l.dash) ?? "dash",
+        width: within(l.width, GRAPH_LIMITS.lineWidth) ?? 1,
+        color: isHex(l.color) ? l.color : undefined,
+        label: typeof l.label === "string" && l.label ? l.label : undefined,
+        labelPlace: oneOf(REF_LABEL_PLACES, l.labelPlace),
+      }) as RefLine;
+    });
+  return out.length ? out : undefined;
+}
+
 /** Each point's style, keeping what this version doesn't know of it. */
 function readPointStyles(v: unknown): Record<string, PointStyle> | undefined {
   if (!isObj(v)) return undefined;
@@ -254,6 +287,7 @@ const READ_OPTION = {
   styles: readStyles,
   pointStyles: readPointStyles,
   place: readPlace,
+  refLines: readRefLines,
   color: (v: unknown) => (isHex(v) ? v : undefined),
 };
 
@@ -341,6 +375,21 @@ function readParams(raw: unknown): AnalysisParams | undefined {
   return defined(Object.fromEntries(Object.entries(p).map(([k, v]) => [k, read(k, v)]))) as unknown as AnalysisParams;
 }
 
+const TRANSFORM_KEYS = ["from", "kind", "control", "within"] satisfies (keyof Transform)[];
+
+/** How a table is computed from another: a known kind, of a table (checked once every
+ *  item is read), with the control a percent needs. */
+function readTransform(raw: unknown): Transform | undefined {
+  if (!isObj(raw)) return undefined;
+  const t = canonical(raw, TRANSFORM_KEYS);
+  const kind = oneOf(TRANSFORMS, t.kind);
+  const control = cellText(t.control);
+  if (typeof t.from !== "string" || !kind || (kind === "percent-of-control" && control == null)) return undefined;
+  if (kind === "percent-of-control") return { from: t.from, kind, control: control! };
+  if (kind === "z-score") return { from: t.from, kind, within: oneOf(Z_WITHIN, t.within) ?? "set" };
+  return { from: t.from, kind };
+}
+
 const NODE_TYPES: NodeType[] = ["table", "analysis", "graph"];
 
 /** `tableColors`: where a table leaves the colors it kept for its graphs. */
@@ -361,6 +410,14 @@ function readNode(
     name: cellText(n.name) ?? "Untitled",
     parentId: typeof n.parentId === "string" ? n.parentId : null,
   } as ProjectNode;
+  // A note is text, never empty.
+  if (typeof n.notes === "string" && n.notes) node.notes = n.notes;
+  else delete node.notes;
+  // Tags: the known colors it names, once each, in their order.
+  const named = Array.isArray(n.tags) ? n.tags.map(lower) : [];
+  const tags = (Object.keys(TAG_COLORS) as TagColor[]).filter((c) => named.includes(c));
+  if (tags.length) node.tags = tags;
+  else delete node.tags;
 
   if (type === "table") {
     const read = isObj(n.data) ? readData(n.data, lower(n.tableType)) : null;
@@ -375,6 +432,8 @@ function readNode(
       });
     }
     node.parentId = null;
+    node.transform = readTransform(n.transform);
+    if (!node.transform) delete node.transform;
     node.tableType = lower(n.tableType) as ProjectNode["tableType"];
     if (!isIn(TABLES, node.tableType)) {
       issues.push({
@@ -384,12 +443,14 @@ function readNode(
       node.tableType = "column";
     }
   } else if (type === "analysis") {
+    delete node.transform; // a table's alone
     node.analysisType = lower(n.analysisType) as ProjectNode["analysisType"];
     node.analysisParams = readParams(n.analysisParams);
     if (!isIn(ANALYSES, node.analysisType)) {
       issues.push({ severity: "error", message: `Analysis “${node.name}” uses a test this version doesn't know.` });
     }
   } else {
+    delete node.transform;
     node.graphType = lower(n.graphType) as ProjectNode["graphType"];
     node.graphOptions = readOptions(n.graphOptions);
     if (!isIn(GRAPHS, node.graphType) && (node.graphType as string) !== DOSE_GRAPH) {
@@ -449,6 +510,20 @@ export function parseProjectFile(
       message: `${skipped} unreadable item${skipped === 1 ? " was" : "s were"} left out.`,
     });
   }
+
+  // A table computed from another of the file is computed again from it, never from itself
+  // (even through others); without its table, it keeps its values, which can then be typed.
+  const computed = new Set<string>();
+  const compute = (node: ProjectNode, seen: string[]) => {
+    if (!node.transform || computed.has(node.id)) return;
+    const source = nodeOf(node.transform.from);
+    if (source?.type !== "table" || seen.includes(source.id)) return void delete node.transform;
+    compute(source, [...seen, source.id]);
+    node.tableType = source.tableType;
+    node.data = transformTable(source.data!, source.tableType!, node.transform, node.data);
+    computed.add(node.id);
+  };
+  for (const node of Object.values(nodes)) compute(node, [node.id]);
 
   const fits = fitsFromDoseGraphs(nodes);
   const ids = (v: unknown) => (Array.isArray(v) ? v.filter((id): id is string => typeof id === "string") : []);

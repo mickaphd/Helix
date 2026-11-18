@@ -1,7 +1,7 @@
 {
   "app": "helix",
   "schemaVersion": 1,
-  "savedAt": "2026-11-12T16:23:12.872Z",
+  "savedAt": "2026-11-18T08:15:29.878Z",
   "project": {
     "nodes": {
       "t-viab": {
@@ -51,7 +51,8 @@
           "model": "inhibitor-3pl-logx",
           "compareWith": "BxPC-3",
           "compare": "ec50"
-        }
+        },
+        "tags": ["red"]
       },
       "g-viab": {
         "id": "g-viab",
@@ -74,12 +75,15 @@
           "sigDisplay": "stars",
           "regShowLine": true,
           "regShowBand": true,
+          "regBand": "confidence",
+          "residualsAs": "x",
           "regShowEquation": true,
           "heatmapShowValues": false,
           "heatmapShowScale": true,
           "survivalMode": "codes",
           "survivalShowCensors": true,
           "survivalShowBand": false,
+          "survivalAtRisk": false,
           "volcanoYIsPValue": true,
           "volcanoFcThreshold": 1,
           "volcanoPThreshold": 1.3010299956639813,
@@ -126,7 +130,8 @@
             "x": 10,
             "y": 250
           }
-        }
+        },
+        "tags": ["green"]
       },
       "t-kinase": {
         "id": "t-kinase",
@@ -179,12 +184,15 @@
           "sigDisplay": "stars",
           "regShowLine": true,
           "regShowBand": true,
+          "regBand": "confidence",
+          "residualsAs": "x",
           "regShowEquation": true,
           "heatmapShowValues": false,
           "heatmapShowScale": true,
           "survivalMode": "codes",
           "survivalShowCensors": true,
           "survivalShowBand": false,
+          "survivalAtRisk": false,
           "volcanoYIsPValue": true,
           "volcanoFcThreshold": 1,
           "volcanoPThreshold": 1.3010299956639813,
@@ -292,12 +300,15 @@
           "sigDisplay": "stars",
           "regShowLine": true,
           "regShowBand": true,
+          "regBand": "confidence",
+          "residualsAs": "x",
           "regShowEquation": true,
           "heatmapShowValues": false,
           "heatmapShowScale": true,
           "survivalMode": "codes",
           "survivalShowCensors": true,
           "survivalShowBand": false,
+          "survivalAtRisk": false,
           "volcanoYIsPValue": true,
           "volcanoFcThreshold": 1,
           "volcanoPThreshold": 1.3010299956639813,
@@ -373,7 +384,8 @@
             ["Mouse 10","1313","805","484","947"]
           ],
           "excluded": ["3,2"]
-        }
+        },
+        "notes": "Mouse 4's 86 mm³ (HLX-101 10 mg/kg) is excluded: its tumor ulcerated on day 18 and was measured after resection. Mouse 7 (vehicle) is the outlier ROUT finds; it stays in the analysis."
       },
       "a-volume-desc": {
         "id": "a-volume-desc",
@@ -392,7 +404,8 @@
           "posthoc": "dunnett",
           "equalSd": true,
           "control": "Vehicle"
-        }
+        },
+        "tags": ["red"]
       },
       "a-volume-rout": {
         "id": "a-volume-rout",
@@ -425,12 +438,15 @@
           "sigDisplay": "stars",
           "regShowLine": true,
           "regShowBand": true,
+          "regBand": "confidence",
+          "residualsAs": "x",
           "regShowEquation": true,
           "heatmapShowValues": false,
           "heatmapShowScale": true,
           "survivalMode": "codes",
           "survivalShowCensors": true,
           "survivalShowBand": false,
+          "survivalAtRisk": false,
           "volcanoYIsPValue": true,
           "volcanoFcThreshold": 1,
           "volcanoPThreshold": 1.3010299956639813,
@@ -519,12 +535,15 @@
           "sigDisplay": "stars",
           "regShowLine": true,
           "regShowBand": true,
+          "regBand": "confidence",
+          "residualsAs": "x",
           "regShowEquation": true,
           "heatmapShowValues": false,
           "heatmapShowScale": true,
           "survivalMode": "codes",
           "survivalShowCensors": true,
           "survivalShowBand": false,
+          "survivalAtRisk": false,
           "volcanoYIsPValue": true,
           "volcanoFcThreshold": 1,
           "volcanoPThreshold": 1.3010299956639813,
@@ -582,7 +601,9 @@
               "color": "#EE6677"
             }
           }
-        }
+        },
+        "notes": "Figure 2B.",
+        "tags": ["green"]
       },
       "g-volume-violin": {
         "id": "g-volume-violin",
@@ -605,12 +626,15 @@
           "sigDisplay": "stars",
           "regShowLine": true,
           "regShowBand": true,
+          "regBand": "confidence",
+          "residualsAs": "x",
           "regShowEquation": true,
           "heatmapShowValues": false,
           "heatmapShowScale": true,
           "survivalMode": "codes",
           "survivalShowCensors": true,
           "survivalShowBand": false,
+          "survivalAtRisk": false,
           "volcanoYIsPValue": true,
           "volcanoFcThreshold": 1,
           "volcanoPThreshold": 1.3010299956639813,
@@ -663,6 +687,204 @@
               "color": "#EE6677"
             }
           }
+        },
+        "tags": ["blue"]
+      },
+      "g-volume-qq": {
+        "id": "g-volume-qq",
+        "type": "graph",
+        "name": "QQ plot",
+        "parentId": "t-volume",
+        "graphType": "qq-plot",
+        "graphOptions": {
+          "bars": false,
+          "center": "mean",
+          "error": "sem",
+          "shape": "bar",
+          "kind": "box",
+          "showPoints": false,
+          "xyStyle": "points",
+          "xyReplicates": "mean",
+          "pieValue": "sum",
+          "pieShowPercent": true,
+          "groupLayout": "interleaved",
+          "sigDisplay": "stars",
+          "regShowLine": true,
+          "regShowBand": true,
+          "regBand": "confidence",
+          "residualsAs": "x",
+          "regShowEquation": true,
+          "heatmapShowValues": false,
+          "heatmapShowScale": true,
+          "survivalMode": "codes",
+          "survivalShowCensors": true,
+          "survivalShowBand": false,
+          "survivalAtRisk": false,
+          "volcanoYIsPValue": true,
+          "volcanoFcThreshold": 1,
+          "volcanoPThreshold": 1.3010299956639813,
+          "volcanoShowThresholds": true,
+          "volcanoLabelCount": 10,
+          "volcanoEffect": "log2ratio",
+          "volcanoSignificance": "pvalue",
+          "stackAs": "values",
+          "title": "",
+          "xLabel": "",
+          "yLabel": "Tumor volume at day 21 (mm³)",
+          "xScale": "linear",
+          "yScale": "linear",
+          "axisWidth": 1,
+          "fontSize": 13,
+          "fill": 1,
+          "pointFill": 1,
+          "pointSize": 9,
+          "pointShape": "circle",
+          "pointOutline": 1.5,
+          "outline": 1.5,
+          "barGap": 0.1,
+          "lineWidth": 2,
+          "lineDash": "solid",
+          "xTitleGap": 12,
+          "yTitleGap": 2,
+          "errorWidth": 1.5,
+          "errorCaps": 6,
+          "errorDirection": "both",
+          "background": "white",
+          "width": 640,
+          "height": 460,
+          "palette": {
+            "name": "okabe-ito",
+            "kind": "categorical",
+            "colors": ["#000000","#E69F00","#56B4E9","#009E73","#F0E442","#0072B2","#D55E00","#CC79A7"]
+          },
+          "series": {
+            "Vehicle": {
+              "color": "#BBBBBB"
+            },
+            "HLX-101 10 mg/kg": {
+              "color": "#66CCEE"
+            },
+            "HLX-101 30 mg/kg": {
+              "color": "#4477AA"
+            },
+            "Gemcitabine": {
+              "color": "#EE6677"
+            }
+          }
+        },
+        "tags": ["blue"]
+      },
+      "t-volume-pct": {
+        "id": "t-volume-pct",
+        "type": "table",
+        "name": "Tumor volume, day 21 (mm³), % of control",
+        "parentId": null,
+        "tableType": "column",
+        "data": {
+          "columns": ["Title","Vehicle","HLX-101 10 mg/kg","HLX-101 30 mg/kg","Gemcitabine"],
+          "rows": [
+            ["Mouse 1","95.82569454","52.31984205","39.62769708","42.87124524"],
+            ["Mouse 2","81.51177549","46.67888873","32.15343393","52.17881822"],
+            ["Mouse 3","102.2422789","70.51191651","24.82019461","33.21111268"],
+            ["Mouse 4","66.42222536","6.06402482","29.96756452","53.44803272"],
+            ["Mouse 5","76.50542942","49.99294881","32.64701735","47.3840079"],
+            ["Mouse 6","89.55013397","51.40318714","30.81370752","48.86475814"],
+            ["Mouse 7","208.0101537","50.69806797","21.85869412","40.1212805"],
+            ["Mouse 8","98.36412354","58.94796221","37.08926809","49.00578198"],
+            ["Mouse 9","88.98603864","55.35185446","30.67268368","44.49301932"],
+            ["Mouse 10","92.58214638","56.76209279","34.12776759","66.77478494"]
+          ],
+          "excluded": ["3,2"]
+        },
+        "transform": {
+          "from": "t-volume",
+          "kind": "percent-of-control",
+          "control": "Vehicle"
+        }
+      },
+      "g-volume-pct": {
+        "id": "g-volume-pct",
+        "type": "graph",
+        "name": "Bars, % of vehicle",
+        "parentId": "t-volume-pct",
+        "graphType": "individual",
+        "graphOptions": {
+          "bars": true,
+          "center": "mean",
+          "error": "sem",
+          "shape": "bar",
+          "kind": "box",
+          "showPoints": false,
+          "xyStyle": "points",
+          "xyReplicates": "mean",
+          "pieValue": "sum",
+          "pieShowPercent": true,
+          "groupLayout": "interleaved",
+          "sigDisplay": "stars",
+          "regShowLine": true,
+          "regShowBand": true,
+          "regBand": "confidence",
+          "residualsAs": "x",
+          "regShowEquation": true,
+          "heatmapShowValues": false,
+          "heatmapShowScale": true,
+          "survivalMode": "codes",
+          "survivalShowCensors": true,
+          "survivalShowBand": false,
+          "survivalAtRisk": false,
+          "volcanoYIsPValue": true,
+          "volcanoFcThreshold": 1,
+          "volcanoPThreshold": 1.3010299956639813,
+          "volcanoShowThresholds": true,
+          "volcanoLabelCount": 10,
+          "volcanoEffect": "log2ratio",
+          "volcanoSignificance": "pvalue",
+          "stackAs": "values",
+          "title": "",
+          "xLabel": "",
+          "yLabel": "Tumor volume (% of vehicle)",
+          "xScale": "linear",
+          "yScale": "linear",
+          "axisWidth": 1,
+          "fontSize": 13,
+          "fill": 0.6,
+          "pointFill": 1,
+          "pointSize": 9,
+          "pointShape": "circle",
+          "pointOutline": 1.5,
+          "outline": 1.5,
+          "barGap": 0.1,
+          "lineWidth": 2,
+          "lineDash": "solid",
+          "xTitleGap": 12,
+          "yTitleGap": 2,
+          "errorWidth": 1.5,
+          "errorCaps": 6,
+          "errorDirection": "both",
+          "background": "white",
+          "width": 640,
+          "height": 460,
+          "palette": {
+            "name": "okabe-ito",
+            "kind": "categorical",
+            "colors": ["#000000","#E69F00","#56B4E9","#009E73","#F0E442","#0072B2","#D55E00","#CC79A7"]
+          },
+          "errorColor": "#000000",
+          "outlineColor": "#000000",
+          "series": {
+            "Vehicle": {
+              "color": "#BBBBBB"
+            },
+            "HLX-101 10 mg/kg": {
+              "color": "#66CCEE"
+            },
+            "HLX-101 30 mg/kg": {
+              "color": "#4477AA"
+            },
+            "Gemcitabine": {
+              "color": "#EE6677"
+            }
+          }
         }
       },
       "t-pk": {
@@ -694,7 +916,8 @@
         "analysisParams": {
           "y": "Mouse 1",
           "model": "one-phase-decay"
-        }
+        },
+        "tags": ["yellow"]
       },
       "g-pk": {
         "id": "g-pk",
@@ -717,12 +940,15 @@
           "sigDisplay": "stars",
           "regShowLine": true,
           "regShowBand": true,
+          "regBand": "confidence",
+          "residualsAs": "x",
           "regShowEquation": true,
           "heatmapShowValues": false,
           "heatmapShowScale": true,
           "survivalMode": "codes",
           "survivalShowCensors": true,
           "survivalShowBand": false,
+          "survivalAtRisk": false,
           "volcanoYIsPValue": true,
           "volcanoFcThreshold": 1,
           "volcanoPThreshold": 1.3010299956639813,
@@ -823,12 +1049,15 @@
           "sigDisplay": "stars",
           "regShowLine": true,
           "regShowBand": true,
+          "regBand": "confidence",
+          "residualsAs": "x",
           "regShowEquation": true,
           "heatmapShowValues": false,
           "heatmapShowScale": true,
           "survivalMode": "codes",
           "survivalShowCensors": true,
           "survivalShowBand": false,
+          "survivalAtRisk": false,
           "volcanoYIsPValue": true,
           "volcanoFcThreshold": 1,
           "volcanoPThreshold": 1.3010299956639813,
@@ -899,15 +1128,18 @@
           "pieValue": "sum",
           "pieShowPercent": true,
           "groupLayout": "interleaved",
-          "sigDisplay": "stars",
+          "sigDisplay": "letters",
           "regShowLine": true,
           "regShowBand": true,
+          "regBand": "confidence",
+          "residualsAs": "x",
           "regShowEquation": true,
           "heatmapShowValues": false,
           "heatmapShowScale": true,
           "survivalMode": "codes",
           "survivalShowCensors": true,
           "survivalShowBand": false,
+          "survivalAtRisk": false,
           "volcanoYIsPValue": true,
           "volcanoFcThreshold": 1,
           "volcanoPThreshold": 1.3010299956639813,
@@ -945,6 +1177,7 @@
             "kind": "categorical",
             "colors": ["#000000","#E69F00","#56B4E9","#009E73","#F0E442","#0072B2","#D55E00","#CC79A7"]
           },
+          "sigAnalysisId": "a-il6",
           "outlineColor": "#000000",
           "errorColor": "#000000",
           "series": {
@@ -959,7 +1192,8 @@
               "pattern": "diagonal"
             }
           }
-        }
+        },
+        "tags": ["yellow","green"]
       },
       "t-immune": {
         "id": "t-immune",
@@ -1010,12 +1244,15 @@
           "sigDisplay": "stars",
           "regShowLine": true,
           "regShowBand": true,
+          "regBand": "confidence",
+          "residualsAs": "x",
           "regShowEquation": true,
           "heatmapShowValues": false,
           "heatmapShowScale": true,
           "survivalMode": "codes",
           "survivalShowCensors": true,
           "survivalShowBand": false,
+          "survivalAtRisk": false,
           "volcanoYIsPValue": true,
           "volcanoFcThreshold": 1,
           "volcanoPThreshold": 1.3010299956639813,
@@ -1137,7 +1374,8 @@
         "analysisParams": {
           "curveTest": "logrank",
           "correction": "holm"
-        }
+        },
+        "tags": ["red","purple"]
       },
       "a-surv-cox": {
         "id": "a-surv-cox",
@@ -1170,12 +1408,15 @@
           "sigDisplay": "stars",
           "regShowLine": true,
           "regShowBand": true,
+          "regBand": "confidence",
+          "residualsAs": "x",
           "regShowEquation": true,
           "heatmapShowValues": false,
           "heatmapShowScale": true,
           "survivalMode": "codes",
           "survivalShowCensors": true,
           "survivalShowBand": true,
+          "survivalAtRisk": true,
           "volcanoYIsPValue": true,
           "volcanoFcThreshold": 1,
           "volcanoPThreshold": 1.3010299956639813,
@@ -1224,7 +1465,8 @@
               "color": "#AA3377"
             }
           }
-        }
+        },
+        "tags": ["green","purple"]
       },
       "t-rnaseq": {
         "id": "t-rnaseq",
@@ -11261,12 +11503,15 @@
           "sigDisplay": "stars",
           "regShowLine": true,
           "regShowBand": true,
+          "regBand": "confidence",
+          "residualsAs": "x",
           "regShowEquation": true,
           "heatmapShowValues": false,
           "heatmapShowScale": true,
           "survivalMode": "codes",
           "survivalShowCensors": true,
           "survivalShowBand": false,
+          "survivalAtRisk": false,
           "volcanoYIsPValue": true,
           "volcanoFcThreshold": 1,
           "volcanoPThreshold": 1.3010299956639813,
@@ -11368,7 +11613,8 @@
               "label": true
             }
           }
-        }
+        },
+        "tags": ["green","blue","purple"]
       },
       "t-genes": {
         "id": "t-genes",
@@ -11423,12 +11669,15 @@
           "sigDisplay": "stars",
           "regShowLine": true,
           "regShowBand": true,
+          "regBand": "confidence",
+          "residualsAs": "x",
           "regShowEquation": true,
           "heatmapShowValues": false,
           "heatmapShowScale": true,
           "survivalMode": "codes",
           "survivalShowCensors": true,
           "survivalShowBand": false,
+          "survivalAtRisk": false,
           "volcanoYIsPValue": true,
           "volcanoFcThreshold": 1,
           "volcanoPThreshold": 1.3010299956639813,
@@ -11467,7 +11716,8 @@
             "colors": ["#053061","#2166AC","#4393C3","#92C5DE","#D1E5F0","#F7F7F7","#FDDBC7","#F4A582","#D6604D","#B2182B","#67001F"],
             "reversed": true
           }
-        }
+        },
+        "tags": ["blue"]
       },
       "t-deseq": {
         "id": "t-deseq",
@@ -12502,12 +12752,15 @@
           "sigDisplay": "stars",
           "regShowLine": true,
           "regShowBand": true,
+          "regBand": "confidence",
+          "residualsAs": "x",
           "regShowEquation": true,
           "heatmapShowValues": false,
           "heatmapShowScale": true,
           "survivalMode": "codes",
           "survivalShowCensors": true,
           "survivalShowBand": false,
+          "survivalAtRisk": false,
           "volcanoYIsPValue": true,
           "volcanoFcThreshold": 1,
           "volcanoPThreshold": 1.3010299956639813,
@@ -12563,27 +12816,30 @@
             ["Patient 02","35.0","25.1","18.2"],
             ["Patient 03","34.8","28.6","16.8"],
             ["Patient 04","37.4","22.3","17.9"],
-            ["Patient 05","43.5","32.9","20.3"],
+            ["Patient 05","43.5","32.9",null],
             ["Patient 06","39.1","27.4","25.4"],
             ["Patient 07","24.2","20.7","16.2"],
             ["Patient 08","42.9","37.5","19.6"],
             ["Patient 09","21.0","20.7","7.2"],
-            ["Patient 10","34.4","18.3","18.1"],
+            ["Patient 10","34.4","18.3",null],
             ["Patient 11","27.2","22.1","19.1"],
             ["Patient 12","35.9","28.2","10.8"]
           ]
-        }
+        },
+        "notes": "Patients 05 and 10 missed the week 8 biopsy (progression); their other biopsies count.",
+        "tags": ["yellow"]
       },
       "a-ki67": {
         "id": "a-ki67",
         "type": "analysis",
-        "name": "Repeated-measures ANOVA + Tukey",
+        "name": "Mixed-effects model + Tukey",
         "parentId": "t-ki67",
         "analysisType": "rm-anova",
         "analysisParams": {
           "posthoc": "tukey",
-          "sphericity": false
-        }
+          "mixed": true
+        },
+        "tags": ["red","yellow"]
       },
       "g-ki67": {
         "id": "g-ki67",
@@ -12606,12 +12862,15 @@
           "sigDisplay": "stars",
           "regShowLine": true,
           "regShowBand": true,
+          "regBand": "confidence",
+          "residualsAs": "x",
           "regShowEquation": true,
           "heatmapShowValues": false,
           "heatmapShowScale": true,
           "survivalMode": "codes",
           "survivalShowCensors": true,
           "survivalShowBand": false,
+          "survivalAtRisk": false,
           "volcanoYIsPValue": true,
           "volcanoFcThreshold": 1,
           "volcanoPThreshold": 1.3010299956639813,
@@ -12721,12 +12980,15 @@
           "sigDisplay": "stars",
           "regShowLine": true,
           "regShowBand": true,
+          "regBand": "confidence",
+          "residualsAs": "x",
           "regShowEquation": true,
           "heatmapShowValues": false,
           "heatmapShowScale": true,
           "survivalMode": "codes",
           "survivalShowCensors": true,
           "survivalShowBand": false,
+          "survivalAtRisk": false,
           "volcanoYIsPValue": true,
           "volcanoFcThreshold": 1,
           "volcanoPThreshold": 1.3010299956639813,
@@ -12881,12 +13143,15 @@
           "sigDisplay": "stars",
           "regShowLine": true,
           "regShowBand": true,
+          "regBand": "confidence",
+          "residualsAs": "x",
           "regShowEquation": true,
           "heatmapShowValues": false,
           "heatmapShowScale": true,
           "survivalMode": "codes",
           "survivalShowCensors": true,
           "survivalShowBand": false,
+          "survivalAtRisk": false,
           "volcanoYIsPValue": true,
           "volcanoFcThreshold": 1,
           "volcanoPThreshold": 1.3010299956639813,
@@ -12955,12 +13220,15 @@
           "sigDisplay": "stars",
           "regShowLine": true,
           "regShowBand": true,
+          "regBand": "confidence",
+          "residualsAs": "x",
           "regShowEquation": true,
           "heatmapShowValues": false,
           "heatmapShowScale": true,
           "survivalMode": "codes",
           "survivalShowCensors": true,
           "survivalShowBand": false,
+          "survivalAtRisk": false,
           "volcanoYIsPValue": true,
           "volcanoFcThreshold": 1,
           "volcanoPThreshold": 1.3010299956639813,
@@ -13006,7 +13274,8 @@
               "color": "#4477AA"
             }
           }
-        }
+        },
+        "tags": ["blue"]
       },
       "t-response": {
         "id": "t-response",
@@ -13027,7 +13296,8 @@
         "type": "analysis",
         "name": "Fisher's exact test",
         "parentId": "t-response",
-        "analysisType": "chi-square"
+        "analysisType": "chi-square",
+        "tags": ["red","purple"]
       },
       "g-response": {
         "id": "g-response",
@@ -13050,12 +13320,15 @@
           "sigDisplay": "stars",
           "regShowLine": true,
           "regShowBand": true,
+          "regBand": "confidence",
+          "residualsAs": "x",
           "regShowEquation": true,
           "heatmapShowValues": false,
           "heatmapShowScale": true,
           "survivalMode": "codes",
           "survivalShowCensors": true,
           "survivalShowBand": false,
+          "survivalAtRisk": false,
           "volcanoYIsPValue": true,
           "volcanoFcThreshold": 1,
           "volcanoPThreshold": 1.3010299956639813,
@@ -13195,12 +13468,15 @@
           "sigDisplay": "stars",
           "regShowLine": true,
           "regShowBand": true,
+          "regBand": "confidence",
+          "residualsAs": "x",
           "regShowEquation": true,
           "heatmapShowValues": false,
           "heatmapShowScale": true,
           "survivalMode": "codes",
           "survivalShowCensors": true,
           "survivalShowBand": false,
+          "survivalAtRisk": false,
           "volcanoYIsPValue": true,
           "volcanoFcThreshold": 1,
           "volcanoPThreshold": 1.3010299956639813,
@@ -13244,15 +13520,17 @@
               "color": "#4477AA"
             }
           }
-        }
+        },
+        "tags": ["purple"]
       }
     },
-    "rootOrder": ["t-viab","t-kinase","t-growth","t-volume","t-pk","t-il6","t-immune","t-surv","t-rnaseq","t-genes","t-deseq","t-ki67","t-elisa","t-markers","t-response","t-exposure"],
+    "rootOrder": ["t-viab","t-kinase","t-growth","t-volume","t-volume-pct","t-pk","t-il6","t-immune","t-surv","t-rnaseq","t-genes","t-deseq","t-ki67","t-elisa","t-markers","t-response","t-exposure"],
     "childOrder": {
       "t-viab": ["a-viab-fit","a-viab-cmp","g-viab"],
       "t-kinase": ["a-kinase","g-kinase"],
       "t-growth": ["a-growth-exp","a-growth-auc","g-growth"],
-      "t-volume": ["a-volume-desc","a-volume","a-volume-rout","g-volume-dots","g-volume-bars","g-volume-violin"],
+      "t-volume": ["a-volume-desc","a-volume","a-volume-rout","g-volume-dots","g-volume-bars","g-volume-violin","g-volume-qq"],
+      "t-volume-pct": ["g-volume-pct"],
       "t-pk": ["a-pk","g-pk"],
       "t-il6": ["a-il6","g-il6-lines","g-il6-bars"],
       "t-immune": ["a-immune","g-immune"],

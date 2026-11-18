@@ -4,7 +4,7 @@
 // coefficient of variation and the geometric mean (values above 0 only). Not an
 // inferential test, so there are no `stats` rows.
 import type { AnalysisOutcome, Column } from "../types";
-import { dataGroups, R_DESCRIBE, rVec } from "./base";
+import { dataGroups, describedBy, R_DESCRIBE, rVec } from "./base";
 import { evalNamedVector } from "../webr";
 
 export async function runDescriptiveStatistics(columns: Column[]): Promise<AnalysisOutcome> {
@@ -25,13 +25,8 @@ export async function runDescriptiveStatistics(columns: Column[]): Promise<Analy
   return {
     testType: "descriptive-statistics",
     stats: [],
-    groups: groups.map((g, i) => ({
-      name: g.name,
-      mean: v[`m_${i}`] ?? null,
-      sd: v[`s_${i}`] ?? null,
-      sem: v[`e_${i}`] ?? null,
-      median: v[`md_${i}`] ?? null,
-      n: v[`n_${i}`] ?? 0,
+    groups: describedBy(v, groups).map((g, i) => ({
+      ...g,
       ciLow: v[`lo_${i}`] ?? null,
       ciHigh: v[`hi_${i}`] ?? null,
       min: v[`min_${i}`] ?? null,

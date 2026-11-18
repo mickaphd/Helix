@@ -111,9 +111,17 @@ interface GridProps {
   update: (next: TableData, label: string, move?: TableMove) => void;
   /** Shows a grouped table's Groups panel. */
   showGroups: () => void;
+  /** A table computed from another: its values are read and copied, never typed; only its
+   *  column widths and frozen titles change. */
+  locked?: boolean;
 }
 
-export function Grid({ data, type, update, showGroups }: GridProps) {
+const LAYOUT_EDITS = new Set(["Column Width", "Keep Visible"]);
+
+export function Grid({ data, type, update: edit, showGroups, locked }: GridProps) {
+  const update: GridProps["update"] = (next, label, move) => {
+    if (!locked || LAYOUT_EDITS.has(label)) edit(next, label, move);
+  };
   const grouped = isGrouped(data);
   const replicates = data.replicates ?? 1;
   // The columns before the groups (Title, and an XY table's X), headed on both rows.
@@ -239,12 +247,13 @@ export function Grid({ data, type, update, showGroups }: GridProps) {
   };
 
   const startEdit = (r: number, c: number, value = data.rows[r]?.[c] ?? "", typed = false) => {
+    if (locked) return;
     reveal({ r, c });
     setEditing({ kind: "cell", r, c, value, typed });
     focusGrid();
   };
   const startRename = (c: number) => {
-    if (c >= data.columns.length) return; // an empty column gets its name when data is written to it
+    if (locked || c >= data.columns.length) return; // an empty column gets its name when data is written to it
     const name = data.columns[c];
     if (grouped && c >= lead) setEditing({ kind: "group", key: seriesKeyOf(name), value: seriesKeyOf(name) });
     else setEditing({ kind: "column", c, value: name });
@@ -329,7 +338,7 @@ export function Grid({ data, type, update, showGroups }: GridProps) {
   };
 
   const onPaste = (e: React.ClipboardEvent) => {
-    if (editing) return;
+    if (editing || locked) return;
     e.preventDefault();
     const block = parseTSV(e.clipboardData.getData("text/plain"));
     const single = block.length === 1 && block[0].length === 1;
@@ -469,7 +478,7 @@ export function Grid({ data, type, update, showGroups }: GridProps) {
       setSel({ anchor, focus });
       g = toRange({ anchor, focus });
     }
-    void popupMenu(gridMenu({ data, type, zone, range: g, update, rename: startRename, showGroups }));
+    void popupMenu(gridMenu({ data, type, zone, range: g, update, rename: startRename, showGroups, locked }));
   };
 
   /** Drag a header's right edge to resize its column; double-click it to fit the content. */
@@ -585,6 +594,7 @@ export function Grid({ data, type, update, showGroups }: GridProps) {
       autoFocus
       aria-label={`${headers[inputAt.c] ?? ""}, row ${inputAt.r + 1}`}
       value={cellEditing?.value ?? ""}
+      readOnly={locked}
       data-grid-idle={cellEditing ? undefined : ""}
       style={box(inputAt.c, inputAt.r * ROW_H, ROW_H)}
       className={cn(EDITOR, !cellEditing && "opacity-0")}

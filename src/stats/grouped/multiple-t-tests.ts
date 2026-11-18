@@ -8,8 +8,8 @@
 // across every row (pooled residual variance, like a single-error-term ANOVA)
 // instead of each row estimating its own. Everything, the correction across rows too,
 // is computed by R.
-import type { AnalysisOutcome, Column, MultipleTTestsParams } from "../types";
-import { describe, rBool, rVec } from "../column/base";
+import type { AnalysisOutcome, Column, ComparedCell, MultipleTTestsParams } from "../types";
+import { describe, identical, noDifference, R_DIFF, rBool, rVec, sameDifferences } from "../column/base";
 import { evalNamedVector } from "../webr";
 import { groupRows, pairedGroupRows, rowName } from "./base";
 
@@ -37,12 +37,31 @@ export async function runMultipleTTests(
     if (rows.size !== 2) return { error: "Multiple t tests need exactly 2 column groups." };
     [[name1, rowsA], [name2, rowsB]] = [...rows];
   }
-  const testable = Array.from({ length: Math.min(rowsA.length, rowsB.length) }, (_, r) => r).filter(
+  const filled = Array.from({ length: Math.min(rowsA.length, rowsB.length) }, (_, r) => r).filter(
     (r) => rowsA[r].length > 1 && rowsB[r].length > 1,
   );
-  if (testable.length === 0) {
+  if (filled.length === 0) {
     return { error: `Each row needs at least 2 ${params.paired ? "paired " : ""}replicate values in both groups.` };
   }
+  const pooled = params.gaussian && params.pooledSd;
+  // A row whose values don't vary can't be tested on its own scatter (pooled, the rows
+  // share theirs: it is the whole table's that must vary).
+  const varies = (a: number[], b: number[]) =>
+    params.paired
+      ? params.gaussian
+        ? !sameDifferences(a, b)
+        : !noDifference(a, b)
+      : params.gaussian
+        ? !(identical(a) && identical(b))
+        : !identical([...a, ...b]);
+  const testable = pooled ? filled : filled.filter((r) => varies(rowsA[r], rowsB[r]));
+  if (pooled && filled.every((r) => !varies(rowsA[r], rowsB[r]))) {
+    return { error: "No row's values vary: there is no scatter to pool into a shared SD." };
+  }
+  if (testable.length === 0) return { error: "No row's values vary: there is no scatter to test." };
+  const untested = Array.from({ length: Math.max(rowsA.length, rowsB.length) }, (_, r) => r).filter(
+    (r) => !testable.includes(r) && (rowsA[r]?.length || rowsB[r]?.length),
+  );
 
   // Each row's test, its difference of means, then the P values corrected across rows, all
   // in R. Pooled: one SD across every row (a single error term), each row's t on it.
@@ -52,8 +71,7 @@ export async function runMultipleTTests(
     params.gaussian
       ? `t.test(${a(r)},${b(r)},paired=${rBool(params.paired)})$p.value`
       : // wilcox.test warns of ties: the warning is the call's, so it wraps the call.
-        `suppressWarnings(wilcox.test(${a(r)},${b(r)},paired=${rBool(params.paired)}))$p.value`;
-  const pooled = params.gaussian && params.pooledSd;
+        `suppressWarnings(${params.paired ? `wilcox.test(dif(${a(r)},${b(r)})` : `wilcox.test(${a(r)},${b(r)}`}))$p.value`;
   const rowsR = `A<-list(${testable.map(a).join(",")});B<-list(${testable.map(b).join(",")})`;
   const raw = pooled
     ? `${rowsR};D<-if(${rBool(params.paired)})mapply(function(x,y)x-y,A,B,SIMPLIFY=FALSE) else NULL
@@ -61,7 +79,7 @@ ss<-if(is.null(D))sum(mapply(function(x,y)sum((x-mean(x))^2)+sum((y-mean(y))^2),
 dfp<-if(is.null(D))sum(lengths(A)+lengths(B)-2) else sum(lengths(D)-1)
 se2<-if(is.null(D))1/lengths(A)+1/lengths(B) else 1/lengths(D)
 pr<-2*pt(-abs(mapply(function(x,y)mean(x)-mean(y),A,B)/sqrt(ss/dfp*se2)),dfp)`
-    : `pr<-c(${testable.map(test).join(",")})`;
+    : `${R_DIFF};pr<-c(${testable.map(test).join(",")})`;
   const v = await evalNamedVector(
     `${raw}
 pa<-p.adjust(pr,"${params.correction === "fdr" ? "BH" : params.correction}")
@@ -75,6 +93,10 @@ pa<-p.adjust(pr,"${params.correction === "fdr" ? "BH" : params.correction}")
   const comparisons = testable.map((r, i) => ({
     group1: rowName(titles, r),
     group2: "",
+    cells: [
+      { group: name1, row: r },
+      { group: name2, row: r },
+    ] as [ComparedCell, ComparedCell],
     diff: v[`d_${i}`] ?? null,
     p: v[`p_${i}`] ?? null,
   }));
@@ -100,7 +122,11 @@ pa<-p.adjust(pr,"${params.correction === "fdr" ? "BH" : params.correction}")
         { name: name2, values: rowsB.flat() },
       ])
     ).groups,
-    notes: `${testLabel} at each row, ${CORRECTION_LABEL[params.correction]} across rows.`,
+    notes:
+      `${testLabel} at each row, ${CORRECTION_LABEL[params.correction]} across rows.` +
+      (untested.length
+        ? ` Not tested: ${untested.map((r) => `“${rowName(titles, r)}”`).join(", ")} (fewer than 2 values in a group, or values that don't vary).`
+        : ""),
     comparisons,
     comparisonsLabel: `Per-row comparisons (${name1} vs. ${name2})`,
   };

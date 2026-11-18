@@ -3,7 +3,7 @@
 import * as React from "react";
 import type { ProjectNode } from "../../store/types";
 import { useProjectStore } from "../../store/use-project-store";
-import { Toolbar } from "../../ui/layout";
+import { WithInspector } from "../../components/inspector";
 import { isNative, setSpinner } from "../../native";
 import { ANALYSES } from "../../stats";
 import { titleCase } from "../../lib/format";
@@ -38,10 +38,10 @@ export function AnalysisView({ node }: { node: ProjectNode }) {
   const { nodes } = useProjectStore();
   const data = node.parentId ? nodes[node.parentId]?.data : undefined;
   const outcome = useAnalysis(node.analysisType, data, node.analysisParams);
+  const { label, kind } = ANALYSES[node.analysisType!];
 
   return (
-    <>
-      <Toolbar title={node.name} tag={titleCase(ANALYSES[node.analysisType!].label)} />
+    <WithInspector title={node.name} tag={titleCase(kind?.(node.analysisParams) ?? label)} node={node}>
       <div className="flex-1 overflow-auto">
         {outcome && !("error" in outcome) ? (
           <AnalysisResultsView result={outcome} />
@@ -53,6 +53,6 @@ export function AnalysisView({ node }: { node: ProjectNode }) {
           </p>
         )}
       </div>
-    </>
+    </WithInspector>
   );
 }

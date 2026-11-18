@@ -9,6 +9,7 @@
   --chosen: #fff; /* a segmented control's chosen segment, over its track */
   --accent: #0a84ff; /* until macOS's own accent color is read (main.tsx) */
   --green: #248a3d;
+  --orange: #c93400; /* a condition that may not hold (macOS's orange, dark enough for text) */
   --excluded: #0d74ce; /* excluded cells */
   --desk: rgb(0 0 0 / 0.05); /* around a graph's sheet */
   --edge: rgb(0 0 0 / 0.25); /* around a color mark, so a white one shows (a black one in dark) */
@@ -23,6 +24,7 @@
     --surface: #2a2a2c;
     --chosen: rgb(255 255 255 / 0.2);
     --green: #30d158;
+    --orange: #ff9f0a;
     --excluded: #70b8ff;
     --desk: rgb(0 0 0 / 0.3);
     --edge: rgb(255 255 255 / 0.55);
@@ -42,6 +44,7 @@
   --color-chosen: var(--chosen);
   --color-accent: var(--accent);
   --color-support-green: var(--green);
+  --color-support-orange: var(--orange);
   --color-excluded: var(--excluded);
   --color-desk: var(--desk);
   --color-edge: var(--edge);

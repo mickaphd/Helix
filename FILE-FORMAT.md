@@ -46,7 +46,10 @@ it: your data are never locked into Helix.
 ## Items
 
 Every item has `id`, `type` (`"table"`, `"analysis"` or `"graph"`), `name`, and
-`parentId`: `null` for a table, the table's id for an analysis or a graph.
+`parentId`: `null` for a table, the table's id for an analysis or a graph. Any item may
+have `notes` (Helix 1.1.0 and later): the user's note on it, as plain text; none when empty;
+and `tags` (Helix 1.1.0 and later): the Finder's tag colors it bears, among `"red"`,
+`"orange"`, `"yellow"`, `"green"`, `"blue"`, `"purple"` and `"gray"`, in that order.
 
 ### Data table
 
@@ -88,6 +91,12 @@ Optional fields:
 | `widths` | Column widths set by the user, in pixels, by column name |
 | `freezeTitle` | `true` keeps the Title column visible while scrolling |
 
+A table computed from another (Transform or Normalize, Helix 1.1.0 and later) also has
+`transform`: `from`, the id of the table it is computed from; `kind`, `"log10"`, `"log2"`,
+`"ln"`, `"normalize"`, `"percent-of-control"` or `"z-score"`; `control`, the data set a
+percent is of; `within`, a z-score's `"set"` or `"row"`. Its `data` is computed again
+from that table when the file opens; without that table, it is an ordinary one.
+
 Files from before Helix 1.0.3 may also have `seriesColors`, a color per column (or
 group), and `pointColors`, a color per cell as `"column name#row"`, each `"blue"`,
 `"red"`, `"green"`, `"purple"`, `"orange"` or `"black"`: Helix reads them as the
@@ -110,7 +119,10 @@ from the table when the file opens, so results always match the data.
 order: columns, or a grouped table's groups. Without it, an analysis runs on all of
 them (a two-group test: the first two holding data). A linear regression's `x` (Helix
 1.0.8 and later) names its X variable in a Multiple Variables table; without it, X is the
-table's first data column.
+table's first data column. A one-way or repeated-measures ANOVA's `compared` (Helix 1.1.0
+and later) names the pairs its Bonferroni, Šidák, Holm-Šidák or Fisher's LSD comparisons
+test, each as its two data sets' names joined by a NUL character (`"Control\u0000High"`);
+without it, every pair.
 
 ### Graph
 
@@ -134,7 +146,8 @@ A graph's colors and style are its own:
 "fill": 1, "pointFill": 1, "pointSize": 7, "pointShape": "circle", "pointOutline": 1.5,
 "outline": 1.5, "outlineColor": "#000000", "pointOutlineColor": "#FFFFFF", "barGap": 0.1,
 "lineWidth": 2, "lineDash": "solid", "errorWidth": 1.5, "errorCaps": 6, "errorColor": "#000000", "errorDirection": "above",
-"legend": { "x": 0.8, "y": 0.1 }, "note": { "x": 30, "y": 40 }, "xTitleGap": 12, "yTitleGap": 2
+"legend": { "x": 0.8, "y": 0.1 }, "note": { "x": 30, "y": 40 }, "xTitleGap": 12, "yTitleGap": 2,
+"refLines": [{ "value": 3, "dash": "dash", "width": 1, "color": "#888888", "label": "Sham" }]
 ```
 
 - `palette`: which palette (`src/lib/palettes.ts`, or one of the user's own, named as
@@ -176,6 +189,17 @@ A graph's colors and style are its own:
   as a fraction of the plot area from its bottom-left corner; the note (a fit's
   equation), in pixels from the plot's top-left corner, `y` downward. Without them,
   each sits in its usual place.
+- `sets` (Helix 1.1.0 and later): the data sets the graph shows, by name (columns, a
+  grouped table's groups, an XY or Survival table's Y data sets), in the table's order;
+  without it, all of them. Each keeps the color of its place in the table. A name the
+  table no longer has is left out; none left, the graph says so.
+- `refLines` (Helix 1.1.0 and later): lines across the plot at values of its value axis
+  (Y; X on horizontal bars), ten at most, each with its `value` (in the axis's units),
+  `dash` (as a series' `dash`), `width` (0.5 to 6 pixels), `color` (none: the axes') and
+  `label`, the text at its end (none: no text), and `labelPlace` (`"top-right"`, none,
+  `"top-left"`, `"bottom-right"` or `"bottom-left"`: above or below a horizontal line, at
+  its right or left end; at the top or bottom of a vertical one, right or left of it). A
+  line without a number is left out.
 - `xTitleGap`, `yTitleGap`: the space in pixels between each axis title and its tick
   labels, 0 to 40.
 - `xScale`, `yScale` (Helix 1.0.9 and later): `"linear"`, `"log10"` or `"log2"`, each axis's

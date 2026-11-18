@@ -9,7 +9,17 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { serializeProjectFile, type ProjectFilePayload } from "../src/lib/project-file";
-import type { GraphOptions, GraphType, ProjectNode, TableData, TableType } from "../src/store/types";
+import {
+  TAG_COLORS,
+  type GraphOptions,
+  type GraphType,
+  type ProjectNode,
+  type TableData,
+  type TableType,
+  type TagColor,
+  type Transform,
+} from "../src/store/types";
+import { transformTable } from "../src/lib/transform";
 import { newGraphOptions } from "../src/views/graphs";
 import { paletteNamed, savedPalette, reversedPalette } from "../src/lib/palettes";
 import { pairKey, pointKeyOf } from "../src/lib/columns";
@@ -71,6 +81,18 @@ function graph(table: string, id: string, name: string, graphType: GraphType, op
   };
   childOrder[table].push(id);
 }
+/** A table computed from another (Transform or Normalize), right after it, as Helix places it. */
+function transformed(id: string, name: string, from: string, how: Omit<Transform, "from">) {
+  const source = nodes[from];
+  const transform = { from, ...how };
+  table(id, name, source.tableType!, transformTable(source.data!, source.tableType!, transform));
+  nodes[id].transform = transform;
+}
+/** An item's note, as typed in its right panel. */
+const note = (id: string, notes: string) => void (nodes[id].notes = notes);
+/** An item's tags, as the Finder's, in its order (as a file keeps them). */
+const tag = (id: string, ...tags: TagColor[]) =>
+  void (nodes[id].tags = (Object.keys(TAG_COLORS) as TagColor[]).filter((c) => tags.includes(c)));
 /** The options of a graph taking another palette than its type's. */
 const palette = (name: string) => ({ palette: savedPalette(paletteNamed(name)!) });
 /** Rows from columns of values (`null` = empty cell), with optional row titles. */
@@ -269,6 +291,33 @@ const arms = (...names: string[]) => ({
     outlineColor: "#000000",
     ...arms(...groups),
   });
+  // Before the ANOVA, whether each arm's volumes look normal (supplementary figure).
+  graph("t-volume", "g-volume-qq", "QQ plot", "qq-plot", {
+    yLabel: "Tumor volume at day 21 (mm³)",
+    ...arms(...groups),
+    ...POINTS,
+  });
+  note(
+    "t-volume",
+    "Mouse 4's 86 mm³ (HLX-101 10 mg/kg) is excluded: its tumor ulcerated on day 18 and was measured after resection. " +
+      "Mouse 7 (vehicle) is the outlier ROUT finds; it stays in the analysis.",
+  );
+  note("g-volume-bars", "Figure 2B.");
+  // The same volumes as a percent of the vehicle's mean, following the table.
+  transformed("t-volume-pct", "Tumor volume, day 21 (mm³), % of control", "t-volume", {
+    kind: "percent-of-control",
+    control: VEHICLE,
+  });
+  graph("t-volume-pct", "g-volume-pct", "Bars, % of vehicle", "individual", {
+    bars: true,
+    fill: 0.6,
+    error: "sem",
+    errorColor: "#000000",
+    outlineColor: "#000000",
+    yLabel: "Tumor volume (% of vehicle)",
+    ...arms(...groups),
+    ...POINTS,
+  });
 }
 
 {
@@ -318,8 +367,11 @@ const arms = (...names: string[]) => ({
     ...arms(...groups),
     series: { ...arms(...groups).series, [COMBO]: { color: ARM_COLORS[COMBO], dash: "dash", shape: "square" } },
   });
+  // Each day's arms compared, as group letters: arms sharing one don't differ.
   graph("t-il6", "g-il6-bars", "Interleaved bars", "grouped-bars", {
     yLabel: "IL-6 (pg/mL)",
+    sigAnalysisId: "a-il6",
+    sigDisplay: "letters",
     outlineColor: "#000000",
     errorDirection: "above",
     errorColor: "#000000",
@@ -377,6 +429,7 @@ const arms = (...names: string[]) => ({
   graph("t-surv", "g-surv", "Kaplan-Meier curves", "survival", {
     xLabel: "Days after the first dose",
     survivalShowBand: true,
+    survivalAtRisk: true,
     ...arms(...groups),
   });
 }
@@ -469,12 +522,17 @@ const TOP_GENES = ["CDKN1A", "GADD45A", "BAX", "PMAIP1", "TP53I3", "MYC", "CCND1
   const times = ["Baseline", "Week 4", "Week 8"];
   const patients = range(12).map((i) => `Patient ${String(i + 1).padStart(2, "0")}`);
   const baseline = patients.map(() => normal(38, 9));
-  const columns = [1, 0.74, 0.52].map((f) => baseline.map((b) => fixed(Math.max(2, b * f + normal(0, 3)), 1)));
+  const columns: (string | null)[][] = [1, 0.74, 0.52].map((f) =>
+    baseline.map((b) => fixed(Math.max(2, b * f + normal(0, 3)), 1)),
+  );
+  // Two patients missed their week 8 biopsy: a mixed-effects model keeps their other values.
+  columns[2][4] = columns[2][9] = null;
   table("t-ki67", "Ki-67 index, paired biopsies (%)", "column", {
     columns: ["Title", ...times],
     rows: rows(columns, patients),
   });
-  analysis("t-ki67", "a-ki67", "Repeated-measures ANOVA + Tukey", "rm-anova", { posthoc: "tukey", sphericity: false });
+  analysis("t-ki67", "a-ki67", "Mixed-effects model + Tukey", "rm-anova", { posthoc: "tukey", mixed: true });
+  note("t-ki67", "Patients 05 and 10 missed the week 8 biopsy (progression); their other biopsies count.");
   graph("t-ki67", "g-ki67", "Mean ± SD over time", "mean-error", {
     shape: "line",
     error: "sd",
@@ -600,6 +658,28 @@ const TOP_GENES = ["CDKN1A", "GADD45A", "BAX", "PMAIP1", "TP53I3", "MYC", "CCND1
     series: { Response: { color: ARM_COLORS[DRUG] } },
   });
 }
+
+// ── Tags ─────────────────────────────────────────────────────────────────
+
+// As a lab would: red, the key results; green, the paper's figures; blue, the supplementary
+// ones; yellow, to check again; purple, shared with the clinical team. Some take several.
+tag("a-viab-cmp", "red");
+tag("a-volume", "red");
+tag("a-surv", "red", "purple");
+tag("a-response", "red", "purple");
+tag("g-viab", "green");
+tag("g-volume-bars", "green");
+tag("g-il6-bars", "green", "yellow");
+tag("g-surv", "green", "purple");
+tag("g-rnaseq", "green", "blue", "purple");
+tag("g-volume-qq", "blue");
+tag("g-volume-violin", "blue");
+tag("g-genes", "blue");
+tag("g-markers-ki67", "blue");
+tag("t-ki67", "yellow");
+tag("a-ki67", "red", "yellow");
+tag("a-pk", "yellow");
+tag("g-exposure", "purple");
 
 // ── Output ───────────────────────────────────────────────────────────────
 

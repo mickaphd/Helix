@@ -8,12 +8,13 @@ import {
   type Place,
   type PointShape,
   type PointStyle,
+  type RefLabelPlace,
 } from "../../store/types";
 import { xyPoints, xyRows, type Column, type DataSet } from "../../lib/dataset";
 import { pointKeyOf } from "../../lib/columns";
 import type { GraphFigure } from ".";
 import { paletteColor, paletteOf, withOpacity } from "../../lib/palettes";
-import { mean, median, sd, sem } from "../../lib/summary";
+import { boxOf, mean, median, sd, sem } from "../../lib/summary";
 import { tCrit95 } from "../../lib/student-t";
 
 export const INK = "#111827"; // axes + titles only
@@ -75,9 +76,16 @@ const outlineOf = (chosen: string | undefined, color: string) => (!chosen || cho
 
 /** A series takes its color picked by hand, else the palette's for its place
  *  (`index` among `count`). */
-export function paintOf(options: GraphOptions, count: number): Paint {
+export function paintOf(options: GraphOptions, count: number, order?: string[]): Paint {
   const palette = paletteOf(options);
-  const color = (key: string, index: number) => options.series?.[key]?.color ?? paletteColor(palette, index, count);
+  // A series takes its place in `order` (the table's series), so it keeps its color in a
+  // graph showing only some of them; else its place in the graph.
+  const place = (key: string, index: number) => {
+    const at = order?.indexOf(key) ?? -1;
+    return at >= 0 ? at : index;
+  };
+  const color = (key: string, index: number) =>
+    options.series?.[key]?.color ?? paletteColor(palette, place(key, index), count);
   const shape = (key: string) => options.series?.[key]?.shape ?? options.pointShape;
   const outlineColor = (c: string, own?: string) => outlineOf(own ?? options.pointOutlineColor, c);
   const errorColor = (key: string, index: number) => options.errorColor ?? color(key, index);
@@ -162,6 +170,23 @@ export function seriesPoints(paint: Paint, key: string, index: number, pointKeys
       symbol: styles.map((s) => s.shape),
       line: { color: styles.map((s) => s.outlineColor), width: styles.map((s) => s.outline) },
     },
+  };
+}
+
+/** A column's individual points at its place `i` on the axis, jittered, each styled. */
+export function columnPoints(paint: Paint, c: Column, i: number) {
+  return {
+    type: "scatter",
+    mode: "markers",
+    x: c.values.map((_, vi) => i + jitter(i, vi)),
+    y: c.values,
+    ...seriesPoints(
+      paint,
+      c.name,
+      i,
+      c.rows.map((r) => pointKeyOf(c.name, r)),
+    ),
+    hoverinfo: "y",
   };
 }
 
@@ -336,6 +361,21 @@ export function xyDrawn(
   };
 }
 
+/** Boxes at `x`, one per list of values, as Helix computes them (`boxOf`: the quartiles of
+ *  Descriptive statistics, whiskers to the minimum and maximum): Plotly only draws them. */
+export function boxTrace(x: number[], values: number[][]) {
+  const boxes = values.map(boxOf);
+  const field = (k: keyof (typeof boxes)[number]) => boxes.map((b) => b[k]);
+  return {
+    x,
+    q1: field("q1"),
+    median: field("median"),
+    q3: field("q3"),
+    lowerfence: field("lowerfence"),
+    upperfence: field("upperfence"),
+  };
+}
+
 /** Error magnitude per column (SD, SEM or 95% CI), or null when error is off. */
 export const errors = (cols: Column[], kind: GraphOptions["error"]) =>
   kind === "none" ? null : cols.map((c) => errorOf(c.values, kind));
@@ -485,6 +525,62 @@ const xAxisRange = (options: GraphOptions, zeroBase?: boolean) =>
 /** Where a label goes on an axis of this scale: Plotly places shapes and traces at
  *  their values, but texts (annotations) at the log10 of them on a log axis. */
 export const onAxis = (v: number, scale: GraphOptions["xScale"]) => (scale === "linear" ? v : Math.log10(v));
+
+/** Where a reference line's text sits: at the line's end (`place`'s right or left: the
+ *  plot's right or left edge; on a vertical line, its top or bottom), on the side the
+ *  place says (top: above a horizontal line, right of a vertical one), at `at` on the axis. */
+function labelAt(place: RefLabelPlace, at: number, vertical: boolean) {
+  const [top, right] = [place.startsWith("top"), place.endsWith("right")];
+  return vertical
+    ? {
+        x: at,
+        y: top ? 1 : 0,
+        xanchor: right ? "left" : "right",
+        yanchor: top ? "top" : "bottom",
+        xshift: right ? 3 : -3,
+      }
+    : {
+        x: right ? 1 : 0,
+        y: at,
+        xanchor: right ? "right" : "left",
+        yanchor: top ? "bottom" : "top",
+        yshift: top ? 1 : -1,
+      };
+}
+
+/** Reference lines across the plot at values of its value axis (Y; X when `horizontal`):
+ *  Plotly shapes at their values, their texts at their end, at the log10 of the value on a
+ *  log axis (`onAxis`); a value a log axis can't show (0 and under) isn't drawn. */
+export function refLineParts(
+  options: GraphOptions,
+  horizontal: boolean,
+): { shapes: unknown[]; annotations: unknown[] } {
+  const lines = (options.refLines ?? []).filter((l) => options.yScale === "linear" || l.value > 0);
+  const [value, across] = horizontal ? (["x", "y"] as const) : (["y", "x"] as const);
+  return {
+    shapes: lines.map((l) => ({
+      type: "line",
+      [`${across}ref`]: "paper",
+      [`${across}0`]: 0,
+      [`${across}1`]: 1,
+      [`${value}ref`]: value,
+      [`${value}0`]: l.value,
+      [`${value}1`]: l.value,
+      line: { color: l.color ?? INK, width: l.width, dash: l.dash },
+      layer: "above",
+    })),
+    annotations: lines
+      .filter((l) => l.label)
+      .map((l) => ({
+        text: l.label,
+        showarrow: false,
+        font: { family: FONT, size: options.fontSize, color: l.color ?? INK },
+        [`${across}ref`]: "paper",
+        [`${value}ref`]: value,
+        ...labelAt(l.labelPlace ?? "top-right", onAxis(l.value, options.yScale), horizontal),
+      })),
+  };
+}
 
 /** Common white publication-style layout; numeric x with column-name ticks (Column family). */
 export function baseLayout(

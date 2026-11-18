@@ -4,8 +4,7 @@
 import type { GraphOptions } from "../../store/types";
 import type { GraphModule, GraphFigure } from ".";
 import type { Column } from "../../lib/dataset";
-import { baseLayout, centers, COLUMN_BAR, errors, jitter, seriesPoints, type Paint } from "./plot-helpers";
-import { pointKeyOf } from "../../lib/columns";
+import { baseLayout, centers, columnPoints, COLUMN_BAR, errors, type Paint } from "./plot-helpers";
 
 function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFigure {
   const center = centers(columns, options.center);
@@ -48,19 +47,7 @@ function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFig
     }
 
     // This column's individual points.
-    data.push({
-      type: "scatter",
-      mode: "markers",
-      x: c.values.map((_, vi) => i + jitter(i, vi)),
-      y: c.values,
-      ...seriesPoints(
-        paint,
-        c.name,
-        i,
-        c.rows.map((r) => pointKeyOf(c.name, r)),
-      ),
-      hoverinfo: "y",
-    });
+    data.push(columnPoints(paint, c, i));
   });
 
   return {

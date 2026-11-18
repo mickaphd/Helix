@@ -42,16 +42,25 @@ import {
   withoutColors,
 } from "../src/lib/palettes";
 import { deletePalette, keepPalette, loadMyPalettes } from "../src/store/my-palettes";
-import { GRAPHS, newGraphOptions, plotColumns, type GraphFigure } from "../src/views/graphs";
+import {
+  choosableSets,
+  GRAPHS,
+  graphSeries,
+  newGraphOptions,
+  plotColumns,
+  type GraphFigure,
+} from "../src/views/graphs";
 import { readTable, setColumns, splitXY, xyPoints } from "../src/lib/dataset";
 import { incompleteRows, missingColumn } from "../src/stats/column/base";
-import { toggled, WIZARDS, type Answers } from "../src/views/analyses/wizards";
+import { answersFor, toggled, WIZARDS, type Answers } from "../src/views/analyses/wizards";
 import { addRegression } from "../src/views/graphs/regression-overlay";
+import { starsFit } from "../src/views/graphs/significance-overlay";
 import {
   addNote,
   curveXs,
   movedText,
   paintOf,
+  refLineParts,
   vectorTraces,
   visibleOutline,
   withCaps,
@@ -70,18 +79,25 @@ import {
 import { cutoffAsP, cutoffOfP, genesNamed } from "../src/views/graphs/volcano";
 import { examplesFor, matched, type Matched } from "../src/views/graphs/match-graph";
 import type { OutlineNode } from "../src/store/use-project-store";
-import { addSignificance, deriveComparisons } from "../src/views/graphs/significance-overlay";
+import {
+  addSignificance,
+  compactLetters,
+  deriveComparisons,
+  lettersFit,
+} from "../src/views/graphs/significance-overlay";
 import { headline } from "../src/views/analyses/analysis-results-view";
 import { fitWidths } from "../src/store/use-layout";
 import { computeGroupedDEG } from "../src/lib/deg";
 import { runAnalysis } from "../src/stats";
 import { makeInitialState, reducer } from "../src/store/use-project-store";
+import { transformTable } from "../src/lib/transform";
+import { TRANSFORM_WIZARD } from "../src/views/analyses/wizards";
 import { titleCase } from "../src/lib/format";
 import { loadRecents } from "../src/store/recents";
 import { largestAt, withDpi } from "../src/lib/image-dpi";
 import { crc32 } from "node:zlib";
 import { readFileSync } from "node:fs";
-import type { AnalysisOutcome, AnalysisParams, LinearRegressionParams } from "../src/stats/types";
+import type { AnalysisOutcome, AnalysisParams, AnovaParams, LinearRegressionParams } from "../src/stats/types";
 
 const checks: [string, () => void | Promise<void>][] = [];
 const check = (name: string, fn: () => void | Promise<void>) => checks.push([name, fn]);
@@ -679,9 +695,56 @@ check("comparing groups asks equal SDs, then offers the comparisons that fit and
     return q?.kind === "choice" ? q.options.map((o) => o.value) : [];
   };
   const unpaired = { paired: "unpaired", gaussian: "yes" };
-  deepStrictEqual(offered({ ...unpaired, equalSd: "yes" }), ["none", "tukey", "bonferroni", "dunnett"]);
+  const pairwise = ["bonferroni", "sidak", "holm-sidak", "fisher"];
+  deepStrictEqual(offered({ ...unpaired, equalSd: "yes" }), ["none", "tukey", "dunnett", ...pairwise]);
   deepStrictEqual(offered({ ...unpaired, equalSd: "no" }), ["none", "games-howell", "t3"]);
-  deepStrictEqual(offered({ paired: "paired", gaussian: "yes" }), ["none", "tukey", "bonferroni"]);
+  deepStrictEqual(offered({ paired: "paired", gaussian: "yes" }), ["none", "tukey", ...pairwise]);
+  // Subjects missing values: a mixed-effects model is asked (sphericity then assumed, not asked).
+  const gapped = readTable({
+    columns: ["Title", "A", "B", "C"],
+    rows: [
+      ["", "1", "2", "3"],
+      ["", "2", null, "4"],
+    ],
+  });
+  const paired = { paired: "paired", gaussian: "yes" };
+  const ids = (t: typeof table, a: Answers) => wizard.questions(a, t).flatMap((q) => (q ? [q.id] : []));
+  ok(!ids(table, paired).includes("mixed") && ids(table, paired).includes("sphericity"));
+  ok(ids(gapped, paired).includes("mixed") && !ids(gapped, paired).includes("sphericity"));
+  ok(ids(gapped, { ...paired, mixed: "no" }).includes("sphericity"));
+  deepStrictEqual(wizard.finish({ ...paired, mixed: "yes", posthoc: "none" }, gapped).params, {
+    posthoc: "none",
+    mixed: true,
+  });
+  // Geometric means are asked of an unpaired ANOVA alone, and kept only from it.
+  ok(asked(unpaired).some((q) => q.id === "lognormal"));
+  ok(!asked({ paired: "paired", gaussian: "yes" }).some((q) => q.id === "lognormal"));
+  strictEqual(
+    (wizard.finish({ ...unpaired, lognormal: "yes", equalSd: "yes", posthoc: "none" }, table).params as AnovaParams)
+      .lognormal,
+    true,
+  );
+  strictEqual(
+    (
+      wizard.finish({ paired: "paired", gaussian: "yes", lognormal: "yes", posthoc: "none" }, table)
+        .params as AnovaParams
+    ).lognormal,
+    undefined,
+  );
+  // A correction of chosen pairs asks which (all ticked), and keeps the ticked ones by key.
+  const pairsQ = asked({ ...unpaired, equalSd: "yes", posthoc: "sidak" }).find((q) => q.id === "compared");
+  deepStrictEqual(pairsQ?.kind === "names" ? pairsQ.options : [], ["A vs. B", "A vs. C", "B vs. C"]);
+  deepStrictEqual(
+    wizard.finish({ ...unpaired, equalSd: "yes", posthoc: "sidak", compared: ["A vs. C"] } as Answers, table).params,
+    { posthoc: "sidak", equalSd: true, compared: [pairKey("A", "C")] },
+  );
+  deepStrictEqual(
+    wizard.finish(
+      { ...unpaired, equalSd: "yes", posthoc: "sidak", compared: ["A vs. B", "A vs. C", "B vs. C"] } as Answers,
+      table,
+    ).params,
+    { posthoc: "sidak", equalSd: true },
+  );
   ok(!asked({ paired: "paired", gaussian: "yes" }).some((q) => q.id === "equalSd"));
   ok(asked({ paired: "paired", gaussian: "yes" }).some((q) => q.id === "sphericity"));
   ok(!asked({ ...unpaired }).some((q) => q.id === "sphericity"));
@@ -726,6 +789,26 @@ check("a two-way ANOVA of one value per cell asks nothing and runs the ordinary 
     posthocTarget: "groups",
     sphericity: false,
   });
+  // Dunnett and Games-Howell follow the ordinary design alone; Dunnett asks its control,
+  // a group or a row.
+  const methods = (design: string) => {
+    const q = wizard.questions({ design }, replicated).find((q) => q && q.id === "posthoc");
+    return q && q.kind === "choice" ? q.options.map((o) => o.value) : [];
+  };
+  ok(methods("ordinary").includes("dunnett") && methods("ordinary").includes("games-howell"));
+  ok(!methods("repeated-measures").includes("dunnett") && !methods("repeated-measures").includes("games-howell"));
+  const control = (posthocTarget: string) => {
+    const q = wizard
+      .questions({ design: "ordinary", posthoc: "dunnett", posthocTarget }, replicated)
+      .find((q) => q && q.id === "control");
+    return q && q.kind === "choice" ? q.options.map((o) => o.value) : [];
+  };
+  deepStrictEqual(control("groups"), ["A", "B"]);
+  deepStrictEqual(control("rows"), ["a"]);
+  deepStrictEqual(
+    wizard.finish({ design: "ordinary", posthoc: "dunnett", posthocTarget: "rows", control: "a" }, replicated).params,
+    { design: "ordinary", posthoc: "dunnett", posthocTarget: "rows", control: "a" },
+  );
 });
 
 check("fitting a curve asks its kind, then its model, then what to compare", () => {
@@ -767,6 +850,21 @@ check("fitting a curve asks its kind, then its model, then what to compare", () 
     y: "A",
     model: "line",
   });
+  // Another effective concentration, of a dose-response curve fitted on its own (an IC of an inhibitor's).
+  deepStrictEqual(options({ ys: ["A"], kind: "dose", model: "inhibitor-3pl-logx", compareWith: "none" }, "ecx"), [
+    "none",
+    "10",
+    "20",
+    "80",
+    "90",
+  ]);
+  ok(!asked({ ys: ["A"], kind: "other" }).some((q) => q.id === "ecx"));
+  ok(!asked({ ys: ["A"], kind: "dose", compareWith: "B" }).some((q) => q.id === "ecx"));
+  deepStrictEqual(
+    wizard.finish({ ys: ["A"], kind: "dose", model: "sigmoidal-4pl-logx", compareWith: "none", ecx: "80" }, table)
+      .params,
+    { y: "A", model: "sigmoidal-4pl-logx", ecx: 80 },
+  );
 });
 
 check("data sets ticked again keep the table's order", () => {
@@ -923,7 +1021,354 @@ check("deleting a column drops its points' styles, even with no move given", () 
   deepStrictEqual(s.nodes.g9.graphOptions!.points, { "A#0": { size: 9 } });
 });
 
+check("a note is kept in the file as text, undone in one step, and gone once emptied", () => {
+  const file = JSON.parse(serializeProjectFile(payload));
+  file.project.nodes.t1.notes = "Mouse 7 left out: it died on day 3.";
+  file.project.nodes.g1.notes = 42; // not text: no note
+  const { project } = read(JSON.stringify(file));
+  strictEqual(project.nodes.t1.notes, "Mouse 7 left out: it died on day 3.");
+  strictEqual(project.nodes.g1.notes, undefined);
+  strictEqual(read(serializeProjectFile(project)).project.nodes.t1.notes, "Mouse 7 left out: it died on day 3.");
+  let s = makeInitialState();
+  const id = s.rootOrder[0];
+  for (const [k, text] of ["M", "Mo", "Mou"].entries())
+    s = reducer(s, { type: "setNotes", id, notes: text, at: 1000 + k * 100 });
+  strictEqual(s.nodes[id].notes, "Mou");
+  strictEqual(s.past.length, 1, "a burst of typing is one Undo step");
+  s = reducer(s, { type: "setNotes", id, notes: "", at: 9000 });
+  ok(!("notes" in s.nodes[id]), "an emptied note is none");
+  s = reducer(s, { type: "undo" });
+  strictEqual(s.nodes[id].notes, "Mou");
+  s = reducer(s, { type: "undo" });
+  strictEqual(s.nodes[id].notes, undefined);
+});
+
+check("tags are the Finder's colors, kept in their order, undone, and none once all are taken away", () => {
+  const file = JSON.parse(serializeProjectFile(payload));
+  file.project.nodes.t1.tags = ["Blue", "red", "pink", "blue"]; // any case, unknown and repeated left out
+  file.project.nodes.g1.tags = "red"; // not a list: no tag
+  const { project } = read(JSON.stringify(file));
+  deepStrictEqual(project.nodes.t1.tags, ["red", "blue"]);
+  strictEqual(project.nodes.g1.tags, undefined);
+  deepStrictEqual(read(serializeProjectFile(project)).project.nodes.t1.tags, ["red", "blue"]);
+  let s = makeInitialState();
+  const id = s.rootOrder[0];
+  s = reducer(s, { type: "setTags", id, tags: ["green"] });
+  deepStrictEqual(s.nodes[id].tags, ["green"]);
+  s = reducer(s, { type: "setTags", id, tags: [] });
+  ok(!("tags" in s.nodes[id]));
+  s = reducer(s, { type: "undo" });
+  deepStrictEqual(s.nodes[id].tags, ["green"]);
+});
+
+// ── Tables computed from another ────────────────────────────────────────
+
+const cellsOf = (data: TableData) => data.rows.map((row) => row.slice(1));
+
+check("a transformed table transforms each value, its X, titles and exclusions kept", () => {
+  const column: TableData = {
+    columns: ["Title", "Ctrl", "Drug"],
+    rows: [
+      ["a", "10", "100"],
+      ["b", "0", "text"],
+      ["c", "1000", "-1"],
+      ["d", "100", "50"],
+    ],
+    excluded: ["3,1"], // Ctrl's 100: transformed, still excluded, in no mean
+  };
+  const t = (kind: string, more = {}) =>
+    transformTable(column, "column", { from: "t", kind, ...more } as Parameters<typeof transformTable>[2]);
+  deepStrictEqual(cellsOf(t("log10")), [
+    ["1", "2"],
+    [null, null],
+    ["3", null],
+    ["2", "1.698970004"],
+  ]);
+  deepStrictEqual(
+    t("log10").rows.map((r) => r[0]),
+    ["a", "b", "c", "d"],
+  );
+  deepStrictEqual(t("log10").excluded, ["3,1"]);
+  // Ctrl: 0 to 1000 (its 100 excluded); Drug: −1 to 100.
+  deepStrictEqual(cellsOf(t("normalize")), [
+    ["1", "100"],
+    ["0", null],
+    ["100", "0"],
+    ["10", "50.4950495"],
+  ]);
+  // Of Ctrl's mean, (10 + 0 + 1000) / 3.
+  deepStrictEqual(cellsOf(t("percent-of-control", { control: "Ctrl" }))[0], ["2.97029703", "29.7029703"]);
+  const z = cellsOf(t("z-score", { within: "set" }));
+  strictEqual(z[1][0], "-0.5860318449"); // (0 − 336.67) / 574.48
+  // A row's z-scores are of its own values; one value has none.
+  deepStrictEqual(cellsOf(t("z-score", { within: "row" }))[0], ["-0.7071067812", "0.7071067812"]);
+  deepStrictEqual(cellsOf(t("z-score", { within: "row" }))[1], [null, null]);
+
+  const xy: TableData = {
+    columns: ["Title", "X", "A", "B"],
+    rows: [
+      [null, "0", "2", "4"],
+      [null, "-1", "3", "9"],
+    ],
+  };
+  const percent = transformTable(xy, "xy", { from: "t", kind: "percent-of-control", control: "A" });
+  deepStrictEqual(cellsOf(percent), [
+    ["0", "100", "200"],
+    ["-1", "100", "300"],
+  ]); // X kept, A's row by row
+  const g = grouped(); // A: a1 a2 a3, Treated: (b1 excluded) b2 b3 — none numbers
+  deepStrictEqual(cellsOf(transformTable(g, "grouped", { from: "t", kind: "log2" })), [
+    [null, null, null, null, null, null],
+  ]);
+  deepStrictEqual(transformTable(g, "grouped", { from: "t", kind: "log2" }).groups, g.groups);
+});
+
+check("a transformed table follows its table, renames reach its analyses, and it outlives it", () => {
+  let s = makeInitialState();
+  const source = s.rootOrder[0];
+  s = reducer(s, { type: "updateTable", id: source, data: treatments(["A", "B"]), label: "Typing" });
+  const derived = (id: string, from: string, kind: string): ProjectNode => ({
+    id,
+    type: "table",
+    name: `x (${kind})`,
+    parentId: null,
+    tableType: "column",
+    transform: { from, kind } as ProjectNode["transform"],
+    data: transformTable(s.nodes[from].data!, "column", { from, kind } as NonNullable<ProjectNode["transform"]>),
+  });
+  s = reducer(s, { type: "create", node: { ...table, id: "other", tableType: "column", data: treatments(["Q"]) } });
+  s = reducer(s, { type: "create", node: derived("log", source, "log10") });
+  deepStrictEqual(s.rootOrder, [source, "log", "other"]); // right after its table
+  strictEqual(s.nodes.log.name, "x (log10)"); // no "Table N" numbering
+  s = reducer(s, { type: "create", node: derived("z", "log", "normalize") }); // of the transformed one
+  s = reducer(s, {
+    type: "create",
+    node: { ...graph, id: "gz", parentId: "z", graphOptions: { ...graph.graphOptions!, sets: ["A"] } },
+  });
+  s = reducer(s, {
+    type: "updateTable",
+    id: source,
+    data: {
+      columns: ["Title", "Ctrl", "B"],
+      rows: [
+        [null, "10", "1000"],
+        [null, "100", "10"],
+      ],
+    },
+    label: "Rename Column",
+    move: { renamed: { A: "Ctrl" } },
+  });
+  deepStrictEqual(cellsOf(s.nodes.log.data!), [
+    ["1", "3"],
+    ["2", "1"],
+  ]);
+  deepStrictEqual(cellsOf(s.nodes.z.data!), [
+    ["0", "100"],
+    ["100", "0"],
+  ]);
+  deepStrictEqual(s.nodes.gz.graphOptions!.sets, ["Ctrl"]);
+  s = reducer(s, { type: "remove", id: source });
+  strictEqual(s.nodes.log.transform, undefined); // its values stay, typed from now on
+  deepStrictEqual(cellsOf(s.nodes.log.data!), [
+    ["1", "3"],
+    ["2", "1"],
+  ]);
+  ok(s.nodes.z.transform);
+  s = reducer(s, { type: "undo" });
+  ok(s.nodes.log.transform);
+});
+
+check("a transformed table's file is read safely and computed again from its table", () => {
+  const file = JSON.parse(serializeProjectFile(payload));
+  const nodes = file.project.nodes;
+  const t1 = nodes.t1;
+  nodes.d1 = { ...t1, id: "d1", name: "Log", transform: { from: "t1", kind: "LOG10" }, data: { ...t1.data } };
+  nodes.d2 = { ...t1, id: "d2", name: "Gone", transform: { from: "nowhere", kind: "ln" } };
+  nodes.d3 = { ...t1, id: "d3", name: "Loop", transform: { from: "d4", kind: "ln" } };
+  nodes.d4 = { ...t1, id: "d4", name: "Loop 2", transform: { from: "d3", kind: "ln" } };
+  nodes.d5 = { ...t1, id: "d5", name: "No control", transform: { from: "t1", kind: "percent-of-control" } };
+  nodes.d6 = { ...t1, id: "d6", name: "Z", transform: { from: "t1", kind: "z-score", within: "cols" } };
+  nodes.g1.transform = { from: "t1", kind: "ln" }; // a table's alone
+  const { project, updated } = read(JSON.stringify(file));
+  const n = project.nodes;
+  deepStrictEqual(n.d1.transform, { from: "t1", kind: "log10" });
+  deepStrictEqual(n.d1.data, transformTable(n.t1.data!, "xy", n.d1.transform!));
+  strictEqual(n.d2.transform, undefined);
+  ok(Boolean(n.d3.transform) !== Boolean(n.d4.transform)); // the loop is cut once
+  strictEqual(n.d5.transform, undefined);
+  deepStrictEqual(n.d6.transform, { from: "t1", kind: "z-score", within: "set" });
+  strictEqual(n.g1.transform, undefined);
+  ok(updated);
+  const again = read(serializeProjectFile(project));
+  strictEqual(again.updated, false);
+});
+
+check("a contingency table's test is asked on a 2 × 2 and on 2 columns of 3 rows or more", () => {
+  const wizard = WIZARDS["chi-square"]!;
+  const shaped = (rows: number, cols: number) =>
+    readTable({
+      columns: ["Title", ...Array.from({ length: cols }, (_, c) => `C${c}`)],
+      rows: Array.from({ length: rows }, (_, r) => [`R${r}`, ...Array.from({ length: cols }, () => "3")]),
+    });
+  const tests = (rows: number, cols: number) =>
+    wizard
+      .questions({}, shaped(rows, cols))
+      .flatMap((q) => (q && q.kind === "choice" ? q.options.map((o) => o.value) : []));
+  deepStrictEqual(tests(2, 2), ["fisher", "yates", "chi-square"]);
+  deepStrictEqual(tests(4, 2), ["chi-square", "trend"]);
+  deepStrictEqual(tests(3, 3), []);
+  deepStrictEqual(wizard.finish({ test: "trend" }, shaped(4, 2)), { type: "chi-square", params: { test: "trend" } });
+});
+
+check("Transform or Normalize asks how, then a percent's control (never X) or a z-score's span", () => {
+  const xy = readTable({ columns: ["Title", "X", "A", "B"], rows: [[null, "1", "2", "3"]] });
+  const asked = (a: Answers) => TRANSFORM_WIZARD.questions(a, xy, "xy").filter(Boolean);
+  deepStrictEqual(asked({}).length, 1);
+  const control = asked({ kind: "percent-of-control" })[1];
+  deepStrictEqual(control && control.kind === "choice" && control.options.map((o) => o.value), ["A", "B"]);
+  deepStrictEqual(TRANSFORM_WIZARD.finish({ kind: "percent-of-control", control: "B" }), {
+    kind: "percent-of-control",
+    control: "B",
+  });
+  deepStrictEqual(TRANSFORM_WIZARD.finish({ kind: "z-score", within: "row" }), { kind: "z-score", within: "row" });
+  deepStrictEqual(TRANSFORM_WIZARD.finish({ kind: "ln", control: "B" }), { kind: "ln" });
+});
+
 // ── Graphs ───────────────────────────────────────────────────────────────
+
+check("reference lines are read safely, saved as they are, and drawn on the value axis", () => {
+  const file = JSON.parse(serializeProjectFile(payload));
+  const lines = [
+    { value: 3, dash: "dot", width: 2, color: "#D55E00", label: "Sham" },
+    { value: "3", dash: "dash" }, // not a number: left out
+    { value: 1e400 }, // Infinity: left out
+    { value: 5, dash: "zigzag", width: 99, color: "red", label: 7 }, // put straight
+    ...Array.from({ length: 20 }, (_, i) => ({ value: i })), // ten lines at most
+  ];
+  file.project.nodes.g1.graphOptions.refLines = lines;
+  const read1 = read(JSON.stringify(file)).project;
+  const got = read1.nodes.g1.graphOptions!.refLines!;
+  strictEqual(got.length, 10);
+  deepStrictEqual(got[0], { value: 3, dash: "dot", width: 2, color: "#D55E00", label: "Sham" });
+  deepStrictEqual(got[1], { value: 5, dash: "dash", width: GRAPH_LIMITS.lineWidth.max });
+  deepStrictEqual(got[2], { value: 0, dash: "dash", width: 1 });
+  // Saved and read again: the same lines.
+  deepStrictEqual(read(serializeProjectFile(read1)).project.nodes.g1.graphOptions!.refLines, got);
+  // Across the plot at Y, its text at its end; vertical at X on horizontal bars; a log
+  // axis's text at the value's log10, and no line at 0 or under on it.
+  const options = { ...DEFAULT_GRAPH_OPTIONS, refLines: got.slice(0, 2) } as GraphOptions;
+  const flat = refLineParts(options, false) as {
+    shapes: Record<string, unknown>[];
+    annotations: Record<string, unknown>[];
+  };
+  deepStrictEqual([flat.shapes[0].xref, flat.shapes[0].y0, flat.shapes[0].y1, flat.shapes.length], ["paper", 3, 3, 2]);
+  deepStrictEqual([flat.annotations.length, flat.annotations[0].text, flat.annotations[0].y], [1, "Sham", 3]);
+  const across = refLineParts(options, true) as typeof flat;
+  deepStrictEqual([across.shapes[0].yref, across.shapes[0].x0, across.annotations[0].x], ["paper", 3, 3]);
+  const log = refLineParts(
+    { ...options, yScale: "log10", refLines: [...got.slice(0, 1), { value: 0, dash: "dash", width: 1 }] },
+    false,
+  ) as typeof flat;
+  deepStrictEqual([log.shapes.length, log.annotations[0].y], [1, Math.log10(3)]);
+  // Its text where it's placed (a place Helix doesn't offer: top right): bottom left of a
+  // horizontal line is under its left end; top left of a vertical one, left of its top.
+  const placed = (labelPlace: unknown, vertical: boolean) =>
+    (refLineParts({ ...options, refLines: [{ ...got[0], labelPlace } as (typeof got)[0]] }, vertical) as typeof flat)
+      .annotations[0];
+  const bottomLeft = placed("bottom-left", false);
+  deepStrictEqual([bottomLeft.x, bottomLeft.xanchor, bottomLeft.yanchor], [0, "left", "top"]);
+  const topLeft = placed("top-left", true);
+  deepStrictEqual([topLeft.y, topLeft.xanchor, topLeft.yanchor], [1, "right", "top"]);
+  file.project.nodes.g1.graphOptions.refLines = [
+    { value: 1, labelPlace: "middle" },
+    { value: 2, labelPlace: "Bottom-Left" },
+  ];
+  const places = read(JSON.stringify(file)).project.nodes.g1.graphOptions!.refLines!.map((l) => l.labelPlace);
+  deepStrictEqual(places, [undefined, "bottom-left"]);
+});
+
+check("a graph shows the data sets it chose, each in its table color", () => {
+  const four = treatments(["A", "B", "C", "D"]);
+  const table = readTable(four);
+  const options = { ...newGraphOptions("individual"), sets: ["B", "D"] };
+  deepStrictEqual(choosableSets("individual", table, "column"), ["A", "B", "C", "D"]);
+  deepStrictEqual(
+    plotColumns(table, "individual", options, "column").map((c) => c.name),
+    ["B", "D"],
+  );
+  // Each keeps the color of its place in the table, not in the graph.
+  const order = graphSeries("individual", four, "column", options);
+  const paint = paintOf(options, order.length, order);
+  const all = paintOf(newGraphOptions("individual"), order.length);
+  deepStrictEqual([paint.color("B", 0), paint.color("D", 1)], [all.color("B", 1), all.color("D", 3)]);
+  // A grouped table's groups; an XY table keeps its X; a volcano picks its own columns.
+  const numbers = renameGroup(
+    writeBlock(newGroupedTable(2, 2), 0, 0, [["r1", "1", "2", "3", "4"]], "grouped"),
+    "B",
+    "Treated",
+  );
+  const g = readTable(numbers);
+  deepStrictEqual(choosableSets("grouped-bars", g, "grouped"), ["A", "Treated"]);
+  const groupedShown = plotColumns(
+    g,
+    "grouped-bars",
+    { ...newGraphOptions("grouped-bars"), sets: ["Treated"] },
+    "grouped",
+  );
+  deepStrictEqual(
+    groupedShown.map((c) => c.name),
+    ["Treated:Y1", "Treated:Y2"],
+  );
+  const xyTable = readTable({
+    columns: ["Title", "X", "Y1", "Y2"],
+    rows: [
+      [null, "1", "2", "3"],
+      [null, "2", "4", "5"],
+    ],
+  });
+  deepStrictEqual(choosableSets("xy-scatter", xyTable, "xy"), ["Y1", "Y2"]);
+  deepStrictEqual(
+    plotColumns(xyTable, "xy-scatter", { ...newGraphOptions("xy-scatter"), sets: ["Y2"] }, "xy").map((c) => c.name),
+    ["X", "Y2"],
+  );
+  deepStrictEqual(choosableSets("volcano", readTable(genes), "multiple"), []);
+  // Saved, read back, renamed with its table.
+  const file = JSON.parse(serializeProjectFile(payload));
+  file.project.nodes.g1.graphOptions.sets = ["A", 3];
+  ok(!read(JSON.stringify(file)).project.nodes.g1.graphOptions!.sets); // not all names: left out
+  file.project.nodes.g1.graphOptions.sets = ["A"];
+  const node = read(JSON.stringify(file)).project.nodes.g1;
+  deepStrictEqual(node.graphOptions!.sets, ["A"]);
+  deepStrictEqual(followTable(node, { renamed: { A: "Control" } }, []).graphOptions!.sets, ["Control"]);
+  // Its stars come only from an analysis of exactly the data sets it shows.
+  const analysis = (sets?: string[], type = "anova") =>
+    ({
+      id: "a",
+      type: "analysis",
+      name: "",
+      parentId: "t",
+      analysisType: type,
+      analysisParams: sets && { sets },
+    }) as ProjectNode;
+  const sets4 = ["A", "B", "C", "D"];
+  ok(starsFit(analysis(), sets4, sets4));
+  ok(!starsFit(analysis(), sets4, ["B", "D"])); // an ANOVA of 4 groups on a graph of 2
+  ok(starsFit(analysis(["D", "B"]), sets4, ["B", "D"]));
+  ok(!starsFit(analysis(["B", "C", "D"]), sets4, ["B", "D"]));
+  ok(starsFit(analysis(undefined, "compare-two-groups"), sets4, ["A", "B"])); // its first two
+  ok(!starsFit(analysis(undefined, "compare-two-groups"), sets4, sets4));
+  // A new analysis from the graph starts with its data sets.
+  // Only the questions its wizard asks: an ANOVA ticks them, a two-group test compares the first two.
+  const fourTable = readTable(four);
+  deepStrictEqual(answersFor(WIZARDS["compare-many-groups"]!, fourTable, "column", ["B", "C", "D"]), {
+    sets: ["B", "C", "D"],
+  });
+  deepStrictEqual(answersFor(WIZARDS["compare-two-groups"]!, fourTable, "column", ["B", "D"]), {
+    set1: "B",
+    set2: "D",
+  });
+  deepStrictEqual(answersFor(WIZARDS["compare-many-groups"]!, fourTable, "column", undefined), {});
+});
 
 check("palettes keep their authors' colors, in their order and number", () => {
   const counts = Object.fromEntries(PALETTES.map((p) => [p.name, p.colors.length]));
@@ -1078,6 +1523,41 @@ check("on a log axis, the stars' brackets take values and their labels log10 val
   const [label] = fig.layout.annotations as { y: number }[];
   ok(bracket.y0 > 4, "the bracket sits above the highest value, 4");
   ok(Math.abs(label.y - Math.log10(bracket.y0)) < 0.05, "its label at the log10 of the bracket");
+});
+
+check("letters: groups sharing one don't differ, “a” the highest, and only when every pair is compared", () => {
+  // A > B > C > D; A differs from C and D, B from D (Piepho's insert-absorb).
+  const letters = compactLetters(
+    ["A", "B", "C", "D"],
+    [
+      ["A", "C"],
+      ["A", "D"],
+      ["B", "D"],
+    ],
+  );
+  deepStrictEqual([...letters.values()], ["a", "ab", "bc", "c"]);
+  deepStrictEqual([...compactLetters(["A", "B"], []).values()], ["a", "a"]);
+  deepStrictEqual([...compactLetters(["A", "B"], [["B", "A"]]).values()], ["a", "b"]);
+  const pair = (a: string, b: string, p: number) => ({ key: pairKey(a, b), group1: a, group2: b, p });
+  ok(lettersFit([pair("A", "B", 0.5), pair("A", "C", 0.01), pair("B", "C", 0.2)]));
+  ok(!lettersFit([pair("B", "A", 0.5), pair("C", "A", 0.01)]), "Dunnett's: against a control alone");
+  // Drawn over each column, from the drawn centers: C (3 to 5) highest, then B, then A.
+  const fig: GraphFigure = { data: [], layout: {} };
+  addSignificance(
+    fig,
+    readTable(treatments(["A", "B", "C"])).columns,
+    "individual",
+    { ...newGraphOptions("individual"), sigDisplay: "letters" },
+    [pair("A", "B", 0.5), pair("A", "C", 0.01), pair("B", "C", 0.2)],
+  );
+  deepStrictEqual(
+    (fig.layout.annotations as { x: number; text: string }[]).map((a) => [a.x, a.text]),
+    [
+      [2, "a"],
+      [1, "ab"],
+      [0, "b"],
+    ],
+  );
 });
 
 check("100 % stacked bars: each row's segments make 100", () => {

@@ -25,5 +25,7 @@ export function survivalGroups(columns: Column[]): SurvivalGroup[] | { error: st
     if (g.x.some((t) => t < 0)) return { error: "Times can't be negative." };
   }
   if (groups.length < 2) return { error: "This analysis compares at least 2 groups holding subjects." };
+  if (groups.every((g) => g.y.every((c) => c === 0)))
+    return { error: "No subject has an event (every code is 0): there is nothing to compare yet." };
   return groups;
 }

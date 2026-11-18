@@ -1,5 +1,5 @@
 // Linear-regression overlay for the XY scatter graph: an OLS fit line + 95%
-// confidence band, computed directly from the same x/y pairs the scatter plots —
+// confidence or prediction band, computed directly from the same x/y pairs the scatter plots —
 // no WebR round-trip needed. OLS has one unique solution, so the slope/intercept
 // here always match the sibling "Linear regression" analysis's R-computed fit
 // (checked by `npm test`).
@@ -53,31 +53,27 @@ export function fitLinear(x: number[], y: number[], forceOrigin: boolean): Linea
   return { slope, intercept, forceOrigin, n, dof, r, r2: 1 - ssRes / ssTot, p: tTwoSidedP(t, dof), xbar, sxx, s };
 }
 
-/** Points across the data's X range (see `curveXs`) with the fit line + 95% confidence
- *  band (of the mean response, matching R's `predict(interval="confidence")`) at each —
- *  ready to hand to Plotly as line/fill traces. */
+/** The line at `x0` and its 95% band: of the line itself (`confidence`, R's
+ *  `predict(interval="confidence")`), or of a new point (`prediction`, its own scatter added:
+ *  `interval="prediction"`). */
+export function bandAt(fit: LinearFit, x0: number, band: GraphOptions["regBand"]): [number, number, number] {
+  const yHat = fit.intercept + fit.slope * x0;
+  const line = fit.forceOrigin ? x0 ** 2 / fit.sxx : 1 / fit.n + (x0 - fit.xbar) ** 2 / fit.sxx;
+  const half = tCrit95(fit.dof) * fit.s * Math.sqrt(line + (band === "prediction" ? 1 : 0));
+  return [yHat, yHat - half, yHat + half];
+}
+
+/** Points across the data's X range (see `curveXs`) with the fit line and its 95% band at
+ *  each — ready to hand to Plotly as line/fill traces. */
 function regressionCurve(
   fit: LinearFit,
   xs: number[],
   scale: GraphOptions["xScale"],
+  band: GraphOptions["regBand"],
 ): { x: number[]; yFit: number[]; yLo: number[]; yHi: number[] } {
-  const tCrit = tCrit95(fit.dof);
-  const x: number[] = [];
-  const yFit: number[] = [];
-  const yLo: number[] = [];
-  const yHi: number[] = [];
-  for (const x0 of curveXs(xs, scale, 60)) {
-    const yHat = fit.intercept + fit.slope * x0;
-    const variance = fit.forceOrigin
-      ? (fit.s * x0) ** 2 / fit.sxx
-      : fit.s ** 2 * (1 / fit.n + (x0 - fit.xbar) ** 2 / fit.sxx);
-    const half = tCrit * Math.sqrt(variance);
-    x.push(x0);
-    yFit.push(yHat);
-    yLo.push(yHat - half);
-    yHi.push(yHat + half);
-  }
-  return { x, yFit, yLo, yHi };
+  const x = curveXs(xs, scale, 60);
+  const at = x.map((x0) => bandAt(fit, x0, band));
+  return { x, yFit: at.map((a) => a[0]), yLo: at.map((a) => a[1]), yHi: at.map((a) => a[2]) };
 }
 
 /** "Y = 2.927*X − 0.3322<br>r = 0.9346, R² = 0.8734, P = 0.0021" (no r through the origin) annotation text — Plotly-ready
@@ -115,7 +111,7 @@ export function addRegression(
     const fit = fitLinear(pairs.x, pairs.y, params?.forceOrigin ?? false);
     if (!fit) continue;
     const color = paint.color(y.name, ys.indexOf(y));
-    const curve = regressionCurve(fit, pairs.x, options.xScale);
+    const curve = regressionCurve(fit, pairs.x, options.xScale, options.regBand);
     const line = (yv: number[], style: object) => ({
       type: "scatter",
       mode: "lines",

@@ -15,7 +15,9 @@ export const analysisLabel = (value: AnalysisPickerValue) =>
       ? "Compare more than two groups"
       : value === "interpolate"
         ? "Interpolate a standard curve"
-        : ANALYSES[value].label,
+        : value === "transform"
+          ? "Transform or normalize"
+          : ANALYSES[value].label,
   );
 
 const optionsFor = (order: AnalysisPickerValue[]): SelectorOption<AnalysisPickerValue>[] =>
@@ -27,7 +29,8 @@ const optionsFor = (order: AnalysisPickerValue[]): SelectorOption<AnalysisPicker
  *  logical order rather than sorted by label. ANOVA/Kruskal-Wallis and Repeated-measures
  *  ANOVA/Friedman aren't listed individually — Prism-style, one meta entry cascades to whichever
  *  the wizard's Paired?/Gaussian? answers resolve to. Shapiro-Wilk is its own entry, and is
- *  offered as "Not sure?" on every Gaussian? question too (see `normality-check.ts`). */
+ *  offered as "Not sure?" on every Gaussian? question too (see `normality-check.ts`). Transform
+ *  or Normalize makes a table computed from this one (lib/transform.ts), not an analysis. */
 export const ANALYSIS_OPTIONS_BY_TABLE: Record<TableType, SelectorOption<AnalysisPickerValue>[]> = {
   column: optionsFor([
     "descriptive-statistics",
@@ -36,6 +39,7 @@ export const ANALYSIS_OPTIONS_BY_TABLE: Record<TableType, SelectorOption<Analysi
     "compare-many-groups",
     "one-sample-t",
     "outliers",
+    "transform",
   ]),
   xy: optionsFor([
     "correlation",
@@ -44,8 +48,9 @@ export const ANALYSIS_OPTIONS_BY_TABLE: Record<TableType, SelectorOption<Analysi
     "nonlinear-regression",
     "interpolate",
     "logistic-regression",
+    "transform",
   ]),
-  grouped: optionsFor(["two-way-anova", "multiple-t-tests"]),
+  grouped: optionsFor(["two-way-anova", "multiple-t-tests", "transform"]),
   multiple: optionsFor([
     "descriptive-statistics",
     "shapiro-wilk",
@@ -53,6 +58,7 @@ export const ANALYSIS_OPTIONS_BY_TABLE: Record<TableType, SelectorOption<Analysi
     "linear-regression",
     "multiple-regression",
     "outliers",
+    "transform",
   ]),
   survival: optionsFor(["survival", "cox"]),
   contingency: optionsFor(["chi-square"]),

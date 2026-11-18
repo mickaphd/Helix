@@ -7,6 +7,7 @@ import type { GraphOptions } from "../../store/types";
 import type { GraphModule, GraphFigure } from ".";
 import { groupsOf, type Column } from "../../lib/dataset";
 import {
+  boxTrace,
   groupOffset,
   groupedScatterLayout,
   jitter,
@@ -53,10 +54,22 @@ function build(columns: Column[], options: GraphOptions, paint: Paint, titles?: 
       line: paint.edge(g.name, gi),
       hoverinfo: "y",
     };
+    // A box per row: the group's values there, as Helix computes them (`boxTrace`).
+    const at = [...new Set(x)];
     data.push(
       options.kind === "violin"
         ? { type: "violin", ...shape, points: false, meanline: { visible: true }, spanmode: "hard" }
-        : { type: "box", ...shape, boxpoints: false, whiskerwidth: 0.5 },
+        : {
+            type: "box",
+            ...shape,
+            ...boxTrace(
+              at,
+              at.map((p) => y.filter((_, k) => x[k] === p)),
+            ),
+            y: undefined,
+            boxpoints: false,
+            whiskerwidth: 0.5,
+          },
     );
     if (options.showPoints) {
       data.push({

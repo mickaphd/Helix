@@ -41,6 +41,7 @@ const PROPERTIES: Property[] = [
   { id: "text", label: "Text size and spacing", keys: ["fontSize", "xTitleGap", "yTitleGap"] },
   { id: "titles", label: "Titles", keys: ["title", "xLabel", "yLabel"], off: true },
   { id: "ranges", label: "Axis ranges", keys: ["xMin", "xMax", "xStep", "yMin", "yMax", "yStep"], off: true },
+  { id: "refLines", label: "Reference lines", keys: ["refLines"], off: true },
   { id: "axes", label: "Axis scales and thickness", keys: ["xScale", "yScale", "axisWidth"] },
   { id: "sheet", label: "Size and background", keys: ["width", "height", "background"] },
 ];
