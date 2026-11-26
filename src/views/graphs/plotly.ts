@@ -3,6 +3,7 @@
 type Plotly = {
   react: (el: HTMLElement, data: unknown[], layout: object, config: object) => Promise<unknown>;
   purge: (el: HTMLElement) => void;
+  relayout: (el: HTMLElement, update: object) => Promise<unknown>;
   toImage: (
     figure: HTMLElement | { data: unknown[]; layout: object },
     opts: { format: "png" | "jpeg" | "svg"; width: number; height: number; scale: number },

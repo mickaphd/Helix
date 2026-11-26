@@ -9,6 +9,7 @@ import { groupsOf, type Column } from "../../lib/dataset";
 import {
   rowCountOf,
   rowLabels,
+  rowValues,
   perRowStats,
   groupOffset,
   groupedBarLayout,
@@ -92,7 +93,9 @@ export function buildGroupedBars(
 /** Connected/interaction lines: one line per group through its per-row centers
  *  (mean/median), a marker at each row, and optional error whiskers. Lines connect
  *  each group across the row categories, so parallel lines mean no interaction and
- *  crossing/diverging lines highlight one (Prism's interaction graph). */
+ *  crossing/diverging lines highlight one (Prism's interaction graph). With `rowsAt`
+ *  "values", the rows stand at their titles' numbers (`rowValues`), as times on a time
+ *  axis, when every row holding data has one. */
 export function buildGroupedLines(
   columns: Column[],
   options: GraphOptions,
@@ -102,7 +105,8 @@ export function buildGroupedLines(
   const groups = groupsOf(columns);
   const rows = rowCountOf(columns);
   const labels = rowLabels(rows, titles);
-  const x = labels.map((_, i) => i);
+  const values = options.rowsAt === "values" ? rowValues(columns, titles) : undefined;
+  const x = values ?? labels.map((_, i) => i);
 
   const data = groups.map((g, i) => {
     const { center, error } = perRowStats(g.columns, rows, options.center, options.error);
@@ -129,7 +133,7 @@ export function buildGroupedLines(
     };
   });
 
-  return { data, layout: groupedScatterLayout(options, labels, groups.length) };
+  return { data, layout: groupedScatterLayout(options, labels, groups.length, undefined, !!values) };
 }
 
 /** Interleaved scatter (individual values): every replicate as a jittered point,

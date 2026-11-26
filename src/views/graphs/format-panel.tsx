@@ -29,7 +29,7 @@ import {
   type RefLine,
   type SeriesStyle,
 } from "../../store/types";
-import { GRAPHS, hasValueAxis, newGraphOptions } from ".";
+import { GRAPHS, hasValueAxis, newGraphOptions, type AxisKind } from ".";
 import { EXPORT_FORMATS, RESOLUTIONS, type ExportFormat, type Resolution } from "./graph-export";
 import {
   Choice,
@@ -80,6 +80,7 @@ interface Props extends SectionContext {
 const STYLE_OPTIONS: (keyof GraphOptions)[] = [
   "shape",
   "kind",
+  "whiskers",
   "xyStyle",
   "residualsAs",
   "groupLayout",
@@ -137,8 +138,11 @@ function remember(key: string, value: unknown) {
 
 export function FormatPanel(props: Props) {
   const { graphType, options, set, seriesNames, setSeriesStyle, selection } = props;
-  const family = GRAPHS[graphType].family;
-  const hasAxes = family !== "pie";
+  const { family, horizontal, placesRows } = GRAPHS[graphType];
+  const axes = GRAPHS[graphType].axes(options, props.atValues);
+  const hasAxes = !!(axes.x || axes.y);
+  // The keys of an axis as shown: horizontal bars keep their value axis's in y, their rows' in x.
+  const keyOf = (shown: "X" | "Y") => ((shown === "X") === !horizontal ? "x" : "y");
   const [exported, setExported] = React.useState(readExport);
   const chooseExport = (choice: Partial<ExportChoice>) => {
     const next = { ...exported, ...choice };
@@ -299,22 +303,24 @@ export function FormatPanel(props: Props) {
         <TextRow label="Title" value={options.title} onChange={(title) => set({ title })} />
         {hasAxes && (
           <>
-            <TextRow label="X axis title" value={options.xLabel} onChange={(xLabel) => set({ xLabel })} />
-            <TextRow label="Y axis title" value={options.yLabel} onChange={(yLabel) => set({ yLabel })} />
-            <Stepper
-              label="X title spacing"
-              value={options.xTitleGap}
-              {...GRAPH_LIMITS.xTitleGap}
-              step={2}
-              onChange={(xTitleGap) => set({ xTitleGap })}
-            />
-            <Stepper
-              label="Y title spacing"
-              value={options.yTitleGap}
-              {...GRAPH_LIMITS.yTitleGap}
-              step={2}
-              onChange={(yTitleGap) => set({ yTitleGap })}
-            />
+            {(["X", "Y"] as const).map((shown) => (
+              <TextRow
+                key={shown}
+                label={`${shown} axis title`}
+                value={options[`${keyOf(shown)}Label`]}
+                onChange={(label) => set({ [`${keyOf(shown)}Label`]: label })}
+              />
+            ))}
+            {(["X", "Y"] as const).map((shown) => (
+              <Stepper
+                key={shown}
+                label={`${shown} title spacing`}
+                value={options[`${keyOf(shown)}TitleGap`]}
+                {...GRAPH_LIMITS[`${keyOf(shown)}TitleGap`]}
+                step={2}
+                onChange={(gap) => set({ [`${keyOf(shown)}TitleGap`]: gap })}
+              />
+            ))}
           </>
         )}
         <Stepper
@@ -344,42 +350,29 @@ export function FormatPanel(props: Props) {
             "refLines",
           ])}
         >
-          {family !== "heatmap" && family !== "volcano" && (
-            <Scale
-              axis="Y"
-              value={options.yScale}
-              leftOut={props.logLeftOut.y}
-              onChange={(yScale) => set({ yScale })}
-            />
-          )}
-          {family !== "heatmap" && (
-            <AxisRange
-              axis="Y"
-              min={options.yMin}
-              max={options.yMax}
-              step={options.yStep}
-              log={family !== "volcano" && options.yScale !== "linear"}
-              onChange={(yMin, yMax, yStep) => set({ yMin, yMax, yStep })}
-            />
-          )}
-          {family === "xy" && (
-            <Scale
-              axis="X"
-              value={options.xScale}
-              leftOut={props.logLeftOut.x}
-              onChange={(xScale) => set({ xScale })}
-            />
-          )}
-          {(family === "xy" || family === "volcano" || family === "histogram") && (
-            <AxisRange
-              axis="X"
-              min={options.xMin}
-              max={options.xMax}
-              step={options.xStep}
-              log={family === "xy" && options.xScale !== "linear"}
-              onChange={(xMin, xMax, xStep) => set({ xMin, xMax, xStep })}
-            />
-          )}
+          {(["Y", "X"] as const).map((shown) => (
+            <React.Fragment key={shown}>
+              {shown === "X" && placesRows && props.atValues && (
+                <Choice
+                  label="X axis"
+                  value={options.rowsAt}
+                  onChange={(rowsAt) => set({ rowsAt })}
+                  items={[
+                    { value: "order", label: "Categories" },
+                    { value: "values", label: "Numbers" },
+                  ]}
+                />
+              )}
+              <AxisRows
+                shown={shown}
+                kind={axes[shown === "X" ? "x" : "y"]}
+                k={keyOf(shown)}
+                options={options}
+                set={set}
+                leftOut={props.logLeftOut[keyOf(shown)]}
+              />
+            </React.Fragment>
+          ))}
           <ThicknessRow
             label="Axis thickness"
             value={options.axisWidth}
@@ -389,7 +382,7 @@ export function FormatPanel(props: Props) {
           {hasValueAxis(family) && (
             <RefLines
               lines={options.refLines ?? []}
-              axis={graphType === "grouped-hbars" ? "X" : "Y"}
+              axis={horizontal ? "X" : "Y"}
               at={props.newLineAt}
               palette={paletteOf(options)}
               onChange={(lines) => set({ refLines: lines.length ? lines : undefined })}
@@ -448,8 +441,45 @@ export function FormatPanel(props: Props) {
   );
 }
 
-/** One axis's Min / Max / Step; a blank field is Auto. */
-/** An axis's range; a log axis has no step (its ticks are the powers). */
+/** One axis's settings, as its graph applies them (`kind`), kept in its keys (`k`): its scale
+ *  and range, or its range alone. An axis of categories has none: its labels are its
+ *  columns' or rows' names, all shown, spaced only where they would overlap. */
+function AxisRows({
+  shown,
+  kind,
+  k,
+  options,
+  set,
+  leftOut,
+}: {
+  shown: "X" | "Y";
+  kind?: AxisKind;
+  k: "x" | "y";
+  options: GraphOptions;
+  set: (patch: Partial<GraphOptions>) => void;
+  leftOut: number;
+}) {
+  if (!kind || kind === "labels") return null;
+  const scale = options[`${k}Scale`];
+  return (
+    <>
+      {kind === "scale" && (
+        <Scale axis={shown} value={scale} leftOut={leftOut} onChange={(s) => set({ [`${k}Scale`]: s })} />
+      )}
+      <AxisRange
+        axis={shown}
+        min={options[`${k}Min`]}
+        max={options[`${k}Max`]}
+        step={options[`${k}Step`]}
+        log={kind === "scale" && scale !== "linear"}
+        onChange={(min, max, step) => set({ [`${k}Min`]: min, [`${k}Max`]: max, [`${k}Step`]: step })}
+      />
+    </>
+  );
+}
+
+/** An axis's Min / Max / Step, a blank field Auto; a log axis has no step (its ticks are
+ *  the powers). */
 function AxisRange({
   axis,
   min,

@@ -23,11 +23,22 @@ import { groupsOf, isGrouped, readTable, splitXY, xyProblem, type Column } from 
 import { paletteOf } from "../../lib/palettes";
 import { computeGroupedDEG } from "../../lib/deg";
 import { useAnalysis } from "../analyses/use-analysis";
-import { choosableSets, GRAPHS, graphSeries, hasValueAxis, plotColumns } from ".";
+import { axisKind, choosableSets, GRAPHS, graphSeries, hasValueAxis, plotColumns } from ".";
 import { addFittedCurves, addLogisticCurve } from "./fitted-curve";
 import { FormatPanel } from "./format-panel";
 import { copyGraphImage, saveGraphImage } from "./graph-export";
-import { INK, MOVABLE, marginsFor, movedText, onAxis, paintOf, refLineParts, withCaps } from "./plot-helpers";
+import {
+  fitLabels,
+  INK,
+  MOVABLE,
+  marginsFor,
+  movedText,
+  onAxis,
+  paintOf,
+  refLineParts,
+  rowValues,
+  withCaps,
+} from "./plot-helpers";
 import { useStartAnalysis } from "../analyses/use-analysis-launcher";
 import { loadPlotly } from "./plotly";
 import { addRegression } from "./regression-overlay";
@@ -158,14 +169,28 @@ export function GraphView({ node }: { node: ProjectNode }) {
     : family === "volcano" && parent?.tableType === "xy"
       ? { ...options, volcanoX: dataset?.columns[0]?.name }
       : options;
+  // Its axes: connected lines' rows can stand at their titles' values when all are numbers.
+  const rowsAt = GRAPHS[type].placesRows ? rowValues(columns, dataset?.titles) : undefined;
+  const atValues = !!rowsAt;
+  const { horizontal } = GRAPHS[type];
+  const scaled = {
+    x: axisKind(type, options, "x", atValues) === "scale",
+    y: axisKind(type, options, "y", atValues) === "scale",
+  };
   // What a graph can't draw, said in its Format panel: values at or under 0 on a log axis
-  // (X: only a numeric one; on XY, its first column is X), a volcano's P values under 0.
+  // (X: only a numeric one, an XY table's first column or the rows' values), a volcano's P
+  // values under 0.
   const atOrUnder0 = (cols: Column[]) => cols.reduce((n, c) => n + c.values.filter((v) => v <= 0).length, 0);
   const logLeftOut = {
-    x: family === "xy" && options.xScale !== "linear" ? atOrUnder0(columns.slice(0, 1)) : 0,
+    x:
+      scaled.x && options.xScale !== "linear"
+        ? rowsAt
+          ? rowsAt.filter((v) => v != null && v <= 0).length
+          : atOrUnder0(columns.slice(0, 1))
+        : 0,
     // A histogram's Y counts values: an empty bin is simply not drawn.
     y:
-      options.yScale !== "linear" && family !== "histogram"
+      scaled.y && options.yScale !== "linear" && family !== "histogram"
         ? atOrUnder0(family === "xy" ? columns.slice(1) : columns)
         : 0,
   };
@@ -405,13 +430,13 @@ export function GraphView({ node }: { node: ProjectNode }) {
           ? []
           : pointLabels(fig.data, options.points, dataset?.titles, options.fontSize).map((label) => ({
               ...label,
-              // A text sits at the log10 of its place on a log axis (X: only a numeric one).
-              x: family === "xy" ? onAxis(label.x, options.xScale) : label.x,
-              y: onAxis(label.y, options.yScale),
+              // A text sits at the log10 of its place on a log axis.
+              x: scaled.x ? onAxis(label.x, options.xScale) : label.x,
+              y: scaled.y ? onAxis(label.y, options.yScale) : label.y,
             }));
       if (labels.length) fig.layout.annotations = [...((fig.layout.annotations as unknown[]) ?? []), ...labels];
       if (hasValueAxis(family) && options.refLines?.length) {
-        const { shapes, annotations } = refLineParts(options, type === "grouped-hbars");
+        const { shapes, annotations } = refLineParts(options, !!horizontal);
         fig.layout.shapes = [...((fig.layout.shapes as unknown[]) ?? []), ...shapes];
         fig.layout.annotations = [...((fig.layout.annotations as unknown[]) ?? []), ...annotations];
       }
@@ -426,6 +451,9 @@ export function GraphView({ node }: { node: ProjectNode }) {
         { ...fig.layout, ...size },
         { displayModeBar: false, scrollZoom: false, doubleClick: false, plotGlPixelRatio: glRatio, edits: MOVABLE },
       );
+      // Labels that would overlap, on any axis, are spaced.
+      const thinned = fitLabels(fig.layout, (el as { _fullLayout?: never })._fullLayout ?? {}, options.fontSize);
+      if (thinned) await Plotly.relayout(el, thinned);
       if (plottedRef.current !== el) listen(el as PlotElement);
       plottedRef.current = el;
       if (!current) return;
@@ -435,7 +463,7 @@ export function GraphView({ node }: { node: ProjectNode }) {
         setSelected(new Set([...selected].filter((key) => keys.has(key))));
       const resolved = (el as { _fullLayout?: PlotlyLayout })._fullLayout;
       if (resolved?._size) setMargins(resolved._size);
-      setNewLineAt(middleOf(type === "grouped-hbars" ? resolved?.xaxis : resolved?.yaxis) ?? 0);
+      setNewLineAt(middleOf(horizontal ? resolved?.xaxis : resolved?.yaxis) ?? 0);
     });
     return () => {
       current = false;
@@ -537,6 +565,7 @@ export function GraphView({ node }: { node: ProjectNode }) {
           volcanoLeftOut={volcanoLeftOut}
           volcanoBelowZero={volcanoBelowZero}
           logLeftOut={logLeftOut}
+          atValues={atValues}
           binsTooMany={binsTooMany}
           replicates={parent?.tableType === "xy" && Boolean(parent.data && isGrouped(parent.data))}
           onFindGenes={findGenes}

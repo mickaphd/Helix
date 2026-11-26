@@ -205,6 +205,16 @@ A graph's colors and style are its own:
 - `xScale`, `yScale` (Helix 1.0.9 and later): `"linear"`, `"log10"` or `"log2"`, each axis's
   scale (Y is the value axis; X only where it holds numbers). On a log axis, `xMin`/`yMin`
   and `xMax`/`yMax` are values above 0, and the step is not used.
+- `xMin`, `xMax`, `xStep`, `yMin`, `yMax`, `yStep`: each axis of values' range and the step
+  between its ticks; without them, automatic. An axis of categories (columns, rows) takes
+  none. On horizontal bars, the y keys are those of the value axis, though it is drawn
+  across.
+- `whiskers` (Helix 1.1.1 and later): a box's whiskers, `"minmax"` (to the minimum and
+  maximum) or `"tukey"` (to the furthest values within 1.5 × IQR of the quartiles, the
+  values beyond drawn one by one).
+- `rowsAt` (Helix 1.1.1 and later): connected lines place their rows `"order"`, one after
+  another, or at their titles' `"values"`, on a numeric X axis, when every row holding
+  data is titled by a number.
 - `error`: `"none"`, `"sd"`, `"sem"` or `"ci"` (the 95% CI of the mean, Helix 1.0.9 and later).
 - `stackAs` (Helix 1.0.9 and later): stacked bars show each group's `"values"`, or its
   `"percent"` of the row's total; a histogram each data set's counts (`"values"`), or

@@ -5,7 +5,7 @@
 import type { GraphOptions } from "../../store/types";
 import type { GraphModule, GraphFigure } from ".";
 import { splitXY, type Column } from "../../lib/dataset";
-import { seriesMarker, seriesPoints, xyDrawn, xyLayout, type Paint } from "./plot-helpers";
+import { seriesMarker, XY_AXES, seriesPoints, xyDrawn, xyLayout, type Paint } from "./plot-helpers";
 
 function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFigure {
   const { x: xCol, ys } = splitXY(columns);
@@ -37,6 +37,7 @@ function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFig
 export const xyScatter: GraphModule = {
   label: "Scatter or line",
   family: "xy",
+  axes: XY_AXES,
   points: (options) => options.xyStyle !== "line",
   lines: (options) => options.xyStyle !== "points",
   build,

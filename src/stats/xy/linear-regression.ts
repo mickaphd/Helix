@@ -9,14 +9,14 @@ import { num } from "../../lib/format";
 
 const DEFAULTS: LinearRegressionParams = { forceOrigin: false };
 
-/** R: `line(x, y, origin)`, the least-squares line and its 95% CIs. X is centered first (the
- *  same line, its intercept then taken back to X = 0 with its exact SE: the centered
- *  intercept and the slope are uncorrelated), so X values far from 0 for their spread
- *  (dates in seconds…) lose no precision. */
+/** R: `line(x, y, origin)`, the least-squares line and its 95% CIs. X and Y are centered
+ *  first (the same line, its intercept then taken back to X = 0 with its exact SE: the
+ *  centered intercept and the slope are uncorrelated), so values far from 0 for their
+ *  spread (dates in seconds, 1000000000000.4…) lose no precision in lm's QR. */
 const R_LINE = `line<-function(x,y,origin){q<-function(m)qt(0.975,df.residual(m))
 if(origin){m<-lm(y~x+0);co<-summary(m)$coefficients;return(c(slope=co[1,1],slo=co[1,1]-q(m)*co[1,2],
 shi=co[1,1]+q(m)*co[1,2],b=0,blo=NA,bhi=NA,r=NA,r2=summary(m)$r.squared,p=co[1,4],n=length(y)))}
-mx<-mean(x);m<-lm(y~I(x-mx));s<-summary(m);co<-s$coefficients;b<-co[1,1]-co[2,1]*mx;sb<-sqrt(co[1,2]^2+(mx*co[2,2])^2)
+mx<-mean(x);my<-mean(y);m<-lm(I(y-my)~I(x-mx));s<-summary(m);co<-s$coefficients;b<-co[1,1]+my-co[2,1]*mx;sb<-sqrt(co[1,2]^2+(mx*co[2,2])^2)
 c(slope=co[2,1],slo=co[2,1]-q(m)*co[2,2],shi=co[2,1]+q(m)*co[2,2],b=b,blo=b-q(m)*sb,bhi=b+q(m)*sb,
 r=cor(x,y),r2=s$r.squared,p=co[2,4],n=length(y))}`;
 

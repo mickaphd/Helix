@@ -4,7 +4,7 @@
 import type { GraphOptions } from "../../store/types";
 import type { GraphModule, GraphFigure } from ".";
 import { splitXY, type Column } from "../../lib/dataset";
-import { xyDrawn, xyLayout, type Paint } from "./plot-helpers";
+import { XY_AXES, xyDrawn, xyLayout, type Paint } from "./plot-helpers";
 
 function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFigure {
   const { x: xCol, ys } = splitXY(columns);
@@ -35,4 +35,4 @@ function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFig
   };
 }
 
-export const xyBar: GraphModule = { label: "Column or bar", family: "xy", patterns: () => true, build };
+export const xyBar: GraphModule = { label: "Column or bar", family: "xy", axes: XY_AXES, patterns: () => true, build };

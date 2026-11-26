@@ -17,7 +17,7 @@ import {
   type ProjectNode,
   type SeriesStyle,
 } from "../../store/types";
-import { GRAPHS, graphSeries } from ".";
+import { axisKind, GRAPHS, graphSeries } from ".";
 import { Toggle } from "./panel-controls";
 
 interface Property {
@@ -55,15 +55,20 @@ export interface Matched {
 }
 
 /** `target`'s options with the properties `ids` of `example`. Left out: a palette that
- *  isn't a gradient for a heatmap, points styled one by one from another table. */
+ *  isn't a gradient for a heatmap, points styled one by one from another table, an axis's
+ *  range or scale where the axes differ (an XY graph's X step is no step of columns). */
 export function matched(target: Matched, example: Matched, ids: string[]): GraphOptions {
   const picked = PROPERTIES.filter((p) => ids.includes(p.id));
-  const takes = (k: keyof GraphOptions) =>
-    k === "points"
+  const axisOf = (k: string) => /^([xy])(Min|Max|Step|Scale)$/.exec(k)?.[1] as "x" | "y" | undefined;
+  const takes = (k: keyof GraphOptions) => {
+    const axis = axisOf(k);
+    if (axis) return axisKind(target.type, target.options, axis) === axisKind(example.type, example.options, axis);
+    return k === "points"
       ? target.table === example.table
       : k !== "palette" ||
-        GRAPHS[target.type].family !== "heatmap" ||
-        paletteOf(example.options).kind !== "categorical";
+          GRAPHS[target.type].family !== "heatmap" ||
+          paletteOf(example.options).kind !== "categorical";
+  };
   const keys = picked.flatMap((p) => p.keys ?? []).filter(takes);
   const options: GraphOptions = { ...target.options };
   for (const k of keys)

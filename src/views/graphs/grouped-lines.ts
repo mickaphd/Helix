@@ -6,6 +6,8 @@ import { buildGroupedLines } from "./grouped-common";
 export const groupedLines: GraphModule = {
   label: "Connected lines",
   family: "grouped",
+  axes: (options, rowValues) => ({ x: options.rowsAt === "values" && rowValues ? "scale" : "labels", y: "scale" }),
+  placesRows: true,
   points: () => true,
   lines: () => true,
   build: buildGroupedLines,

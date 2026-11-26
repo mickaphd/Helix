@@ -7,7 +7,10 @@ import type { GraphOptions } from "../../store/types";
 import type { GraphModule, GraphFigure } from ".";
 import { groupsOf, type Column } from "../../lib/dataset";
 import {
+  beyondWhiskers,
+  boxPoints,
   boxTrace,
+  CATEGORY_AXES,
   groupOffset,
   groupedScatterLayout,
   jitter,
@@ -65,12 +68,27 @@ function build(columns: Column[], options: GraphOptions, paint: Paint, titles?: 
             ...boxTrace(
               at,
               at.map((p) => y.filter((_, k) => x[k] === p)),
+              options.whiskers,
             ),
             y: undefined,
             boxpoints: false,
             whiskerwidth: 0.5,
           },
     );
+    if (!options.showPoints && boxPoints(options))
+      for (const p of at) {
+        const here = x.flatMap((q, k) => (q === p ? [k] : []));
+        data.push(
+          ...beyondWhiskers(
+            paint,
+            g.name,
+            gi,
+            p,
+            here.map((k) => y[k]),
+            here.map((k) => keys[k]),
+          ),
+        );
+      }
     if (options.showPoints) {
       data.push({
         type: "scatter",
@@ -90,7 +108,8 @@ function build(columns: Column[], options: GraphOptions, paint: Paint, titles?: 
 export const groupedBox: GraphModule = {
   label: "Box and violin",
   family: "grouped",
+  axes: CATEGORY_AXES,
   defaults: { fill: 0.5, pointSize: 5, outline: 2 },
-  points: (options) => options.showPoints,
+  points: boxPoints,
   build,
 };

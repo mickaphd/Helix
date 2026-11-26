@@ -33,12 +33,12 @@ export function quantile(v: number[], p: number): number {
   return s[lo] + (h - lo) * ((s[lo + 1] ?? s[lo]) - s[lo]);
 }
 
-/** A box as Helix draws it: its quartiles (`quantile`) and whiskers to the minimum and
- *  maximum, handed to Plotly, which then computes none of its own. */
-export const boxOf = (v: number[]) => ({
-  q1: quantile(v, 0.25),
-  median: median(v),
-  q3: quantile(v, 0.75),
-  lowerfence: minOf(v),
-  upperfence: maxOf(v),
-});
+/** A box as Helix draws it, handed to Plotly, which then computes none of its own: its
+ *  quartiles (`quantile`) and whiskers to the minimum and maximum, or Tukey's: to the
+ *  furthest values within 1.5 × IQR of the quartiles. */
+export function boxOf(v: number[], whiskers: "minmax" | "tukey" = "minmax") {
+  const [q1, q3] = [quantile(v, 0.25), quantile(v, 0.75)];
+  const reach = whiskers === "tukey" ? 1.5 * (q3 - q1) : Infinity;
+  const inside = v.filter((x) => x >= q1 - reach && x <= q3 + reach);
+  return { q1, median: median(v), q3, lowerfence: minOf(inside), upperfence: maxOf(inside) };
+}

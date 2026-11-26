@@ -48,9 +48,27 @@ type GraphFamily = "column" | "xy" | "grouped" | "pie" | "heatmap" | "volcano" |
  *  cutoffs; a pie and a heatmap have none). */
 export const hasValueAxis = (family: GraphFamily) => family !== "pie" && family !== "heatmap" && family !== "volcano";
 
+/** What an axis is, and so what the Format panel's Axes section offers for it: values with
+ *  a scale (linear, Log10, Log2), range and step; values with a range and step alone
+ *  (linear); or categories (columns' or rows' names), which offer nothing. */
+export type AxisKind = "scale" | "range" | "labels";
+/** A graph's X and Y axes as drawn (none: no such axis to set). */
+export interface Axes {
+  x?: AxisKind;
+  y?: AxisKind;
+}
+
 export interface GraphModule {
   label: string;
   family: GraphFamily;
+  /** Its axes with these options (`rowValues`: whether every row holding data is
+   *  titled by a number, for a graph that can place its rows at them). */
+  axes: (options: GraphOptions, rowValues: boolean) => Axes;
+  /** Its value axis lies across: the settings kept in the y keys are shown as X's, and
+   *  the x keys' as Y's (horizontal bars). */
+  horizontal?: true;
+  /** Its rows can stand at their titles' values, on a numeric X axis (`rowsAt`). */
+  placesRows?: true;
   /** The palette a new graph of this type takes (Okabe-Ito when unset). */
   palette?: string;
   /** What a new graph of this type starts with, over the defaults: a half-opaque
@@ -69,6 +87,14 @@ export interface GraphModule {
     /** Row titles, which label the rows on a grouped graph or a heatmap. */
     titles?: (string | null)[],
   ) => GraphFigure;
+}
+
+/** What the axis of a graph's `key` settings (xMin… or yMin…) is: horizontal bars keep
+ *  their value axis's in y, though it lies across. */
+export function axisKind(type: GraphType, options: GraphOptions, key: "x" | "y", rowValues = true) {
+  const { axes, horizontal } = GRAPHS[type];
+  const { x, y } = axes(options, rowValues);
+  return (key === "x") !== !!horizontal ? x : y;
 }
 
 export const GRAPHS: Record<GraphType, GraphModule> = {

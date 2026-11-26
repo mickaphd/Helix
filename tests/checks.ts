@@ -20,6 +20,7 @@ import {
   deleteColumns,
   freshColumnNames,
   newGroupedTable,
+  pasteNames,
   regroupLoses,
   regroupTable,
   renameGroup,
@@ -44,6 +45,7 @@ import {
 import { deletePalette, keepPalette, loadMyPalettes } from "../src/store/my-palettes";
 import {
   choosableSets,
+  GRAPH_OPTIONS_BY_TABLE,
   GRAPHS,
   graphSeries,
   newGraphOptions,
@@ -58,6 +60,7 @@ import { starsFit } from "../src/views/graphs/significance-overlay";
 import {
   addNote,
   curveXs,
+  fitLabels,
   movedText,
   paintOf,
   refLineParts,
@@ -1913,7 +1916,7 @@ check("texts moved by hand stay where they were dropped", () => {
     xanchor: "left",
   });
   const heat = GRAPHS.heatmap.build(readTable(xy).numeric, moved, paintOf(moved, 0)).data[0] as { colorbar?: object };
-  deepStrictEqual(heat.colorbar, { x: 0.5, y: 0.2 });
+  deepStrictEqual(heat.colorbar, { exponentformat: "none", x: 0.5, y: 0.2 });
   const fig: GraphFigure = { data: [], layout: {} };
   addNote(fig, "Y = X", moved);
   const [note] = fig.layout.annotations as { name: string; ax: number; ay: number }[];
@@ -2584,6 +2587,197 @@ check("a narrow window narrows the sidebar for the inspector only where there is
   const layout = { sidebar: true, sidebarWidth: 224, inspector: true, inspectorWidth: 256 };
   deepStrictEqual(fitWidths(layout, 700, true), { sidebarWidth: 180, inspectorWidth: 220 });
   strictEqual(fitWidths(layout, 700, false).sidebarWidth, 224);
+});
+
+check("names pasted onto the columns, from a row or a column, rename them in one edit", () => {
+  const data: TableData = {
+    columns: ["Title", "A", "B", "C"],
+    rows: [["r1", "1", "2", "3"]],
+    widths: { B: 90 },
+  };
+  const paste = (text: string, from = 1, on = data, type: TableType = "column") => pasteNames(on, type, from, text);
+  const ok = (r: ReturnType<typeof paste>) => {
+    if ("problem" in r) throw new Error(r.problem);
+    return r;
+  };
+  // A row, a column (Excel's line ending), from the column clicked; an empty cell keeps its name.
+  deepStrictEqual(ok(paste("Ctrl\tLow\tHigh\n")).data.columns, ["Title", "Ctrl", "Low", "High"]);
+  deepStrictEqual(ok(paste("Low\r\nHigh\r\n", 2)).data.columns, ["Title", "A", "Low", "High"]);
+  const kept = ok(paste("Ctrl\t\tHigh"));
+  deepStrictEqual([kept.data.columns, kept.renamed], [["Title", "Ctrl", "B", "High"], { A: "Ctrl", C: "High" }]);
+  deepStrictEqual(ok(paste("Low")).data.widths, { B: 90 });
+  deepStrictEqual(ok(paste("x\tLow")).data.widths, { Low: 90 });
+  // Swapping two names works; two columns sharing one doesn't.
+  deepStrictEqual(ok(paste("B\tA")).data.columns, ["Title", "B", "A", "C"]);
+  deepStrictEqual(paste("C"), { problem: "Two columns would both be named “C”." });
+  // Names beyond the last column add columns, empty (a gap named as a new column would be).
+  const more = ok(paste("Ctrl\tLow\tHigh\tMax", 1));
+  deepStrictEqual([more.data.columns.at(-1), more.data.rows[0]], ["Max", ["r1", "1", "2", "3", null]]);
+  // Nothing new: the table itself, untouched.
+  strictEqual(ok(paste("A\tB")).data, data);
+  // A grouped table's names go to its groups, from the group clicked (any of its columns).
+  const grouped = newGroupedTable(3, 2);
+  const named = ok(paste("Ctl\tTx\tExtra\tMore", grouped.columns.indexOf("B:Y2"), grouped, "grouped"));
+  deepStrictEqual(
+    [named.data.columns.slice(1), named.renamed, named.unplaced],
+    [["A:Y1", "A:Y2", "Ctl:Y1", "Ctl:Y2", "Tx:Y1", "Tx:Y2"], { B: "Ctl", C: "Tx" }, 2],
+  );
+  // A group's name can't hold the ":" that parts it from its sub-columns.
+  strictEqual("problem" in paste("Ctl:1", 1, grouped, "grouped"), true);
+});
+
+// ── Axes ─────────────────────────────────────────────────────────────────
+
+/** A table of each type, rows titled by numbers (times), each graph type drawn on one. */
+const AXIS_TABLES: Record<string, [TableType, TableData]> = {
+  column: [
+    "column",
+    {
+      columns: ["Title", "A", "B"],
+      rows: [
+        [null, "1", "4"],
+        [null, "2", "5"],
+        [null, "3", "7"],
+      ],
+    },
+  ],
+  xy: [
+    "xy",
+    {
+      columns: ["Title", "X", "Y"],
+      rows: [
+        [null, "1", "2"],
+        [null, "2", "3"],
+        [null, "4", "7"],
+      ],
+    },
+  ],
+  survival: [
+    "survival",
+    {
+      columns: ["Title", "Days", "A"],
+      rows: [
+        [null, "5", "1"],
+        [null, "8", "0"],
+        [null, "12", "1"],
+      ],
+    },
+  ],
+  grouped: [
+    "grouped",
+    {
+      columns: ["Title", "A:Y1", "A:Y2", "B:Y1", "B:Y2"],
+      rows: [
+        ["0", "1", "2", "3", "4"],
+        ["5", "2", "3", "5", "6"],
+        ["30", "4", "5", "6", "8"],
+      ],
+    },
+  ],
+  multiple: [
+    "multiple",
+    {
+      columns: ["Title", "Gene", "Log2 FC", "P"],
+      rows: [
+        [null, "g1", "1.5", "0.01"],
+        [null, "g2", "-2", "0.2"],
+        [null, "g3", "0.3", "0.5"],
+      ],
+    },
+  ],
+};
+const tableOf = (type: GraphType) =>
+  type === "survival"
+    ? AXIS_TABLES.survival
+    : type === "volcano"
+      ? AXIS_TABLES.multiple
+      : (Object.values(AXIS_TABLES).find(([t]) => GRAPH_OPTIONS_BY_TABLE[t].some((o) => o.value === type)) ??
+        AXIS_TABLES.column);
+
+/** A graph's axes as drawn with these options: X's then Y's layout. */
+function axesDrawn(type: GraphType, options: GraphOptions) {
+  const [tableType, data] = tableOf(type);
+  const dataset = readTable(data);
+  const columns = plotColumns(dataset, type, options, tableType);
+  const { layout } = GRAPHS[type].build(columns, options, paintOf(options, 2), dataset.titles);
+  return JSON.stringify([layout.xaxis, layout.yaxis]);
+}
+
+check("every axis setting the Format panel offers changes the graph, and no other does", () => {
+  const volcano = { volcanoX: "Log2 FC", volcanoY: "P", volcanoLabel: "Gene" };
+  for (const type of Object.keys(GRAPHS) as GraphType[]) {
+    for (const rowsAt of ["order", "values"] as const) {
+      const options = { ...newGraphOptions(type), ...volcano, rowsAt };
+      const { axes, horizontal } = GRAPHS[type];
+      const drawn = axesDrawn(type, options);
+      for (const shown of ["x", "y"] as const) {
+        const kind = axes(options, true)[shown];
+        const k = (shown === "x") === !horizontal ? "x" : "y";
+        const changes = (patch: Partial<GraphOptions>) => axesDrawn(type, { ...options, ...patch }) !== drawn;
+        const what = `${type} (${rowsAt}) ${shown.toUpperCase()}`;
+        strictEqual(changes({ [`${k}Scale`]: "log10" }), kind === "scale", `${what}: its scale`);
+        strictEqual(
+          changes({ [`${k}Min`]: 0.5, [`${k}Max`]: 40 }),
+          kind === "scale" || kind === "range",
+          `${what}: its range`,
+        );
+        strictEqual(changes({ [`${k}Step`]: 2 }), kind === "scale" || kind === "range", `${what}: its step`);
+      }
+    }
+  }
+});
+
+check("Match takes an axis's range only from an axis of the same kind", () => {
+  const graph = (type: GraphType, options: Partial<GraphOptions>): Matched => ({
+    type,
+    table: "t1",
+    options: { ...newGraphOptions(type), ...options },
+    series: [],
+  });
+  const xy = graph("xy-scatter", { xStep: 10, yMax: 50 });
+  const taken = matched(graph("individual", {}), xy, ["ranges"]);
+  deepStrictEqual([taken.xStep, taken.yMax], [undefined, 50]);
+  // Horizontal bars' value axis is any graph's Y.
+  strictEqual(matched(graph("grouped-hbars", {}), xy, ["ranges"]).yMax, 50);
+});
+
+check("connected lines stand their rows at their titles' values, when every row holding data has one", () => {
+  const [, data] = AXIS_TABLES.grouped;
+  const options = { ...newGraphOptions("grouped-lines"), rowsAt: "values" as const };
+  const lines = (table: TableData) => {
+    const dataset = readTable(table);
+    return GRAPHS["grouped-lines"].build(dataset.columns, options, paintOf(options, 2), dataset.titles);
+  };
+  const { data: traces, layout } = lines(data);
+  deepStrictEqual((traces[0] as { x: number[] }).x, [0, 5, 30]);
+  strictEqual((layout.xaxis as { tickmode?: string }).tickmode, undefined); // a numeric axis
+  // A row of data titled by a word: the rows stay in order, one label each.
+  const worded = { ...data, rows: data.rows.map((r, i) => (i === 1 ? ["Day 5", ...r.slice(1)] : r)) };
+  deepStrictEqual((lines(worded).data[0] as { x: number[] }).x, [0, 1, 2]);
+  // A row without values needs no number.
+  const gap = { ...data, rows: [...data.rows.slice(0, 2), [null, null, null, null, null], data.rows[2]] };
+  deepStrictEqual((lines(gap).data[0] as { x: (number | null)[] }).x, [0, 5, null, 30]);
+});
+
+check("labels that would overlap are spaced on every axis, at Plotly's own spacing for categories", () => {
+  const labels = Array.from({ length: 40 }, (_, i) => `Day ${i}`);
+  const layout = { xaxis: { tickmode: "array", tickvals: labels.map((_, i) => i), ticktext: labels } };
+  const ticks = (at: number[], text = at.map(String)) => at.map((x, i) => ({ x, text: text[i] }));
+  // 40 categories on 200 px: 5 px each, against 14 px (1.2 × 12) for a label: one in 3.
+  const drawn = { xaxis: { _length: 200, range: [-0.5, 39.5], _vals: ticks(layout.xaxis.tickvals, labels) } };
+  const thinned = fitLabels(layout, drawn, 12)!;
+  deepStrictEqual(thinned["xaxis.tickvals"], [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39]);
+  strictEqual((thinned["xaxis.ticktext"] as string[])[1], "Day 3");
+  strictEqual(fitLabels(layout, { xaxis: { ...drawn.xaxis, _length: 800 } }, 12), null);
+  // A log axis's powers, from 1 to 1000000 on 60 px: every other one, at its value.
+  const log = { yaxis: { type: "log", _length: 60, range: [0, 6], _vals: ticks([0, 1, 2, 3, 4, 5, 6]) } };
+  deepStrictEqual(fitLabels({ yaxis: { tickvals: [] } }, log, 12)!["yaxis.tickvals"], [1, 100, 10000, 1000000]);
+  // A step typed too small for its axis (1 on 0 to 4000, 300 px, labels 187 apart at
+  // least): its smallest round multiple that fits, 200; 0.25 makes 250.
+  const typed = { yaxis: { _length: 300, range: [0, 4000], _vals: ticks([0, 1, 2]) } };
+  deepStrictEqual(fitLabels({ yaxis: { dtick: 1 } }, typed, 12), { "yaxis.dtick": 200 });
+  const quarter = { yaxis: { ...typed.yaxis, _vals: ticks([0, 0.25, 0.5]) } };
+  deepStrictEqual(fitLabels({ yaxis: { dtick: 0.25 } }, quarter, 12), { "yaxis.dtick": 250 });
 });
 
 // ── Run ──────────────────────────────────────────────────────────────────

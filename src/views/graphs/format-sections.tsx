@@ -61,6 +61,8 @@ export interface SectionContext {
   volcanoBelowZero: number;
   /** The values at or under 0 a log axis can't show, on X and on Y. */
   logLeftOut: { x: number; y: number };
+  /** Every row holding data is titled by a number: connected lines can stand at them. */
+  atValues: boolean;
   /** A histogram's typed bin width makes too many bins (its automatic ones are drawn). */
   binsTooMany: boolean;
   /** An XY table whose data sets hold replicates. */
@@ -978,7 +980,20 @@ function ownStyle(context: SectionContext): React.ReactNode {
           { value: "violin", label: "Violin" },
         ]}
       />
-      {shapes(options.kind === "violin" ? "Violin" : "Box")}
+      {options.kind === "violin"
+        ? shapes("Violin")
+        : shapes(
+            "Box",
+            <Choice
+              label="Whiskers"
+              value={options.whiskers}
+              onChange={(whiskers) => set({ whiskers })}
+              items={[
+                { value: "minmax", label: "Min to Max" },
+                { value: "tukey", label: "Tukey" },
+              ]}
+            />,
+          )}
       {pointsGroup(
         context,
         <Toggle label="Show points" checked={options.showPoints} onChange={(showPoints) => set({ showPoints })} />,

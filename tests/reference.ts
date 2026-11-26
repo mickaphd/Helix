@@ -1456,23 +1456,41 @@ c(worst=worst)`,
   return out;
 }
 
-/** NIST's Statistical Reference Datasets (tests/nist/, public domain): Helix's results
- *  against their certified values, to 9 significant digits (6 for the nonlinear fit, whose
- *  convergence stops earlier): linear regression (Norris), a quadratic (Pontius), multiple
- *  regression (Longley), a hyperbola (Misra1d: Bmax = b1, Kd = 1 / b2), one-way ANOVA
- *  (SiRstv; AtmWtAg, two groups, by Student's t; SmLs07, 13 significant digits in common), and
- *  the mean and SD (NumAcc3, whose values differ in the 8th digit; Michelso). */
+/** A file of NIST's Statistical Reference Datasets (tests/nist/, public domain): its data
+ *  (the lines its header names) and its certified values, read as NIST prints them, never
+ *  copied by hand: `value` the last number on the line holding `label`, `params` each
+ *  parameter's estimate and standard deviation (B0…, b1…). */
+function nistFile(name: string) {
+  const lines = readFileSync(fileURLToPath(new URL(`nist/${name}.dat`, import.meta.url)), "utf8").split(/\r?\n/);
+  const [, from, to] = lines.join("\n").match(/Data\s*:?\s*\(?\s*lines\s+(\d+)\s+to\s+(\d+)/)!;
+  const header = lines.slice(0, Number(from) - 1);
+  const numbers = (line: string) => (line.match(/-?\d[\d.]*(E[+-]?\d+)?/gi) ?? []).map(Number);
+  return {
+    data: lines.slice(Number(from) - 1, Number(to)).map((l) => l.trim().split(/\s+/)),
+    value: (label: RegExp) => numbers(header.find((l) => label.test(l))!).at(-1)!,
+    params: () =>
+      Object.fromEntries(
+        header.flatMap((l) => {
+          const [, key] = l.match(/^\s*([Bb]\d+)\b/) ?? [];
+          return key ? [[key.toUpperCase(), numbers(l.slice(l.indexOf(key) + key.length)).slice(-2)]] : [];
+        }),
+      ) as Record<string, number[]>,
+  };
+}
+
+/** NIST's certified values against Helix's results, every dataset of the StRD a Helix
+ *  analysis can fit: the mean and SD (all 9 univariate sets), one-way ANOVA (all 11), linear
+ *  regression (Norris; NoInt1 and 2 through the origin), polynomials (Pontius; Filip and
+ *  Wampler 1 to 5 as multiple regressions on X's powers), multiple regression (Longley),
+ *  and the nonlinear models Helix has (Misra1d: hyperbola and Michaelis-Menten; Rat42:
+ *  logistic growth; MGH17: two-phase decay). To 9 significant digits, but 6 for a nonlinear
+ *  fit (its convergence stops earlier) and as many as the data allow on the hardest sets,
+ *  said where they are. */
 async function nistDisagreements(): Promise<string[]> {
   const out: string[] = [];
-  const nist = (name: string, first: number) =>
-    readFileSync(fileURLToPath(new URL(`nist/${name}.dat`, import.meta.url)), "utf8")
-      .split("\n")
-      .slice(first - 1)
-      .filter((l) => l.trim())
-      .map((l) => l.trim().split(/\s+/));
   const near = (what: string, got: number | null | undefined, certified: number, digits = 9) => {
-    if (got == null || Math.abs(got - certified) > Math.abs(certified) * 10 ** -digits)
-      out.push(`NIST ${what}: Helix ${got}, certified ${certified}`);
+    const off = certified === 0 ? Math.abs(got ?? NaN) : Math.abs((got ?? NaN) - certified) / Math.abs(certified);
+    if (!(off <= 10 ** -digits)) out.push(`NIST ${what}: Helix ${got}, certified ${certified}`);
   };
   const stat = (r: Awaited<ReturnType<typeof runAnalysis>>, label: string) =>
     "error" in r ? null : r.stats.find((s) => s.label === label)?.value;
@@ -1484,61 +1502,56 @@ async function nistDisagreements(): Promise<string[]> {
       rows.map(([y, x]) => ["", x, y]),
     );
 
-  // Norris: a line; each coefficient's SD from its 95% CI (t × SE, 34 df).
-  const norris = await runAnalysis("linear-regression", xyOf(nist("Norris", 61)), { forceOrigin: false });
-  near("Norris slope", stat(norris, "Slope"), 1.00211681802045);
-  near("Norris intercept", stat(norris, "Y-intercept"), -0.262323073774029);
-  near("Norris R²", stat(norris, "R squared"), 0.999993745883712);
-  const ciHalf = (lo: string, hi: string) => ((stat(norris, hi) ?? NaN) - (stat(norris, lo) ?? NaN)) / 2 / tCrit95(34);
-  near("Norris slope SD", ciHalf("Slope 95% CI lower", "Slope 95% CI upper"), 0.429796848199937e-3, 6);
-  near("Norris intercept SD", ciHalf("Intercept 95% CI lower", "Intercept 95% CI upper"), 0.232818234301152, 6);
+  // Where NIST's values (1000000000000.4…) can't be held exactly by a double, which every
+  // program computes with, the certified value is met to as many digits as the data as
+  // stored allow, and Helix must give the stored values' own result to 9: worked out with
+  // exact fractions (Python's, 2026-11-24).
+  const stored = (what: string, got: number | null | undefined, exact: number) =>
+    near(`${what} (stored values)`, got, exact);
 
-  // Pontius: a quadratic.
-  const pontius = await runAnalysis("nonlinear-regression", xyOf(nist("Pontius", 61)), { model: "quadratic" });
-  // prettier-ignore
-  for (const [term, est, sd] of [["B0", 0.673565789473684e-3, 0.107938612033077e-3], ["B1", 0.732059160401003e-6, 0.157817399981659e-9], ["B2", -0.316081871345029e-14, 0.486652849992036e-16]] as const) {
-    near(`Pontius ${term}`, coef(pontius, term)?.estimate, est);
-    near(`Pontius ${term} SD`, coef(pontius, term)?.stdError, sd);
+  // The mean and SD. NumAcc4's values are alike in their first 8 digits (10000000.2).
+  for (const name of ["PiDigits", "Lottery", "Lew", "Mavro", "Michelso", "NumAcc1", "NumAcc2", "NumAcc3", "NumAcc4"]) {
+    const f = nistFile(name);
+    const desc = await runAnalysis(
+      "descriptive-statistics",
+      table(
+        ["Title", "Y"],
+        f.data.map(([v]) => ["", v]),
+      ),
+    );
+    const g = "error" in desc ? undefined : desc.groups[0];
+    near(`${name} mean`, g?.mean, f.value(/Sample Mean/));
+    near(`${name} SD`, g?.sd, f.value(/Sample Standard Deviation/), name === "NumAcc4" ? 8 : 9);
   }
-
-  // Longley: six predictors, much alike.
-  const longley = nist("Longley", 61);
-  const names = ["y", "x1", "x2", "x3", "x4", "x5", "x6"];
-  const multi = await runAnalysis(
-    "multiple-regression",
+  const numAcc4 = await runAnalysis(
+    "descriptive-statistics",
     table(
-      ["Title", ...names],
-      longley.map((r) => ["", ...r]),
+      ["Title", "Y"],
+      nistFile("NumAcc4").data.map(([v]) => ["", v]),
     ),
-    {
-      dependent: "y",
-      predictors: names.slice(1),
-    },
   );
-  // prettier-ignore
-  const certified = [[-3482258.63459582, 890420.383607373], [15.0618722713733, 84.9149257747669], [-0.358191792925910e-1, 0.334910077722432e-1], [-2.02022980381683, 0.488399681651699], [-1.03322686717359, 0.214274163161675], [-0.511041056535807e-1, 0.226073200069370], [1829.15146461355, 455.478499142212]];
-  ["Intercept", ...names.slice(1)].forEach((term, i) => {
-    near(`Longley ${term}`, coef(multi, term)?.estimate, certified[i][0]);
-    near(`Longley ${term} SD`, coef(multi, term)?.stdError, certified[i][1]);
-  });
-  near("Longley R²", stat(multi, "R squared"), 0.995479004577296);
-  near("Longley F", stat(multi, "F"), 330.285339234588);
+  stored("NumAcc4 SD", "error" in numAcc4 ? null : numAcc4.groups[0].sd, 0.10000000055879354);
 
-  // Misra1d: y = b1·b2·x / (1 + b2·x), Helix's hyperbola Bmax·x / (Kd + x) with Kd = 1 / b2.
-  const misra = await runAnalysis("nonlinear-regression", xyOf(nist("Misra1d", 61)), { model: "hyperbola" });
-  near("Misra1d Bmax (b1)", coef(misra, "Bmax")?.estimate, 4.3736970754e2, 6);
-  near("Misra1d Bmax SD", coef(misra, "Bmax")?.stdError, 3.6489174345, 6);
-  near("Misra1d 1 / Kd (b2)", 1 / (coef(misra, "Kd")?.estimate ?? NaN), 3.0227324449e-4, 6);
-  near("Misra1d Kd SD", coef(misra, "Kd")?.stdError, 2.9334354479e-6 / 3.0227324449e-4 ** 2, 5);
-
-  // One-way ANOVA: each group a column.
-  // prettier-ignore
-  for (const [name, f, r2] of [["SiRstv", 1.18046237440255, 0.190999039051129], ["AtmWtAg", 15.9467335677930, 0.257426544538321], ["SmLs07", 21.0, 0.482758620689655]] as const) {
+  // One-way ANOVA, each group a column. SmLs07 to 09 hold values alike in their first 13
+  // digits: a double holds each to within 0.00005, on differences of 0.1, so 4 digits of
+  // the certified F are all the data as stored allow; their own F, to 9.
+  const storedF: Record<string, [number, number]> = {
+    SmLs07: [21.00081188781877, 0.4827682743479894],
+    SmLs08: [201.01300409594845, 0.4718471083353959],
+    SmLs09: [2001.1349262209505, 0.47072957244381347],
+  };
+  for (const name of ["SiRstv", "AtmWtAg", ...Array.from({ length: 9 }, (_, i) => `SmLs0${i + 1}`)]) {
+    const f = nistFile(name);
     const byGroup = new Map<string, string[]>();
-    for (const [g, v] of nist(name, 61)) byGroup.set(g, [...(byGroup.get(g) ?? []), v]);
+    for (const [g, v] of f.data) byGroup.set(g, [...(byGroup.get(g) ?? []), v]);
     const groups = [...byGroup.values()];
     const height = Math.max(...groups.map((g) => g.length));
-    const data = table(["Title", ...[...byGroup.keys()].map((g) => `G${g}`)], Array.from({ length: height }, (_, r) => ["", ...groups.map((g) => g[r] ?? "")]));
+    const data = table(
+      ["Title", ...[...byGroup.keys()].map((g) => `G${g}`)],
+      Array.from({ length: height }, (_, r) => ["", ...groups.map((g) => g[r] ?? "")]),
+    );
+    const digits = /SmLs0[789]/.test(name) ? 4 : 9;
+    const [F, r2] = [f.value(/Between/), f.value(/R-Squared/)];
     if (groups.length === 2) {
       // Two groups: Student's t test, whose t² is the ANOVA's F.
       const t = await runAnalysis("compare-two-groups", data, {
@@ -1547,29 +1560,149 @@ async function nistDisagreements(): Promise<string[]> {
         equalVariance: true,
         tails: "two-sided",
       } as AnalysisParams);
-      near(`${name} t² (F)`, (stat(t, "t") ?? NaN) ** 2, f);
+      near(`${name} t² (F)`, (stat(t, "t") ?? NaN) ** 2, F, digits);
+      near(`${name} R²`, stat(t, "R squared"), r2, digits);
       continue;
     }
     const anova = await runAnalysis("anova", data, { posthoc: "none", equalSd: true });
-    // SmLs07's values have 13 significant digits in common: a double (what every program
-    // computes with) holds each to within 0.00005, on differences of 0.1, so 4 digits are
-    // all that the data as stored allow (shifted down, R finds F = 21 to 14 digits).
-    const digits = name === "SmLs07" ? 4 : 9;
-    near(`${name} F`, stat(anova, "F"), f, digits);
+    near(`${name} F`, stat(anova, "F"), F, digits);
     near(`${name} R²`, stat(anova, "R squared (eta squared)"), r2, digits);
+    if (storedF[name]) {
+      stored(`${name} F`, stat(anova, "F"), storedF[name][0]);
+      stored(`${name} R²`, stat(anova, "R squared (eta squared)"), storedF[name][1]);
+    }
   }
 
-  // The mean and SD.
-  for (const [name, mean, sd] of [
-    ["NumAcc3", 1000000.2, 0.1],
-    ["Michelso", 299.8524, 0.0790105478190518],
-  ] as const) {
-    const values = nist(name, 61).map(([v]) => ["", v]);
-    const desc = await runAnalysis("descriptive-statistics", table(["Title", "Y"], values));
-    const g = "error" in desc ? undefined : desc.groups[0];
-    near(`${name} mean`, g?.mean, mean);
-    near(`${name} SD`, g?.sd, sd);
+  // Norris: a line; each coefficient's SD from its 95% CI (t × SE).
+  const ciHalf = (r: Awaited<ReturnType<typeof runAnalysis>>, what: string, df: number) =>
+    ((stat(r, `${what} 95% CI upper`) ?? NaN) - (stat(r, `${what} 95% CI lower`) ?? NaN)) / 2 / tCrit95(df);
+  const norris = nistFile("Norris");
+  const line = await runAnalysis("linear-regression", xyOf(norris.data), { forceOrigin: false });
+  const { B0, B1 } = norris.params();
+  near("Norris slope", stat(line, "Slope"), B1[0]);
+  near("Norris intercept", stat(line, "Y-intercept"), B0[0]);
+  near("Norris R²", stat(line, "R squared"), norris.value(/R-Squared/));
+  near("Norris slope SD", ciHalf(line, "Slope", norris.data.length - 2), B1[1], 6);
+  near("Norris intercept SD", ciHalf(line, "Intercept", norris.data.length - 2), B0[1], 6);
+  // The same with Y 1000000000000 higher: the slope the stored values give.
+  const high = await runAnalysis(
+    "linear-regression",
+    xyOf(norris.data.map(([y, x]) => [String(Number(y) + 1e12), x])),
+    { forceOrigin: false },
+  );
+  stored("Norris slope, Y + 10¹²", stat(high, "Slope"), 1.00211683280615);
+  // NoInt1 and 2: a line through the origin, whose R² is NIST's (and R's) uncentered one.
+  for (const name of ["NoInt1", "NoInt2"]) {
+    const f = nistFile(name);
+    const r = await runAnalysis("linear-regression", xyOf(f.data), { forceOrigin: true });
+    near(`${name} slope`, stat(r, "Slope"), f.params().B1[0]);
+    near(`${name} slope SD`, ciHalf(r, "Slope", f.data.length - 1), f.params().B1[1], 6);
+    near(`${name} R²`, stat(r, "R squared"), f.value(/R-Squared/));
   }
+
+  // Pontius: a quadratic.
+  const pontius = nistFile("Pontius");
+  const quadratic = await runAnalysis("nonlinear-regression", xyOf(pontius.data), { model: "quadratic" });
+  for (const [term, [est, sd]] of Object.entries(pontius.params())) {
+    near(`Pontius ${term}`, coef(quadratic, term)?.estimate, est);
+    near(`Pontius ${term} SD`, coef(quadratic, term)?.stdError, sd);
+  }
+
+  // Polynomials as multiple regressions on X's powers (X1 = X, X2 = X², …): Wampler 1 to 5,
+  // degree 5 (Wampler1 fits exactly, its SDs 0; Wampler3 to 8 digits, its intercept 1 taken
+  // back from X's means among Ys up to 7700000; Wampler4 and 5, under much scatter, to the 7
+  // and 5 R's lm finds too, X centered or not), and Filip, degree 10, so ill-conditioned that
+  // many programs fail: Helix must give NIST's values or refuse, never others.
+  for (const [name, degree, digits] of [
+    ["Wampler1", 5, 9],
+    ["Wampler2", 5, 9],
+    ["Wampler3", 5, 8],
+    ["Wampler4", 5, 7],
+    ["Wampler5", 5, 5],
+    ["Filip", 10, 7],
+  ] as const) {
+    const f = nistFile(name);
+    const powers = Array.from({ length: degree }, (_, k) => `X${k + 1}`);
+    const r = await runAnalysis(
+      "multiple-regression",
+      table(
+        ["Title", "Y", ...powers],
+        f.data.map(([y, x]) => ["", y, ...powers.map((_, k) => String(Number(x) ** (k + 1)))]),
+      ),
+      { dependent: "Y", predictors: powers },
+    );
+    if ("error" in r) {
+      if (name !== "Filip") out.push(`NIST ${name}: Helix refused it (${r.error})`);
+      continue;
+    }
+    for (const [term, [est, sd]] of Object.entries(f.params())) {
+      const c = coef(r, term === "B0" ? "Intercept" : `X${term.slice(1)}`);
+      near(`${name} ${term}`, c?.estimate, est, digits);
+      near(`${name} ${term} SD`, c?.stdError, sd, digits - 3);
+    }
+    near(`${name} R²`, stat(r, "R squared"), f.value(/R-Squared/), digits);
+  }
+
+  // Longley: six predictors, much alike.
+  const longley = nistFile("Longley");
+  const names = ["y", "x1", "x2", "x3", "x4", "x5", "x6"];
+  const multi = await runAnalysis(
+    "multiple-regression",
+    table(
+      ["Title", ...names],
+      longley.data.map((r) => ["", ...r]),
+    ),
+    { dependent: "y", predictors: names.slice(1) },
+  );
+  ["Intercept", ...names.slice(1)].forEach((term, i) => {
+    const [est, sd] = longley.params()[`B${i}`];
+    near(`Longley ${term}`, coef(multi, term)?.estimate, est);
+    near(`Longley ${term} SD`, coef(multi, term)?.stdError, sd);
+  });
+  near("Longley R²", stat(multi, "R squared"), longley.value(/R-Squared/));
+
+  // Nonlinear models, as Helix writes them:
+  // Misra1d, y = b1·b2·x / (1 + b2·x): the hyperbola and Michaelis-Menten, Bmax = Vmax = b1,
+  // Kd = Km = 1 / b2 (its SD by the delta method, 5 digits).
+  const misra = nistFile("Misra1d");
+  const { B1: m1, B2: m2 } = misra.params();
+  for (const [model, top, half] of [
+    ["hyperbola", "Bmax", "Kd"],
+    ["michaelis-menten", "Vmax", "Km"],
+  ] as const) {
+    const r = await runAnalysis("nonlinear-regression", xyOf(misra.data), { model });
+    near(`Misra1d ${top} (b1)`, coef(r, top)?.estimate, m1[0], 6);
+    near(`Misra1d ${top} SD`, coef(r, top)?.stdError, m1[1], 6);
+    near(`Misra1d 1 / ${half} (b2)`, 1 / (coef(r, half)?.estimate ?? NaN), m2[0], 6);
+    near(`Misra1d ${half} SD`, coef(r, half)?.stdError, m2[1] / m2[0] ** 2, 5);
+  }
+  // Rat42, y = b1 / (1 + exp(b2 − b3·x)): logistic growth, YM = b1, K = b3, and
+  // Y0 = b1 / (1 + exp(b2)).
+  const rat = nistFile("Rat42");
+  const { B1: r1, B2: r2, B3: r3 } = rat.params();
+  const logistic = await runAnalysis("nonlinear-regression", xyOf(rat.data), { model: "logistic-growth" });
+  near("Rat42 YM (b1)", coef(logistic, "YM")?.estimate, r1[0], 6);
+  near("Rat42 YM SD", coef(logistic, "YM")?.stdError, r1[1], 6);
+  near("Rat42 K (b3)", coef(logistic, "K")?.estimate, r3[0], 6);
+  near("Rat42 K SD", coef(logistic, "K")?.stdError, r3[1], 6);
+  near("Rat42 Y0", coef(logistic, "Y0")?.estimate, r1[0] / (1 + Math.exp(r2[0])), 6);
+  // MGH17, y = b1 + b2·exp(−b4·x) + b3·exp(−b5·x), hard for good algorithms: two-phase
+  // decay, Plateau = b1, KFast = b5, KSlow = b4, Y0 = b1 + b2 + b3, the fast phase b3 of
+  // the fall Y0 − Plateau.
+  const mgh = nistFile("MGH17");
+  const { B1: g1, B2: g2, B3: g3, B4: g4, B5: g5 } = mgh.params();
+  const decay = await runAnalysis("nonlinear-regression", xyOf(mgh.data), { model: "two-phase-decay" });
+  // Its curve rises before it falls (b3 < 0), no decay's shape: Helix may say it can't fit
+  // it, never fit it wrong.
+  if ("error" in decay) return out;
+  near("MGH17 Plateau (b1)", coef(decay, "Plateau")?.estimate, g1[0], 6);
+  near("MGH17 Plateau SD", coef(decay, "Plateau")?.stdError, g1[1], 5);
+  near("MGH17 KFast (b5)", coef(decay, "KFast")?.estimate, g5[0], 6);
+  near("MGH17 KFast SD", coef(decay, "KFast")?.stdError, g5[1], 5);
+  near("MGH17 KSlow (b4)", coef(decay, "KSlow")?.estimate, g4[0], 6);
+  near("MGH17 KSlow SD", coef(decay, "KSlow")?.stdError, g4[1], 5);
+  near("MGH17 Y0", coef(decay, "Y0")?.estimate, g1[0] + g2[0] + g3[0], 6);
+  near("MGH17 PercentFast", coef(decay, "PercentFast")?.estimate, (100 * g3[0]) / (g2[0] + g3[0]), 6);
   return out;
 }
 
@@ -1792,43 +1925,70 @@ async function disagreements(): Promise<string[]> {
       out.push(`95% CI error bar of ${c.name}: graph ${errorOf(c.values, "ci")}, R ${r.h}`);
   }
   // A box shows R's quartiles (type 6, as Descriptive statistics) and whiskers to the
-  // minimum and maximum, on a Column table and at each row of a Grouped one.
+  // minimum and maximum, or Tukey's (the furthest values within 1.5 × IQR of the quartiles,
+  // those beyond drawn one by one), on a Column table and at each row of a Grouped one;
+  // `outlying` holds values beyond them, one (14) between 1.5 and 2 IQR from its quartile.
+  const outlying = table(
+    ["Title", "A", "B", "C"],
+    [
+      ["", "1", "40", "5"],
+      ["", "2", "3", "5.5"],
+      ["", "3", "4", "6"],
+      ["", "4", "5", "6.5"],
+      ["", "5", "6", "7"],
+      ["", "6", "-30", "7.5"],
+      ["", "7", "7", "8"],
+      ["", "14", "8", "8.5"],
+    ],
+  );
   for (const [data, type] of [
     [column, "box-violin"],
+    [outlying, "box-violin"],
     [grouped, "grouped-box"],
-  ] as const) {
-    const options = { ...newGraphOptions(type), kind: "box" as const };
-    const cols = readTable(data).numeric;
-    const fig = GRAPHS[type].build(cols, options, paintOf(options, 3));
-    const boxes = (
-      fig.data as {
+  ] as const)
+    for (const whiskers of ["minmax", "tukey"] as const) {
+      const options = { ...newGraphOptions(type), kind: "box" as const, whiskers };
+      const cols = readTable(data).numeric;
+      const fig = GRAPHS[type].build(cols, options, paintOf(options, 3));
+      type Trace = {
         type: string;
         q1: number[];
         median: number[];
         q3: number[];
         lowerfence: number[];
         upperfence: number[];
-      }[]
-    ).filter((t) => t.type === "box");
-    const sets =
-      type === "box-violin"
-        ? cols.map((c) => c.values)
-        : readTable(data).sets.flatMap((s) =>
-            data.rows.map((_, r) => s.columns.flatMap((c) => (c.byRow[r] == null ? [] : [c.byRow[r]!]))),
-          );
-    const drawn = boxes.flatMap((b) =>
-      b.q1.map((_, i) => [b.lowerfence[i], b.q1[i], b.median[i], b.q3[i], b.upperfence[i]]),
-    );
-    const r = await evalNamedVector(
-      `S<-list(${sets.map(rVec).join(",")});unlist(lapply(seq_along(S),function(i)setNames(c(min(S[[i]]),quantile(S[[i]],c(0.25,0.5,0.75),type=6,names=FALSE),max(S[[i]])),paste0("b",i,"_",1:5))))`,
-    );
-    const expected = sets.map((_, i) => [1, 2, 3, 4, 5].map((k) => r[`b${i + 1}_${k}`]));
-    if (
-      JSON.stringify(drawn.map((b) => b.map((v) => +v.toPrecision(12)))) !==
-      JSON.stringify(expected.map((b) => b.map((v) => +v!.toPrecision(12))))
-    )
-      out.push(`Boxes of ${type}: drawn ${JSON.stringify(drawn)}, R ${JSON.stringify(expected)}`);
-  }
+        y: number[];
+      };
+      const traces = fig.data as Trace[];
+      const sets =
+        type === "box-violin"
+          ? cols.map((c) => c.values)
+          : readTable(data).sets.flatMap((s) =>
+              data.rows.map((_, r) => s.columns.flatMap((c) => (c.byRow[r] == null ? [] : [c.byRow[r]!]))),
+            );
+      const drawn = traces
+        .filter((t) => t.type === "box")
+        .flatMap((b) => b.q1.map((_, i) => [b.lowerfence[i], b.q1[i], b.median[i], b.q3[i], b.upperfence[i]]));
+      const beyond = traces
+        .filter((t) => t.type === "scatter")
+        .flatMap((t) => t.y)
+        .sort((a, b) => a - b);
+      const reach = whiskers === "tukey" ? "1.5" : "Inf";
+      const r = await evalNamedVector(
+        `S<-list(${sets.map(rVec).join(",")});k<-${reach};out<-c();b<-unlist(lapply(seq_along(S),function(i){x<-S[[i]];q<-quantile(x,c(0.25,0.5,0.75),type=6,names=FALSE);w<-k*(q[3]-q[1]);if(is.nan(w))w<-Inf;inside<-x[x>=q[1]-w&x<=q[3]+w];out<<-c(out,x[x<min(inside)|x>max(inside)]);setNames(c(min(inside),q,max(inside)),paste0("b",i,"_",1:5))}));if(length(out))c(b,setNames(sort(out),paste0("o",seq_along(out))))else b`,
+      );
+      const expected = sets.map((_, i) => [1, 2, 3, 4, 5].map((k) => r[`b${i + 1}_${k}`]));
+      const outside = Object.keys(r)
+        .filter((k) => k.startsWith("o"))
+        .map((k) => r[k]!);
+      const round = (v: unknown) => JSON.stringify(v, (_, x) => (typeof x === "number" ? +x.toPrecision(12) : x));
+      if (round(drawn) !== round(expected))
+        out.push(`Boxes of ${type} (${whiskers}): drawn ${JSON.stringify(drawn)}, R ${JSON.stringify(expected)}`);
+      if (round(beyond) !== round(outside))
+        out.push(`Values beyond the whiskers of ${type} (${whiskers}): drawn ${beyond}, R ${outside}`);
+      if (data === outlying && whiskers === "tukey" && outside.length !== 3)
+        out.push(`The outlying table should hold 3 values beyond Tukey's whiskers, not ${outside.length}.`);
+    }
   // Descriptive statistics' quartiles are the (n + 1)p method, worked out here by hand;
   // a value at or under 0 leaves no geometric mean.
   const atP = (values: number[], p: number) => {

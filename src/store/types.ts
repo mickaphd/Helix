@@ -42,10 +42,12 @@ export const GRAPH_CHOICES = {
   stackAs: ["values", "percent"],
   shape: ["bar", "point", "line"],
   kind: ["box", "violin"],
+  whiskers: ["minmax", "tukey"],
   xyStyle: ["points", "line", "points+line"],
   xyReplicates: ["mean", "each"],
   pieValue: ["sum", "mean"],
   groupLayout: ["interleaved", "separated"],
+  rowsAt: ["order", "values"],
   sigDisplay: ["stars", "pvalue", "letters"],
   regBand: ["confidence", "prediction"],
   residualsAs: ["x", "qq"],
@@ -102,6 +104,9 @@ export interface GraphOptions {
   shape: Choice<"shape">;
   // Box & violin
   kind: Choice<"kind">;
+  // A box's whiskers: to the minimum and maximum, or Tukey's (to the furthest values within
+  // 1.5 × IQR of the quartiles, those beyond drawn one by one).
+  whiskers: Choice<"whiskers">;
   showPoints: boolean; // overlay individual points on box/violin
   // XY scatter: markers only, connecting line only, or both
   xyStyle: Choice<"xyStyle">;
@@ -117,22 +122,25 @@ export interface GraphOptions {
   // lines (groups must share the same X axis to show interaction) or stacked
   // bars (stacking already combines groups per category).
   groupLayout: Choice<"groupLayout">;
+  // Connected lines: the rows one after another, or at their titles' values when every
+  // row holding data is titled by a number (times, doses), on a numeric X axis.
+  rowsAt: Choice<"rowsAt">;
   // Stacked bars: each group's value, or its share of the row's total (100 % bars).
   stackAs: Choice<"stackAs">;
   // Titles
   title: string;
   xLabel: string;
   yLabel: string;
-  // Each axis's scale: linear, or logarithmic with ticks at powers of 10 or of 2. The
-  // value axis is Y (X on horizontal bars); X only where it is numeric (XY).
+  // Each axis's scale: linear, or logarithmic with ticks at powers of 10 or of 2, where the
+  // graph offers it (its module's `axes`). Horizontal bars keep the value axis's settings
+  // in the y keys and the rows' in the x keys, though they draw them across.
   xScale: Choice<"xScale">;
   yScale: Choice<"yScale">;
-  // Y-axis scale (Prism-style). All optional — blank = auto. Manual min+max set
-  // the range; yStep sets the tick interval (every 1, 10, …).
+  // Each axis of values' range, all optional (blank: auto): min and max, and the step
+  // between ticks (every 1, 10, …). An axis of categories (columns, rows) takes none.
   yMin?: number;
   yMax?: number;
   yStep?: number;
-  // X-axis scale (XY family only — Column family's X is categorical). Same semantics as Y.
   xMin?: number;
   xMax?: number;
   xStep?: number;
@@ -261,12 +269,14 @@ export const DEFAULT_GRAPH_OPTIONS: GraphOptions = {
   error: "sem",
   shape: "bar",
   kind: "box",
+  whiskers: "minmax",
   showPoints: false,
   xyStyle: "points",
   xyReplicates: "mean",
   pieValue: "sum",
   pieShowPercent: true,
   groupLayout: "interleaved",
+  rowsAt: "order",
   sigDisplay: "stars",
   regShowLine: true,
   regShowBand: true,

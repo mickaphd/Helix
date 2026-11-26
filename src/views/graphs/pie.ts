@@ -45,7 +45,14 @@ function makePie(hole: number, label: string): GraphModule {
     };
   };
   // Solid slices (Helix 1.0's too) apart by a white outline.
-  return { label, family: "pie", defaults: { fill: 1, outlineColor: "#FFFFFF" }, patterns: () => true, build };
+  return {
+    label,
+    family: "pie",
+    axes: () => ({}),
+    defaults: { fill: 1, outlineColor: "#FFFFFF" },
+    patterns: () => true,
+    build,
+  };
 }
 
 export const pie = makePie(0, "Pie");

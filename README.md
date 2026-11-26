@@ -45,6 +45,8 @@ And a spreadsheet that feels like one:
 
 - Copy and paste with Excel or Numbers, fill down, find, resize columns, keep the titles
   visible as you scroll
+- Name many columns at once: copy a row or a column of names, then right-click a column
+  header ▸ Paste Column Names
 - Name each row (a mouse, a patient, a gene): the names follow into results and graphs
 - Exclude a value from the analyses without deleting it
 
@@ -98,8 +100,9 @@ And a spreadsheet that feels like one:
   color tags to find them in a busy project, saved in the project
 - **One table, many figures:** a graph shows all of a table's data sets or only those you
   tick, each in the same color everywhere; its stars come from an analysis of them
-- **Every kind of figure:** dot plots, bars, box and violin, histograms, lines, heatmaps, volcano plots
-  (from your own results, or computed by Helix from replicates), survival curves
+- **Every kind of figure:** dot plots, bars, box (whiskers min to max or Tukey's, outliers
+  apart) and violin, histograms, lines, heatmaps, volcano plots (from your own results, or
+  computed by Helix from replicates), survival curves
 - **Colors that work:** 15 palettes from the scientific literature (Okabe-Ito, Paul Tol,
   Viridis, Batlow…), colorblind-friendly ones first, each reversible; or make your own,
   kept on your Mac
@@ -109,7 +112,8 @@ And a spreadsheet that feels like one:
   show their name; on a volcano plot, find genes by name
 - **Match:** give a graph the look of another one, choosing what it takes
 - **Lay it out:** move the legend and notes, resize by dragging an axis or typing a size, set
-  each axis's range and step, draw reference lines (a control's level, a threshold) with
+  each axis's range and step (labels never overlap; a time course's rows on a true time
+  axis), draw reference lines (a control's level, a threshold) with
   their text, white or transparent background
 - **Export** as PNG or JPG at 150, 300 or 600 DPI, at their true printed size, or as SVG; or
   copy and paste into Keynote, PowerPoint or Word

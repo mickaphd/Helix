@@ -4,7 +4,7 @@
 import type { GraphOptions } from "../../store/types";
 import type { GraphModule, GraphFigure } from ".";
 import type { Column } from "../../lib/dataset";
-import { baseLayout, centers, columnPoints, COLUMN_BAR, errors, type Paint } from "./plot-helpers";
+import { baseLayout, CATEGORY_AXES, centers, columnPoints, COLUMN_BAR, errors, type Paint } from "./plot-helpers";
 
 function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFigure {
   const center = centers(columns, options.center);
@@ -63,6 +63,7 @@ function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFig
 export const individual: GraphModule = {
   label: "Individual values",
   family: "column",
+  axes: CATEGORY_AXES,
   defaults: { fill: 0.5 },
   points: () => true,
   patterns: (options) => options.bars,

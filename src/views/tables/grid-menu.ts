@@ -36,13 +36,25 @@ interface MenuContext {
   /** Applies an edit, named for Undo. */
   update: (next: TableData, label: string, move?: TableMove) => void;
   rename: (column: number) => void;
+  /** Names the columns from the clipboard's text, from this one rightwards. */
+  pasteNames: (column: number) => void;
   /** Shows a grouped table's Groups panel. */
   showGroups: () => void;
   /** A table computed from another: copying alone. */
   locked?: boolean;
 }
 
-export function gridMenu({ data, type, zone, range, update, rename, showGroups, locked }: MenuContext): MenuItems {
+export function gridMenu({
+  data,
+  type,
+  zone,
+  range,
+  update,
+  rename,
+  pasteNames,
+  showGroups,
+  locked,
+}: MenuContext): MenuItems {
   if (locked) return [{ item: "Copy" }];
   const grouped = isGrouped(data);
   const rows = range.r1 - range.r0 + 1;
@@ -95,11 +107,9 @@ export function gridMenu({ data, type, zone, range, update, rename, showGroups, 
   }
 
   if (onCells) {
-    items.push(SEPARATOR, {
-      text:
-        grouped && range.c0 >= leadOf(data) ? (type === "xy" ? "Rename Data Set" : "Rename Group") : "Rename Column",
-      action: () => rename(range.c0),
-    });
+    const what = grouped && range.c0 >= leadOf(data) ? (type === "xy" ? "Data Set" : "Group") : "Column";
+    items.push(SEPARATOR, { text: `Rename ${what}`, action: () => rename(range.c0) });
+    if (zone === "column") items.push({ text: `Paste ${what} Names`, action: () => pasteNames(range.c0) });
   }
 
   if (zone === "column" && range.c0 === 0) {

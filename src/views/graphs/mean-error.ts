@@ -7,7 +7,16 @@
 import type { GraphOptions } from "../../store/types";
 import type { GraphModule, GraphFigure } from ".";
 import type { Column } from "../../lib/dataset";
-import { baseLayout, centers, COLUMN_BAR, errors, GUIDE, seriesMarker, type Paint } from "./plot-helpers";
+import {
+  baseLayout,
+  CATEGORY_AXES,
+  centers,
+  COLUMN_BAR,
+  errors,
+  GUIDE,
+  seriesMarker,
+  type Paint,
+} from "./plot-helpers";
 
 function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFigure {
   const idx = columns.map((_, i) => i);
@@ -57,6 +66,7 @@ function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFig
 export const meanError: GraphModule = {
   label: "Mean or median and error",
   family: "column",
+  axes: CATEGORY_AXES,
   defaults: { pointSize: 9 },
   points: (options) => options.shape !== "bar",
   lines: (options) => options.shape === "line",

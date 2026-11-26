@@ -291,6 +291,15 @@ const arms = (...names: string[]) => ({
     outlineColor: "#000000",
     ...arms(...groups),
   });
+  // Tukey's whiskers set the outlying vehicle mouse apart, as ROUT found it.
+  graph("t-volume", "g-volume-box", "Box plot", "box-violin", {
+    kind: "box",
+    whiskers: "tukey",
+    ...POINTS,
+    yLabel: "Tumor volume at day 21 (mm³)",
+    outlineColor: "#000000",
+    ...arms(...groups),
+  });
   // Before the ANOVA, whether each arm's volumes look normal (supplementary figure).
   graph("t-volume", "g-volume-qq", "QQ plot", "qq-plot", {
     yLabel: "Tumor volume at day 21 (mm³)",
@@ -674,6 +683,7 @@ tag("g-surv", "green", "purple");
 tag("g-rnaseq", "green", "blue", "purple");
 tag("g-volume-qq", "blue");
 tag("g-volume-violin", "blue");
+tag("g-volume-box", "blue");
 tag("g-genes", "blue");
 tag("g-markers-ki67", "blue");
 tag("t-ki67", "yellow");

@@ -1,11 +1,20 @@
-// "Box and violin": a box (quartiles and min–max whiskers, Helix's: `boxTrace`) or violin per column, with optional
+// "Box and violin": a box (quartiles and whiskers, Helix's: `boxTrace`) or violin per column, with optional
 // individual points drawn over it. Each column is its own trace so it can carry its
 // own series color; its points are a trace of their own, as on Individual values,
 // so each can carry its own style (Plotly's box points take one color for all).
 import type { GraphOptions } from "../../store/types";
 import type { GraphModule, GraphFigure } from ".";
 import type { Column } from "../../lib/dataset";
-import { baseLayout, boxTrace, columnPoints, type Paint } from "./plot-helpers";
+import {
+  baseLayout,
+  beyondWhiskers,
+  boxPoints,
+  CATEGORY_AXES,
+  boxTrace,
+  columnPoints,
+  type Paint,
+} from "./plot-helpers";
+import { pointKeyOf } from "../../lib/columns";
 
 function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFigure {
   const data: unknown[] = [];
@@ -20,9 +29,27 @@ function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFig
     data.push(
       options.kind === "violin"
         ? { type: "violin", ...shape, points: false, meanline: { visible: true }, spanmode: "hard" }
-        : { type: "box", ...shape, ...boxTrace([i], [c.values]), y: undefined, boxpoints: false, whiskerwidth: 0.5 },
+        : {
+            type: "box",
+            ...shape,
+            ...boxTrace([i], [c.values], options.whiskers),
+            y: undefined,
+            boxpoints: false,
+            whiskerwidth: 0.5,
+          },
     );
     if (options.showPoints) data.push(columnPoints(paint, c, i));
+    else if (boxPoints(options))
+      data.push(
+        ...beyondWhiskers(
+          paint,
+          c.name,
+          i,
+          i,
+          c.values,
+          c.rows.map((r) => pointKeyOf(c.name, r)),
+        ),
+      );
   });
 
   return {
@@ -37,7 +64,8 @@ function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFig
 export const boxViolin: GraphModule = {
   label: "Box and violin",
   family: "column",
+  axes: CATEGORY_AXES,
   defaults: { fill: 0.5, pointSize: 5, outline: 2 },
-  points: (options) => options.showPoints,
+  points: boxPoints,
   build,
 };

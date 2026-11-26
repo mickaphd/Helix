@@ -38,4 +38,10 @@ function build(columns: Column[], options: GraphOptions, paint: Paint): GraphFig
   };
 }
 
-export const histogram: GraphModule = { label: "Histogram", family: "histogram", defaults: { fill: 0.5 }, build };
+export const histogram: GraphModule = {
+  label: "Histogram",
+  family: "histogram",
+  axes: () => ({ x: "range", y: "scale" }),
+  defaults: { fill: 0.5 },
+  build,
+};

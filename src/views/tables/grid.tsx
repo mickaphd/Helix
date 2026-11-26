@@ -13,7 +13,7 @@ import type { EditCommand } from "../../app-menu";
 import { parseCell } from "../../lib/numeric";
 import { seriesKeyOf } from "../../lib/columns";
 import { isGrouped, leadOf } from "../../lib/dataset";
-import { alert, popupMenu } from "../../native";
+import { alert, clipboardText, popupMenu } from "../../native";
 import { XIcon } from "@phosphor-icons/react";
 import { cn, IconButton } from "../../ui/controls";
 import { gridMenu, type MenuZone } from "./grid-menu";
@@ -24,6 +24,7 @@ import {
   findCells,
   freshColumnNames,
   parseTSV,
+  pasteNames,
   renameColumn,
   renameGroup,
   setColumnWidth,
@@ -366,6 +367,20 @@ export function Grid({ data, type, update: edit, showGroups, locked }: GridProps
     }
   };
 
+  /** Paste Column Names: the clipboard's row or column of names, from column `c` rightwards. */
+  const pasteNamesAt = async (c: number) => {
+    const text = await clipboardText();
+    if (!text) return;
+    const pasted = pasteNames(data, type, c, text);
+    if ("problem" in pasted) return void alert("Couldn't Paste the Names", pasted.problem);
+    if (pasted.data !== data) update(pasted.data, "Paste Names", { renamed: pasted.renamed });
+    if (pasted.unplaced)
+      void alert(
+        "Some Names Weren't Pasted",
+        `${pasted.unplaced === 1 ? "1 name" : `${pasted.unplaced} names`} didn't fit in the table. ${type === "xy" ? "Add data sets in the Replicates panel" : "Add groups in the Groups panel"}, then paste again.`,
+      );
+  };
+
   // Commands from the Edit menu (see app-menu.ts), resubscribed with the latest state.
   React.useEffect(() => {
     const onEdit = (e: Event) => {
@@ -478,7 +493,19 @@ export function Grid({ data, type, update: edit, showGroups, locked }: GridProps
       setSel({ anchor, focus });
       g = toRange({ anchor, focus });
     }
-    void popupMenu(gridMenu({ data, type, zone, range: g, update, rename: startRename, showGroups, locked }));
+    void popupMenu(
+      gridMenu({
+        data,
+        type,
+        zone,
+        range: g,
+        update,
+        rename: startRename,
+        pasteNames: pasteNamesAt,
+        showGroups,
+        locked,
+      }),
+    );
   };
 
   /** Drag a header's right edge to resize its column; double-click it to fit the content. */

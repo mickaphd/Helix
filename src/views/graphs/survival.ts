@@ -8,7 +8,7 @@
 import type { GraphOptions } from "../../store/types";
 import type { GraphModule, GraphFigure } from ".";
 import { pairUp, type Column } from "../../lib/dataset";
-import { INK, marginsFor, xyLayout, type Paint } from "./plot-helpers";
+import { INK, marginsFor, XY_AXES, xyLayout, type Paint } from "./plot-helpers";
 import { withOpacity } from "../../lib/palettes";
 import { atRisk, kaplanMeier } from "../../lib/kaplan-meier";
 import { pretty } from "../../lib/histogram";
@@ -162,4 +162,4 @@ function withAtRisk(figure: GraphFigure, xCol: Column, ySeries: Column[], option
   };
 }
 
-export const survival: GraphModule = { label: "Survival curve", family: "xy", lines: () => true, build };
+export const survival: GraphModule = { label: "Survival curve", family: "xy", axes: XY_AXES, lines: () => true, build };

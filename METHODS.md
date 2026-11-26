@@ -17,9 +17,15 @@ it doesn't.
   each number with a reference (`tests/reference.json`). Where TypeScript computes what R
   also computes, the test checks both agree. The survival analyses are checked against the
   published results of the Freireich leukemia trial.
-- **Checked against independent references.** NIST's Statistical Reference Datasets
-  (certified values: linear, polynomial, multiple and nonlinear regression, one-way ANOVA,
-  mean and SD; `tests/nist/`), published examples (Dunnett's tables, Grubbs' critical
+- **Checked against independent references.** NIST's Statistical Reference Datasets, every
+  one a Helix analysis can fit (`tests/nist/`, their certified values read from the files
+  themselves): all 9 for the mean and SD, all 11 for one-way ANOVA, linear regression with
+  and without the origin, polynomials up to degree 10 (Filip, which many programs fail),
+  multiple regression (Longley) and the nonlinear models Helix has (Misra1d, Rat42; MGH17,
+  whose curve isn't a decay's, is refused, never fitted wrong). Where NIST's values can't be
+  held exactly by a computer, Helix gives the result of the values as stored, checked with
+  exact arithmetic. Values far from 0 for their spread (1000000000000.4…) are centered before
+  an ANOVA or a regression, so they lose no precision. Also published examples (Dunnett's tables, Grubbs' critical
   values, the space shuttle O-ring data, Freireich's leukemia trial, Lakens' effect sizes,
   Agresti's relative risk and chi-square, Hollander and Wolfe's Wilcoxon and Friedman
   tests), and textbook formulas computed apart from R (the log-rank test for trend).
@@ -190,7 +196,9 @@ Graphs compute what they redraw at once in TypeScript; the tests check each agai
 - **Error bars**: SD or SEM (n − 1), or the 95% CI of the mean (t × SEM, n − 1 df,
   checked against R's `t.test`), around the mean or the median.
 - **Box**: the quartiles of Descriptive statistics (R's type 6), whiskers to the minimum and
-  maximum, computed by Helix and only drawn by Plotly (checked against R's `quantile`; before
+  maximum, or Tukey's: to the furthest values within 1.5 × IQR of the quartiles, the values
+  beyond drawn one by one. Computed by Helix and only drawn by Plotly (checked against R's
+  `quantile` and the same whiskers worked out in R, on values beyond 1.5 and 2 IQR; before
   Helix 1.1.0, Plotly's own quartiles, which could differ slightly).
 - **Regression band**: the line's 95% confidence band (where the line lies) or prediction
   band (where a new point would: its own scatter added), checked against R's

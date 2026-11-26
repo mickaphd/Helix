@@ -25,8 +25,9 @@ function build(columns: Column[], options: GraphOptions, _paint: Paint, titles?:
         z,
         colorscale: colorscaleOf(paletteOf(options)),
         showscale: options.heatmapShowScale,
-        // Its color legend: right of the cells, or where it was moved.
-        ...(options.legend && { colorbar: options.legend }),
+        // Its color legend: right of the cells, or where it was moved; its numbers written
+        // out, as the axes' (never "10µ").
+        colorbar: { exponentformat: "none", ...options.legend },
         hoverongaps: false,
         ...(options.heatmapShowValues
           ? { texttemplate: "%{z}", textfont: { size: Math.max(options.fontSize - 3, 8) } }
@@ -41,4 +42,10 @@ function build(columns: Column[], options: GraphOptions, _paint: Paint, titles?:
   };
 }
 
-export const heatmap: GraphModule = { label: "Heatmap", family: "heatmap", palette: "viridis", build };
+export const heatmap: GraphModule = {
+  label: "Heatmap",
+  family: "heatmap",
+  axes: () => ({ x: "labels", y: "labels" }),
+  palette: "viridis",
+  build,
+};

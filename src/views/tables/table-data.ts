@@ -11,7 +11,7 @@
 // store/references.ts.)
 import type { TableData, TableType } from "../../store/types";
 import { seriesKeyOf } from "../../lib/columns";
-import { isGrouped } from "../../lib/dataset";
+import { isGrouped, leadOf } from "../../lib/dataset";
 
 type Cell = string | null;
 
@@ -226,6 +226,62 @@ export function renameColumn(data: TableData, c: number, name: string): TableDat
     ...data,
     columns: data.columns.map((n, i) => (i === c ? name : n)),
     widths: renameKey(data.widths, old, name),
+  };
+}
+
+/** Names pasted onto the columns (Paste Column Names): a copied row or column of `text`,
+ *  given in order from column `from` rightwards, one per column (on a grouped table, per
+ *  group after its lead columns); an empty one keeps its column's name. Columns are added
+ *  for names beyond the last, except on a grouped table, whose groups come from its Groups
+ *  panel (`unplaced`). Refused (`problem`, said) where two columns would share a name, or a
+ *  group's would hold ":" (which parts a group from its sub-column, "A:Y1"). */
+export function pasteNames(
+  data: TableData,
+  type: TableType,
+  from: number,
+  text: string,
+): { data: TableData; renamed: Record<string, string>; unplaced: number } | { problem: string } {
+  const block = parseTSV(text);
+  const names = block.length === 1 ? block[0] : block.map((row) => row[0] ?? null);
+  // What each name goes to: a column, or a grouped table's group (its key, as "A").
+  const grouped = isGrouped(data);
+  const lead = grouped ? leadOf(data) : data.columns.length;
+  const slots = [...data.columns.slice(0, lead), ...new Set(data.columns.slice(lead).map(seriesKeyOf))];
+  const start = from < lead ? from : slots.indexOf(seriesKeyOf(data.columns[from]), lead);
+  const room = grouped ? slots.length - start : names.length;
+  const given = [...slots];
+  names.slice(0, room).forEach((name, i) => (given[start + i] = name ?? given[start + i]));
+  const fresh = freshColumnNames(data.columns, type, given.length - slots.length);
+  const final = given.map((name, i) => name ?? fresh[i - slots.length]);
+  // Lead columns and groups are named apart ("X" and the group "X" make "X" and "X:Y1").
+  for (const part of [final.slice(0, lead), final.slice(lead)]) {
+    const clash = part.find((name, i) => part.indexOf(name) !== i);
+    if (clash !== undefined) return { problem: `Two columns would both be named “${clash}”.` };
+  }
+  const colon = grouped && final.slice(lead).find((name) => name.includes(":"));
+  if (colon) return { problem: `A group's name can't hold “:”, as “${colon}” does.` };
+  const renamed = Object.fromEntries(slots.flatMap((old, i) => (final[i] === old ? [] : [[old, final[i]]])));
+  const unplaced = Math.max(0, names.length - room);
+  if (!Object.keys(renamed).length && final.length === slots.length) return { data, renamed, unplaced };
+  const to = (name: string) => renamed[name] ?? name;
+  const columns = [
+    ...data.columns.map((n, c) => (c < lead ? to(n) : to(seriesKeyOf(n)) + n.slice(n.indexOf(":")))),
+    ...final.slice(slots.length),
+  ];
+  const newName = new Map(data.columns.map((n, c) => [n, columns[c]]));
+  return {
+    data: {
+      ...data,
+      columns,
+      // Added columns start empty.
+      rows:
+        columns.length > data.columns.length
+          ? data.rows.map((row) => [...row, ...Array<Cell>(Math.max(0, columns.length - row.length)).fill(null)])
+          : data.rows,
+      widths: data.widths && Object.fromEntries(Object.entries(data.widths).map(([n, w]) => [newName.get(n) ?? n, w])),
+    },
+    renamed,
+    unplaced,
   };
 }
 

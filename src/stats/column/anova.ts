@@ -158,7 +158,9 @@ export const anovaSpec: ColumnTestSpec<AnovaParams> = {
     const logs = lognormal(p) ? `;${g.map((x) => `${x}<-log(${x})`).join(";")};v<-log(v)` : "";
     const setup =
       `${groupsSetup(groups)}${logs};G<-list(${g.join(",")});` +
-      `n<-lengths(G);m<-sapply(G,mean);s2<-sapply(G,var);a<-summary(aov(v~gr))[[1]]`;
+      // Centered first: aov's QR on values alike in their first digits (1000000000000.4…) loses
+      // the differences between groups (NIST's SmLs09: F 687 instead of 2001).
+      `n<-lengths(G);m<-sapply(G,mean);s2<-sapply(G,var);a<-summary(aov(I(v-mean(v))~gr))[[1]]`;
     const main = welch(p)
       ? `w<-oneway.test(v~gr,var.equal=FALSE);r<-c(F=unname(w$statistic),dfn=unname(w$parameter[1]),dfd=unname(w$parameter[2]),p=w$p.value)`
       : `r<-c(F=a$"F value"[1],dfn=a$Df[1],dfd=a$Df[2],p=a$"Pr(>F)"[1],eta2=a$"Sum Sq"[1]/sum(a$"Sum Sq"));r["f"]<-sqrt(r["eta2"]/(1-r["eta2"]))`;

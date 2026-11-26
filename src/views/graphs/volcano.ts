@@ -216,6 +216,7 @@ function build(columns: Column[], options: GraphOptions, paint: Paint, titles?: 
 export const volcano: GraphModule = {
   label: "Volcano plot",
   family: "volcano",
+  axes: () => ({ x: "range", y: "range" }),
   palette: "coolwarm",
   defaults: { pointSize: 5, pointOutline: 0, pointFill: 0.75 },
   points: () => true,

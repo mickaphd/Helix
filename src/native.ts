@@ -135,6 +135,11 @@ export function onCloseRequested(canClose: () => Promise<boolean>) {
 /** The accent color chosen in System Settings ▸ Appearance (#RRGGBB), or null. */
 export const accentColor = () => (isNative ? invoke<string | null>("accent_color") : Promise.resolve(null));
 
+/** The text on the clipboard, read for a command of Helix's own (a paste gets it with its
+ *  event); in a browser, as it allows. */
+export const clipboardText = () =>
+  isNative ? invoke<string | null>("clipboard_text") : navigator.clipboard.readText().catch(() => null);
+
 // One request at a time: two sent together may reach the shell in either order, and a
 // wheel shown after it was taken away would spin for ever.
 let spinner = Promise.resolve();
